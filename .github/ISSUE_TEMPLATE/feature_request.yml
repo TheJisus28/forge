@@ -1,0 +1,44 @@
+name: Feature request
+description: Suggest a change to the Forge workflow or CLI.
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do, and where does Forge get in the way?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of the workflow does this affect?
+      options:
+        - Proposing work
+        - The contract and its approval
+        - Implementation phases
+        - Review
+        - Archiving
+        - CI integration
+        - Agent integration
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: expectation
+    attributes:
+      label: What you would expect Forge to do
+      description: Describe the behaviour you have in mind, including any commands or files it would touch.
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+      description: Other approaches you tried or rejected, and why they did not work.
+    validations:
+      required: false

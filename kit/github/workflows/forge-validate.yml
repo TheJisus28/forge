@@ -1,0 +1,49 @@
+name: forge
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - run: go install github.com/TheJisus28/forge@latest
+
+      # Forge never talks to GitHub. The workflow reads who really approved
+      # and passes it in, so a spec cannot claim an approval that never
+      # happened.
+      - name: Collect approvers
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          approvers=$(gh pr view "$PR" --json reviews \
+            --jq '[.reviews[] | select(.state == "APPROVED") | .author.login] | unique | join(",")')
+          echo "approvers=$approvers" >> "$GITHUB_ENV"
+
+      - name: Validate
+        run: forge validate --approvers "${approvers:-}"
+
+      # A broken main means somebody merged past the rules. Say it out loud.
+      - name: Report a broken main branch
+        if: failure() && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "Forge: main is inconsistent" \
+            --body "\`forge validate\` failed on main after ${{ github.sha }}. Run it locally to see the findings."

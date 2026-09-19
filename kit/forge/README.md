@@ -1,52 +1,37 @@
-# Forge kit
+# .forge
 
-Generic spec-driven kit for coding agents. Language-agnostic. The only
-project-specific files live under [`memory/`](memory/).
+Everything this project agreed on, in files you can read and review.
 
-Aligned with [AGENTS.md](https://agents.md/) (portable agent instructions),
-[GitHub Spec Kit](https://github.com/github/spec-kit) (specify → plan →
-implement → review), and [OpenSpec](https://openspec.dev/) (proposal →
-design → tasks). Forge is smaller: one Go binary, Markdown on disk, no
-runtime besides git.
+| Path | What it is |
+|---|---|
+| `project.md` | What this project is: stack, commands, maintainers, language |
+| `specs/` | One file per unit of work, in any state from proposed to done |
+| `wip/` | Scaffolding of work in flight: plan, changes, review. Deleted when the spec is archived |
+| `decisions/` | Why the system is the way it is. One file per decision |
+| `conventions/` | How code is written here. One file per domain |
+| `BOARD.md` | A generated view. Gitignored; run `forge board` |
+| `kit/` | The machinery: the workflow and the agent roles |
 
-## Layout
+## The one rule
 
-| Piece | Where | Generic? |
-|---|---|---|
-| This guide | README.md | yes |
-| Lifecycle | [LIFECYCLE.md](LIFECYCLE.md) | yes |
-| Board | [BOARD.md](BOARD.md) | project (starts empty) |
-| Agents | [agents/](agents/) | yes |
-| Language playbooks | [playbooks/](playbooks/) | yes; selected by stack |
-| Templates | [templates/](templates/) | yes |
-| Backlog / specs | `backlog/`, `specs/` | project (start empty) |
-| Memory | [memory/](memory/) | **project** |
+**Everything outside `kit/` belongs to the team and Forge never overwrites
+it. `kit/` belongs to Forge and `forge update` rewrites it whole.**
 
-## Session start
+## Where state lives
 
-1. `memory/stack.md` — runtime of **this** repo.
-2. Playbooks listed there (`playbooks/<lang>.md`).
-3. `memory/constitution.md` and `memory/decisions.md`.
-4. [BOARD.md](BOARD.md). If nothing is active, do not invent work.
+The state of a spec is the `status` field in its frontmatter, and only
+`forge` writes it. The board is a projection; if they disagree, the spec
+wins and the board should be regenerated.
 
-Do not create a BL/SPEC unless the user asked for a feature, a change,
-or explicitly "open a BL".
-
-## When there is work
-
-1. Feature or change → backlog item.
-2. Architect turns it into a spec (contract).
-3. Owner approves (`approved` / `lgtm` / `dale`). No implementation before that.
-4. Orchestrator plans and delegates: implementer, qa.
-5. Every status change is written to `specs/SPEC-XXX/record.md`.
-6. Subagents **never** change `status`.
-
-Details: [LIFECYCLE.md](LIFECYCLE.md).
-
-## Plant this kit in another repo
+## Day to day
 
 ```bash
-forge init /path/to/other/repo
+forge status                  # what is open and who is waiting
+forge new "<title>"           # propose work
+forge accept <id> --by <you>  # a maintainer takes it into the queue
+forge start <id>              # begin: checks dependencies first
+forge approve <id> --by <you> # a maintainer approves the contract
+forge archive <id>            # close it, last commit of the pull request
 ```
 
-`--force` rewrites the kit and keeps `memory/` unless `--reset-memory`.
+The full state machine is in [kit/WORKFLOW.md](kit/WORKFLOW.md).

@@ -1,49 +1,65 @@
 # Contributing
 
-Forge is a small Go module with no dependencies. Keep it that way.
+Thanks for looking. Forge is small on purpose, and the best contributions
+usually make it smaller.
 
 ## Ground rules
 
-- Kit Markdown is English. `working_language` exists for *target* repos.
-- Standard library only in the CLI unless there is a strong reason.
-- The scaffolded `AGENTS.md` stays short: Codex concatenates project docs
-  under a size budget, and long instruction files get truncated.
-- Forge never edits a project's source code, only its own files.
-- Conventional Commits, English summaries (`type(scope): summary`).
+- **Standard library only.** A new dependency needs a very good reason.
+- **The kit stays technology-agnostic.** No rules about frameworks,
+  naming or style in `kit/`: those belong to each project's
+  `.forge/conventions/`, decided by its maintainers.
+- **The binary never touches the network.** `nonet_test.go` enforces it.
+- **The CLI owns ids and state.** If a change would let an agent edit
+  `status` by hand, it is the wrong change.
+- Conventional Commits, English summaries: `type(scope): summary`.
 
 ## Local development
 
 ```bash
 go test ./...
-go run . detect /path/to/some/repo
-go run . init /tmp/scratch-repo
+gofmt -l .
+
+# try it against a scratch repository
+go build -o /tmp/forge . && cd /tmp/scratch && /tmp/forge init && /tmp/forge status
 ```
 
 ## Where things live
 
 | Path | What |
 |---|---|
-| `kit/` | the kit itself: agents, memory, playbooks, templates. Embedded via `go:embed` |
-| `main.go` | command parsing and help text |
-| `internal/detect` | manifest-based stack detection |
-| `internal/stackmd` | renders `forge/memory/stack.md` |
-| `internal/initcmd` | copies the kit, preserves project memory |
+| `kit/` | The Markdown planted in other repositories, embedded via `go:embed` |
+| `internal/doc` | Frontmatter parsing and writing |
+| `internal/workflow` | States, transitions and gates |
+| `internal/project` | `.forge` loading, specs, coverage, dependencies |
+| `internal/view` | Brief, status and board |
+| `internal/validate` | The CI rules |
+| `internal/cli` | Commands |
 
-Most contributions are Markdown under `kit/`. Anything added there is planted
-by the next `forge init`; `kit/cursor/`, `kit/claude/`, and `kit/github/` land
-as the dotted directories `.cursor/`, `.claude/`, `.github/`.
+Most contributions are Markdown under `kit/`. Anything you add there is
+planted by the next `forge init`; `kit/forge/` lands as `.forge/`,
+`kit/claude/` as `.claude/` and `kit/github/` as `.github/`. A test fails if
+you add a file that the `go:embed` line does not cover.
 
-## Adding a language playbook
+## Adding a command
 
-1. Add `kit/forge/playbooks/<lang>.md` following the shape of the existing
-   ones: signals, habits, "do not".
-2. Teach `internal/detect` to append `<lang>` to `Playbooks` when the matching
-   manifest exists, and to fill `test` / `dev` / `runtime`.
-3. Add a case to `internal/detect/detect_test.go`.
-4. List it in `kit/forge/playbooks/README.md` and in the detection table of
-   the README.
+1. Implement it in `internal/cli`, keeping the rules in the packages that
+   own them rather than in the command.
+2. Add it to the usage text in `internal/cli/cli.go` and to
+   `docs/cli.md`.
+3. Cover it in `internal/cli/cli_test.go`, which runs commands end to end
+   against a temporary repository.
+
+## Supporting another agent
+
+`AGENTS.md` is the single source of truth and the roles live in
+`kit/forge/kit/agents/`. Support for a new tool is a thin wrapper that
+points at them, plus the mapping in `internal/cli/init.go`. Keep the
+wrapper short: duplicating a role is how the two copies start disagreeing.
 
 ## Releasing
 
 Tag `vX.Y.Z` on `main`. The release workflow runs GoReleaser and publishes
 binaries; `go install github.com/TheJisus28/forge@latest` picks up the tag.
+Update `CHANGELOG.md` in the same pull request as the change, not at
+release time.

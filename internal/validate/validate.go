@@ -1,0 +1,324 @@
+// Package validate holds the consistency rules Forge enforces in CI: the
+// ones that keep the process honest when nobody is watching.
+package validate
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/TheJisus28/forge/internal/project"
+	"github.com/TheJisus28/forge/internal/workflow"
+)
+
+// Severity separates what breaks the build from what is only worth saying.
+type Severity int
+
+const (
+	Warning Severity = iota
+	Error
+)
+
+func (s Severity) String() string {
+	if s == Error {
+		return "error"
+	}
+	return "warning"
+}
+
+// Finding is one problem found in the project.
+type Finding struct {
+	Severity Severity
+	Spec     string
+	Message  string
+}
+
+func (f Finding) String() string {
+	if f.Spec == "" {
+		return fmt.Sprintf("%-7s %s", f.Severity, f.Message)
+	}
+	return fmt.Sprintf("%-7s %s: %s", f.Severity, f.Spec, f.Message)
+}
+
+// Options tune the checks CI can make but a laptop cannot.
+type Options struct {
+	// Approvers are the real approvers of the pull request, passed in by the
+	// workflow. Forge never asks GitHub itself.
+	Approvers []string
+}
+
+// Run checks the project and returns every finding, errors first.
+func Run(p *project.Project, opt Options) []Finding {
+	var out []Finding
+	add := func(sev Severity, spec, format string, args ...any) {
+		out = append(out, Finding{sev, spec, fmt.Sprintf(format, args...)})
+	}
+
+	if !p.Configured() {
+		add(Warning, "", "project.md has no maintainers or no test command; run the onboarding")
+	}
+
+	seen := map[string]string{}
+	for _, s := range p.Specs {
+		if prev, dup := seen[s.ID]; dup {
+			add(Error, s.ID, "duplicate id, also in %s; run forge renumber",
+				filepath.Base(prev))
+		}
+		seen[s.ID] = s.Path
+
+		if strings.TrimSpace(s.Title) == "" {
+			add(Error, s.ID, "missing title")
+		}
+		if !workflow.Valid(s.Status) {
+			add(Error, s.ID, "unknown status %q", s.Status)
+			continue
+		}
+		checkRelations(p, s, add)
+		checkArtifacts(p, s, add)
+		checkApprovals(p, s, opt, add)
+	}
+
+	for _, s := range p.Specs {
+		checkCoverage(p, s, add)
+	}
+	for _, d := range drift(p) {
+		add(Error, "", "%s", d)
+	}
+
+	sortFindings(out)
+	return out
+}
+
+func checkRelations(p *project.Project, s *project.Spec, add func(Severity, string, string, ...any)) {
+	if s.Parent != "" {
+		if _, ok := p.Spec(s.Parent); !ok {
+			add(Error, s.ID, "parent %s does not exist", s.Parent)
+		} else if cycle := parentCycle(p, s); cycle != "" {
+			add(Error, s.ID, "parent cycle: %s", cycle)
+		}
+	}
+	if len(s.Covers) > 0 && s.Parent == "" {
+		add(Error, s.ID, "declares covers but has no parent")
+	}
+	if parent, ok := p.Spec(s.Parent); ok {
+		known := map[string]bool{}
+		for _, c := range parent.Criteria() {
+			known[c.ID] = true
+		}
+		for _, ac := range s.Covers {
+			if !known[ac] {
+				add(Error, s.ID, "covers %s, which %s does not declare", ac, parent.ID)
+			}
+		}
+	}
+	for _, d := range s.Deps {
+		if d.Level != "" && d.Level != "contract" {
+			add(Error, s.ID, "dependency %s has unknown level %q; use @contract or nothing",
+				d.ID, d.Level)
+		}
+		if _, ok := p.Spec(d.ID); !ok {
+			add(Error, s.ID, "depends on %s, which does not exist", d.ID)
+		}
+	}
+	if cycle := depCycle(p, s); cycle != "" {
+		add(Error, s.ID, "dependency cycle: %s", cycle)
+	}
+}
+
+func checkArtifacts(p *project.Project, s *project.Spec, add func(Severity, string, string, ...any)) {
+	wip := p.WipDirFor(s.ID)
+	exists := func(name string) bool {
+		_, err := os.Stat(filepath.Join(wip, name))
+		return err == nil
+	}
+	switch s.Status {
+	case workflow.AwaitingApproval, workflow.Planning, workflow.Implementing, workflow.Reviewing:
+		if strings.TrimSpace(s.Contract()) == "" {
+			add(Error, s.ID, "is %s with an empty Contract section", s.Status)
+		}
+	}
+	switch s.Status {
+	case workflow.Implementing:
+		if !exists("plan.md") {
+			add(Error, s.ID, "is implementing without .forge/wip/%s/plan.md", s.ID)
+		}
+	case workflow.Reviewing:
+		if !exists("review.md") {
+			add(Error, s.ID, "is reviewing without .forge/wip/%s/review.md", s.ID)
+		}
+	case workflow.Done:
+		if _, err := os.Stat(wip); err == nil {
+			add(Error, s.ID, "is done but .forge/wip/%s still exists; run forge archive", s.ID)
+		}
+		if s.ApprovedBy == "" {
+			add(Error, s.ID, "is done without an approved contract")
+		}
+	}
+}
+
+func checkApprovals(p *project.Project, s *project.Spec, opt Options,
+	add func(Severity, string, string, ...any)) {
+	for _, pair := range []struct{ who, what string }{
+		{s.AcceptedBy, "accepted_by"},
+		{s.ApprovedBy, "approved_by"},
+	} {
+		if pair.who == "" {
+			continue
+		}
+		if !p.IsMaintainer(pair.who) {
+			add(Error, s.ID, "%s is %q, who is not in maintainers", pair.what, pair.who)
+		}
+		if len(opt.Approvers) > 0 && !contains(opt.Approvers, pair.who) {
+			add(Error, s.ID, "%s claims %q, who did not approve this pull request",
+				pair.what, pair.who)
+		}
+	}
+	if s.ApprovedBy != "" && s.Conductor != "" &&
+		strings.EqualFold(s.ApprovedBy, s.Conductor) && !p.AllowSelfApproval() {
+		add(Error, s.ID, "%s approved the contract they conducted", s.ApprovedBy)
+	}
+}
+
+func checkCoverage(p *project.Project, s *project.Spec, add func(Severity, string, string, ...any)) {
+	children := p.Children(s.ID)
+	if len(children) == 0 || s.Status == workflow.Dropped {
+		return
+	}
+	anyDone := false
+	for _, c := range children {
+		if c.Status == workflow.Done {
+			anyDone = true
+		}
+	}
+	for _, row := range p.Coverage(s) {
+		if len(row.By) > 0 {
+			continue
+		}
+		sev := Warning
+		if anyDone {
+			sev = Error
+		}
+		add(sev, s.ID, "%s is not covered by any child: %s", row.Criterion.ID, row.Criterion.Text)
+	}
+	if s.Status == workflow.Done {
+		for _, row := range p.Coverage(s) {
+			for _, child := range row.By {
+				if child.Status != workflow.Done {
+					add(Error, s.ID, "is done but %s covering %s is %s",
+						child.ID, row.Criterion.ID, child.Status)
+				}
+			}
+		}
+	}
+}
+
+func drift(p *project.Project) []string {
+	var out []string
+	for _, s := range p.Specs {
+		if s.ContractChanged() {
+			out = append(out, fmt.Sprintf(
+				"%s: the contract changed after %s approved it; re-approve it so whoever "+
+					"depends on it is told", s.ID, s.ApprovedBy))
+		}
+		if workflow.Terminal(s.Status) {
+			continue
+		}
+		for dep, hash := range s.Agreed {
+			other, ok := p.Spec(dep)
+			if !ok || other.ContractHash == "" || other.ContractHash == hash {
+				continue
+			}
+			out = append(out, fmt.Sprintf(
+				"%s builds against %s's contract %s, but it is now %s; realign and re-approve",
+				s.ID, dep, hash, other.ContractHash))
+		}
+	}
+	return out
+}
+
+func parentCycle(p *project.Project, s *project.Spec) string {
+	seen := map[string]bool{s.ID: true}
+	path := []string{s.ID}
+	cur := s
+	for cur.Parent != "" {
+		next, ok := p.Spec(cur.Parent)
+		if !ok {
+			return ""
+		}
+		path = append(path, next.ID)
+		if seen[next.ID] {
+			return strings.Join(path, " -> ")
+		}
+		seen[next.ID] = true
+		cur = next
+	}
+	return ""
+}
+
+func depCycle(p *project.Project, start *project.Spec) string {
+	var path []string
+	visiting := map[string]bool{}
+	var walk func(*project.Spec) bool
+	walk = func(s *project.Spec) bool {
+		if visiting[s.ID] {
+			path = append(path, s.ID)
+			return true
+		}
+		visiting[s.ID] = true
+		path = append(path, s.ID)
+		for _, d := range s.Deps {
+			next, ok := p.Spec(d.ID)
+			if !ok {
+				continue
+			}
+			if walk(next) {
+				return true
+			}
+		}
+		visiting[s.ID] = false
+		path = path[:len(path)-1]
+		return false
+	}
+	if walk(start) {
+		return strings.Join(path, " -> ")
+	}
+	return ""
+}
+
+// HasErrors reports whether any finding blocks the build.
+func HasErrors(findings []Finding) bool {
+	for _, f := range findings {
+		if f.Severity == Error {
+			return true
+		}
+	}
+	return false
+}
+
+func sortFindings(f []Finding) {
+	for i := 1; i < len(f); i++ {
+		for j := i; j > 0 && less(f[j], f[j-1]); j-- {
+			f[j], f[j-1] = f[j-1], f[j]
+		}
+	}
+}
+
+func less(a, b Finding) bool {
+	if a.Severity != b.Severity {
+		return a.Severity > b.Severity
+	}
+	if a.Spec != b.Spec {
+		return a.Spec < b.Spec
+	}
+	return a.Message < b.Message
+}
+
+func contains(list []string, want string) bool {
+	for _, s := range list {
+		if strings.EqualFold(strings.TrimSpace(s), strings.TrimSpace(want)) {
+			return true
+		}
+	}
+	return false
+}

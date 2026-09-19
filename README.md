@@ -1,156 +1,134 @@
 # Forge
 
-A tiny **Go** CLI that plants a spec-driven agent kit into any git repository.
+[![ci](https://github.com/TheJisus28/forge/actions/workflows/ci.yml/badge.svg)](https://github.com/TheJisus28/forge/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/TheJisus28/forge?sort=semver)](https://github.com/TheJisus28/forge/releases)
+[![go report](https://goreportcard.com/badge/github.com/TheJisus28/forge)](https://goreportcard.com/report/github.com/TheJisus28/forge)
+[![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-One binary, Markdown on disk, no runtime added to your project. Works with
-the agents you already use: Codex, Cursor, Claude Code, Gemini CLI, Copilot.
+**A spec-driven workflow for coding agents, in files your team owns.**
+
+One Go binary, no dependencies, no account, no server. It plants a `.forge/`
+directory in your repository and then keeps the process honest: ids, states,
+dependencies, coverage and validation are the tool's job, so the agents can
+spend their tokens on the work.
 
 ```bash
 go install github.com/TheJisus28/forge@latest
-cd my-project
+cd your-project
 forge init
 ```
 
+Then open your agent and say: **"run the Forge onboarding"**.
+
 ## Why
 
-Every chat with a coding agent rediscovers the same things: what the stack is,
-what was already decided, what is allowed. Forge writes that down once, in
-files the agents already read.
+Agents are good at writing code and bad at remembering what your team
+decided. Every session rediscovers the stack, re-infers the conventions, and
+occasionally builds the wrong thing very well.
 
-The workflow is the usual spec-driven loop, kept deliberately thin:
+Forge writes that down once, in Markdown the agents already read, and adds
+the one thing a chat cannot give you: **a contract approved by a human
+before any code exists**.
 
-**backlog → spec → plan → implement → review**
+It ships with **no opinions about your technology**. There is no list of
+frameworks to prefer and no rules about how to name things. What belongs in
+`.forge/conventions/` is what your team decided, and agents propose new ones
+rather than inventing them.
 
-Same idea as [GitHub Spec Kit](https://github.com/github/spec-kit) and
-[OpenSpec](https://openspec.dev/), without a heavy toolchain: no Python, no
-node_modules, no 30 integrations to configure.
+## The loop
 
-## Install
-
-With Go 1.22+:
-
-```bash
-go install github.com/TheJisus28/forge@latest
+```
+proposed → accepted → specifying → awaiting-approval → planning →
+implementing → reviewing → done
 ```
 
-Without Go: download a binary from
-[Releases](https://github.com/TheJisus28/forge/releases) and put it on your
-`PATH`.
+One artifact moves through it: the **spec**. It is born as fifteen lines
+describing a problem and grows a contract as it advances. There is no
+separate backlog item and no separate epic; the backlog is the specs nobody
+started, and an epic is a spec that has children.
 
-From source:
+Two moves belong to a human, and only to a maintainer: accepting work into
+the queue, and approving a contract. Everything else is the agents' job.
 
-```bash
-git clone https://github.com/TheJisus28/forge.git
-cd forge
-go install .
+## What `forge init` plants
+
+```
+your-project/
+├── AGENTS.md  CLAUDE.md          pointers, three lines each
+├── .forge/
+│   ├── project.md                stack, commands, maintainers
+│   ├── specs/                    one file per unit of work, any state
+│   ├── wip/                      plan, changes, review: deleted when archived
+│   ├── decisions/                why the system is like this
+│   ├── conventions/              how code is written here
+│   └── kit/                      the workflow and the agent roles
+├── .claude/                      subagents, skills and session hooks
+└── .github/workflows/            with --ci github
 ```
 
-## Usage
+One rule: everything outside `.forge/kit/` is yours and Forge never
+overwrites it.
 
-```bash
-forge init [dir]     # copy the kit and write forge/memory/stack.md
-forge detect [dir]   # print the stack.md that would be generated
-forge version
-```
+## Agents that start knowing where the project is
 
-| Flag for `init` | Effect |
+For Claude Code, `forge init` installs a `SessionStart` hook that runs
+`forge brief`. Before you type anything, the agent already knows which spec
+your branch is about, what it is waiting for, what is blocked and what
+changed. It runs again after every compaction, so long sessions do not drift.
+
+A `PreToolUse` hook runs `forge guard`, which **denies edits to product code
+while no spec is in `implementing`**, and says how to unblock. That is the
+difference between a workflow people respect and one they respect when they
+are not in a hurry. Turn it off with `guard: off` in `project.md`.
+
+Other agents read `AGENTS.md`, which is the single source the wrappers point
+at. First-class support for Cursor, Codex and Gemini comes next.
+
+## Built for teams
+
+- The number of a spec is reserved by a one-file intake pull request.
+- Work in flight lives in its own branch, so two people never touch the
+  same file; `forge archive` distils it in the last commit, and the main
+  branch only accumulates contracts, decisions and conventions.
+- `depends_on: [SPEC-011@contract]` unblocks a front end as soon as the back
+  end's contract is approved, without waiting for its code. If that contract
+  later changes, `forge validate` fails and names who was building against
+  the old one.
+- Approving a pull request *is* the gate: the workflow records it in the
+  spec, so the file and GitHub cannot tell different stories.
+
+## Local-first
+
+No account, no telemetry, no network calls. Forge reads and writes files;
+`git` and `gh` are invoked explicitly when you ask for them. A test in this
+repository fails if the binary ever imports `net/http`.
+
+## Commands
+
+| | |
 |---|---|
-| `--force` | rewrite the kit when `forge/README.md` already exists |
-| `--reset-memory` | also overwrite `stack.md`, `decisions.md`, `constitution.md` |
-| `--skip-copilot` | skip `.github/copilot-instructions.md` |
+| `forge init` / `update` | plant or refresh the kit |
+| `forge new "<title>"` | propose work |
+| `forge accept` / `approve` | the two maintainer gates |
+| `forge start` / `advance` / `archive` | move the work |
+| `forge status` / `brief` / `board` | what is happening |
+| `forge validate` | the CI check |
+| `forge guard` / `gate` / `sync` | hooks and GitHub integration |
 
-Without `--force`, an initialized repository is left untouched. With
-`--force`, the kit is refreshed and your project memory is preserved unless
-you pass `--reset-memory`. Re-running `init` after an upgrade is the intended
-way to update the kit.
+Full reference: [docs/cli.md](docs/cli.md).
 
-## What `init` writes
+## Documentation
 
-```
-your-repo/
-  AGENTS.md                  # canonical agent instructions, kept short
-  CLAUDE.md                  # @AGENTS.md
-  GEMINI.md
-  forge/
-    README.md                # how the kit works
-    LIFECYCLE.md             # spec state machine
-    BOARD.md                 # backlog + specs table (starts empty)
-    agents/                  # orchestrator, architect, implementer, qa
-      playbooks/               # java, go, node, python
-    templates/               # backlog, spec, plan, changes, qa-report, adr
-    backlog/  specs/         # your work, versioned in git
-    memory/
-      stack.md               # detected languages, runtime, test/dev commands
-      constitution.md        # principles + working_language
-      decisions.md           # decision log
-      adrs/                  # architecture decision records
-  .cursor/rules/forge.mdc
-  .cursor/skills/{spec-workflow,advance-spec}/SKILL.md
-  .claude/skills/{spec-workflow,advance-spec}/SKILL.md
-  .github/copilot-instructions.md
-```
-
-Nothing else is touched. Forge never edits your source code.
-
-## How agents pick it up
-
-| Agent | File it reads |
-|---|---|
-| Codex, Cursor, Amp, Jules, Factory | `AGENTS.md` — the [agents.md](https://agents.md/) convention |
-| Claude Code | `CLAUDE.md` importing `@AGENTS.md`, plus `.claude/skills/` |
-| Gemini CLI | `GEMINI.md` (or point it at `AGENTS.md`) |
-| GitHub Copilot | `.github/copilot-instructions.md` |
-| Cursor | `.cursor/rules/`, `.cursor/skills/` |
-
-`AGENTS.md` is the single source of truth; the rest are thin pointers, so you
-never maintain the same instructions twice.
-
-## Stack detection
-
-`forge init` reads the manifests in the repository root and writes
-`forge/memory/stack.md`:
-
-| Detected | From |
-|---|---|
-| `go`, runtime (echo / chi / gin) | `go.mod` |
-| `node`, `typescript`, package manager, runtime (next / express / fastify) | `package.json`, lockfiles, `tsconfig.json` |
-| `java`, runtime (spring-boot), gradle or maven | `build.gradle`, `build.gradle.kts`, `pom.xml` |
-| `python`, runtime (fastapi / django / flask), uv or poetry or pip | `pyproject.toml`, `requirements.txt`, lockfiles |
-| `rust`, `dart` (noted, no playbook yet) | `Cargo.toml`, `pubspec.yaml` |
-
-Detection is a starting point, not an oracle. Check the YAML and fill in the
-`Facts` section by hand; agents trust that file before they trust habit.
-
-Preview it without writing anything:
-
-```bash
-forge detect
-```
-
-## Language
-
-The kit ships in **English** so it works for any team. Each project sets
-`working_language` in `forge/memory/constitution.md`, so specs, ADRs, and
-user-facing copy can be written in Spanish (or any other language) while the
-agent instructions stay English.
-
-## This repository
-
-```
-kit/            the Markdown that init plants — agents, memory, playbooks,
-                templates, lifecycle. Edit here; it is embedded in the binary.
-internal/detect stack detection from manifests
-internal/stackmd renders memory/stack.md
-internal/initcmd copies the kit, preserves project memory
-main.go         command parsing
-```
-
-Everything the agents ever read lives under `kit/`. The Go code only
-copies it, so a change to the methodology is a Markdown change.
+- [Workflow](docs/workflow.md) — states, hierarchy, coverage, dependencies
+- [Teams](docs/teams.md) — branches, pull requests, gates, CI
+- [Conventions](docs/conventions.md) — how a project accumulates criteria
+- [CLI reference](docs/cli.md)
+- [Customizing](docs/customizing.md) — templates, roles, other agents
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+Issues and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
+The kit is Markdown under `kit/`, and most improvements are changes there.
 
 ## License
 

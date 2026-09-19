@@ -1,0 +1,57 @@
+name: Bug report
+description: Report incorrect or unexpected behaviour in the Forge CLI.
+labels:
+  - bug
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Describe the behaviour you observed. Paste any output or error message.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: Describe what you expected Forge to do instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Command
+      description: The exact command you ran, including flags and arguments.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: version
+    attributes:
+      label: forge version
+      description: Output of `forge version`.
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      description: For example, Windows 11, macOS 15, Ubuntu 24.04.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: initialized
+    attributes:
+      label: Was the repository initialized with `forge init`?
+      options:
+        - "Yes"
+        - "No"
+        - "Not sure"
+    validations:
+      required: true

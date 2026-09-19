@@ -1,31 +1,38 @@
 # AGENTS
 
-This repository uses **Forge** for spec-driven agentic development. `AGENTS.md` is the portable instruction file ([agents.md](https://agents.md/)): Codex, Cursor, Amp, Gemini CLI, and others read it. Keep this file short.
+This repository uses **Forge**: work is agreed before it is built, and the
+agreement lives in `.forge/`. Keep this file short; it is read every session.
 
-## Before you code
+## Before anything
 
-1. Read `forge/memory/stack.md` — languages, runtime, test/dev commands for **this** repo.
-2. Read `forge/memory/constitution.md` — project principles and working language.
-3. Read `forge/BOARD.md`. Do not open a backlog item unless the user asked for work.
+1. `.forge/project.md` — stack, commands, maintainers. If it is still
+   unanswered, run the Forge onboarding and fill it before writing code.
+2. `.forge/conventions/` — how code is written here. Never assume a
+   convention that is not written down; propose it instead.
+3. `forge status` — what is open, who is waiting, what is blocked.
 
-You are the **orchestrator** (`forge/agents/orchestrator.md`) unless the user assigns another role.
+## The loop
+
+```
+proposed → accepted → specifying → awaiting-approval → planning →
+implementing → reviewing → done
+```
+
+- Anyone proposes: `forge new "<title>"`.
+- Only a maintainer accepts (`forge accept`) and approves a contract
+  (`forge approve`). Ask; never assume approval.
+- No product code until the spec is `implementing`.
+- The CLI owns ids, state, history and the board. Never edit `status` by
+  hand and never renumber a spec yourself.
 
 ## Roles
 
-- `forge/agents/architect.md` — specs and ADRs (read-only on product code)
-- `forge/agents/implementer.md` — writes product code
-- `forge/agents/qa.md` — verifies acceptance criteria
+Read the role file before acting as one. They live in `.forge/kit/agents/`:
+`orchestrator.md`, `architect.md`, `implementer.md`, `reviewer.md`.
 
-Subagents never change spec `status`. Durable decisions go in `forge/memory/decisions.md` and `forge/memory/adrs/`.
+You are the orchestrator unless you were launched as another role.
 
 ## Language
 
-Kit files and agent instructions are **English**. Specs, ADRs, and user-facing product copy may use the `working_language` in `forge/memory/constitution.md` (for example `es`).
-
-## Commands
-
-Use the `test` and `dev` commands from `forge/memory/stack.md`. List them here only if you need a short reminder; do not duplicate the YAML.
-
-## Spec workflow
-
-Backlog → spec → plan → implement → review. See `forge/LIFECYCLE.md`. Owner approval (`approved`, `lgtm`, or `dale`) is required before implementation.
+Process files are English. Specs, decisions and product copy may use the
+`working_language` declared in `.forge/project.md`.
