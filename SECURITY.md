@@ -10,7 +10,8 @@ release; older tags do not receive backports.
 Please report privately, not in a public issue:
 
 - Open a report through GitHub private vulnerability reporting on
-  [TheJisus28/forge](https://github.com/TheJisus28/forge/security/advisories/new), or
+  [TheJisus28/forge](https://github.com/TheJisus28/forge/security/advisories/new)
+  (requires the maintainer to have this feature enabled on the repository), or
 - Email jesus.carrascalh@gmail.com.
 
 Include a description of the issue, the steps needed to reproduce it, and what
