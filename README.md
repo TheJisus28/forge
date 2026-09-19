@@ -1,8 +1,6 @@
 # Forge
 
 [![ci](https://github.com/TheJisus28/forge/actions/workflows/ci.yml/badge.svg)](https://github.com/TheJisus28/forge/actions/workflows/ci.yml)
-[![release](https://img.shields.io/github/v/release/TheJisus28/forge?sort=semver)](https://github.com/TheJisus28/forge/releases)
-[![go report](https://goreportcard.com/badge/github.com/TheJisus28/forge)](https://goreportcard.com/report/github.com/TheJisus28/forge)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 **A spec-driven workflow for coding agents, in files your team owns.**
