@@ -1,0 +1,8 @@
+# Binaries
+/forge
+/forge.exe
+/dist/
+
+# Go
+*.test
+*.out
