@@ -1,9 +1,9 @@
 # Using Forge with opencode
 
 Forge works with [opencode](https://opencode.ai) out of the box. `forge init`
-plants the same process it plants for Claude Code, plus the two things
-opencode needs that Claude Code has no equivalent for: the subagents and the
-guard plugin.
+plants the same process it plants for Claude Code, plus what opencode needs
+that Claude Code has no equivalent for: the subagents, the guard plugin and
+the brief plugin.
 
 ## Install
 
@@ -23,8 +23,8 @@ guard plugin.
 
 3. Open opencode in that directory and say: **"run the Forge onboarding"**.
 
-`forge` must be on your `PATH`: the guard plugin runs it before edits, the
-same way the Claude Code hook does.
+`forge` must be on your `PATH`: the plugins run it before edits and to build
+the brief, the same way the Claude Code hooks do.
 
 ## What opencode reads
 
@@ -34,6 +34,7 @@ same way the Claude Code hook does.
 | `.claude/skills/forge-*/SKILL.md` | skills, through opencode's Claude Code compatibility |
 | `.opencode/agents/forge-*.md` | the architect, implementer and reviewer subagents |
 | `.opencode/plugins/forge-guard.js` | the guard, as a `tool.execute.before` hook |
+| `.opencode/plugins/forge-brief.js` | the brief, in the system prompt and the compaction prompt |
 
 `CLAUDE.md` is planted too, but opencode prefers `AGENTS.md`, so it is only
 used by Claude Code.
@@ -59,6 +60,18 @@ the start with `forge init --no-guard`. To see what it would decide:
 forge guard --explain --file src/whatever.ts
 ```
 
+## The brief
+
+Claude Code runs `forge brief` from a `SessionStart` hook. opencode has no
+such hook, so `.opencode/plugins/forge-brief.js` puts the brief in the system
+prompt instead, at session start and after every compaction. It also feeds
+the brief into the compaction prompt, so the summary keeps the state the
+session needs to resume.
+
+The block is refreshed, not appended, so it never grows, and it sits after the
+static instructions: a provider cache still hits the stable prefix. In a
+repository without Forge, or with `forge` missing, it injects nothing.
+
 ## Verify it works
 
 ```bash
@@ -78,7 +91,7 @@ never touches your `specs/`, `decisions/`, `conventions/` or `project.md`.
 ## Notes
 
 - opencode loads its configuration at startup. After `forge init` or `forge
-  update`, restart opencode so the new subagents and plugin are picked up.
+  update`, restart opencode so the new subagents and plugins are picked up.
 - Forge does not touch your `opencode.json`. The integration relies on the
   auto-discovered `.opencode/` directories and on `AGENTS.md`, so no config
   file is required.
