@@ -43,8 +43,10 @@ the decisions for the user, make sure `## Open questions` in
 
 ## Approved work
 
-First survey what already exists: `forge status`, the contracts of the
-delivered specs, and the code that already does part of the job. Fill
+First survey what already exists: `forge capabilities` derives the current
+contracts grouped by capability and marks what each one supersedes. Then
+read the contracts it points at, run `forge status` for what is open, and
+search the code that already does part of the job. Fill
 `## Existing state` in `.forge/specs/<id>/plan.md` with what you will reuse
 and what is genuinely new, write the phases in `.forge/specs/<id>/plan.md`
 and the same phases as checkboxes in `.forge/specs/<id>/tasks.md`, then run

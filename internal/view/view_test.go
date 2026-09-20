@@ -59,6 +59,26 @@ func TestBrief_CapsDeliveredAndPointsAtStatus(t *testing.T) {
 	}
 }
 
+// The brief summarises the current shape, one line per capability, or
+// nothing at all when no done spec declares one.
+func TestBrief_ShowsCapabilitySummary(t *testing.T) {
+	p := doneProject(t, 2)
+	if brief := view.Brief(p); strings.Contains(brief, "capabilities:") {
+		t.Errorf("with no capabilities the brief should stay silent:\n%s", brief)
+	}
+
+	p.Specs[0].Capability = "workflow"
+	p.Specs[1].Capability = "workflow"
+	p.Specs[1].Supersedes = []string{"SPEC-001"}
+	brief := view.Brief(p)
+	if !strings.Contains(brief, "capabilities:") || !strings.Contains(brief, "workflow") {
+		t.Fatalf("the brief should summarise the capabilities:\n%s", brief)
+	}
+	if !strings.Contains(brief, "1 current contract") {
+		t.Errorf("one of the two workflow contracts is superseded:\n%s", brief)
+	}
+}
+
 // The detail surfaces the capability right below the status, so an agent
 // reads which part of the system it touches before anything else.
 func TestDetail_ShowsCapability(t *testing.T) {

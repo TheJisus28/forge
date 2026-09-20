@@ -143,6 +143,55 @@ func TestLoad_ReadsSupersedes(t *testing.T) {
 	}
 }
 
+// The capability view is the delivered specs grouped by capability: names
+// alphabetical, contracts by number, and a superseded contract still listed
+// but marked with who replaces it.
+func TestCapabilities_GroupsOrdersAndMarksSuperseded(t *testing.T) {
+	root := write(t, config, map[string]string{
+		"SPEC-001-alpha.md":   "---\nid: SPEC-001\ntitle: Alpha\nstatus: done\ncapability: workflow\n---\n",
+		"SPEC-002-bravo.md":   "---\nid: SPEC-002\ntitle: Bravo\nstatus: done\ncapability: payments\n---\n",
+		"SPEC-003-charlie.md": "---\nid: SPEC-003\ntitle: Charlie\nstatus: done\ncapability: workflow\n---\n",
+		"SPEC-004-delta.md":   "---\nid: SPEC-004\ntitle: Delta\nstatus: done\ncapability: payments\nsupersedes: [SPEC-002]\n---\n",
+		"SPEC-005-echo.md":    "---\nid: SPEC-005\ntitle: Echo\nstatus: proposed\ncapability: workflow\n---\n",
+		"SPEC-006-foxtrot.md": "---\nid: SPEC-006\ntitle: Foxtrot\nstatus: done\n---\n",
+		"SPEC-007-golf.md":    "---\nid: SPEC-007\ntitle: Golf\nstatus: dropped\ncapability: workflow\nsupersedes: [SPEC-003]\n---\n",
+	})
+	p, err := project.Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	groups := p.Capabilities()
+	if len(groups) != 2 {
+		t.Fatalf("capabilities = %d, want 2: %+v", len(groups), groups)
+	}
+	if groups[0].Name != "payments" || groups[1].Name != "workflow" {
+		t.Fatalf("capabilities should be in name order: %+v", groups)
+	}
+
+	payments := groups[0].Contracts
+	if len(payments) != 2 || payments[0].ID != "SPEC-002" || payments[1].ID != "SPEC-004" {
+		t.Fatalf("payments contracts = %+v, want [SPEC-002 SPEC-004]", payments)
+	}
+	if got := payments[0].SupersededBy; len(got) != 1 || got[0] != "SPEC-004" {
+		t.Errorf("SPEC-002 superseded by = %v, want [SPEC-004]", got)
+	}
+	if payments[0].Current() {
+		t.Error("SPEC-002 is superseded by a done spec, so it is not current")
+	}
+	if !payments[1].Current() {
+		t.Error("SPEC-004 is not superseded, so it is current")
+	}
+
+	workflow := groups[1].Contracts
+	if len(workflow) != 2 || workflow[0].ID != "SPEC-001" || workflow[1].ID != "SPEC-003" {
+		t.Fatalf("workflow contracts = %+v, want [SPEC-001 SPEC-003]", workflow)
+	}
+	if !workflow[1].Current() {
+		t.Error("a dropped spec must not bury the contract it supersedes")
+	}
+}
+
 func TestCoverage(t *testing.T) {
 	p := load(t)
 	root, _ := p.Spec("SPEC-001")

@@ -48,8 +48,10 @@ One phase per implementer run. Short contexts beat long ones.
 ## Before planning
 
 Planning starts from what exists, not from an empty file. Run `forge
-status`, read the contracts of the delivered specs, and search the code for
-modules or tools that already do part of the job. Then fill `## Existing
+capabilities` first: it derives the current contracts, grouped by capability
+and marked with what each one supersedes. Then read the contracts it points
+at, run `forge status` for what is open, and search the code for modules or
+tools that already do part of the job. Then fill `## Existing
 state` in `.forge/specs/<id>/plan.md`: what this builds on, what it reuses,
 the conventions that apply, the duplication it avoids, and what genuinely
 has to be built. Planning writes both `.forge/specs/<id>/plan.md` and
