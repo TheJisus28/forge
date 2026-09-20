@@ -1476,6 +1476,32 @@ func TestDocPages_DocumentTheCriterionRule(t *testing.T) {
 	})
 }
 
+// The checkpoint is documented where a user looks: the command section and
+// the workflow page (SPEC-020, AC5).
+func TestDocPages_DocumentTheCheckpoint(t *testing.T) {
+	cli := read(t, "../../docs/cli.md")
+
+	push := docsSection(cli, "### `forge push")
+	if push == "" {
+		t.Fatal("docs/cli.md should document `forge push`")
+	}
+	if !strings.Contains(push, "checkpoint") {
+		t.Errorf("the forge push section should name the checkpoint:\n%s", push)
+	}
+	if !strings.Contains(push, "default branch") {
+		t.Errorf("the forge push section should state the default-branch refusal:\n%s", push)
+	}
+
+	advance := docsSection(cli, "### `forge advance")
+	if !strings.Contains(advance, "push: on") {
+		t.Errorf("the forge advance section should document the push: on opt-in:\n%s", advance)
+	}
+
+	if !strings.Contains(read(t, "../../docs/workflow.md"), "forge push") {
+		t.Error("docs/workflow.md should name `forge push` beside the checkpoint rule")
+	}
+}
+
 // `forge start` creates the spec folder and records fingerprints; planning
 // writes `plan.md` and `tasks.md` after approval. The page must match the
 // command and not claim start creates them (AC3).

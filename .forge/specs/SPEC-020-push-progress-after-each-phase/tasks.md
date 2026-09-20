@@ -73,10 +73,22 @@ later spec knows what exists without reading the diff.
   subject, a clean tree at push time, and the pushed branch.
   Verified: `go test ./...` all `ok`; `gofmt -l .` empty; `go vet ./...`
   clean; `TestSubmit_CommitsBeforePush` passes with `-v`.
-- [ ] Phase 5 — Docs, roles and changelog. Moves: AC5. Where:
+- [x] Phase 5 — Docs, roles and changelog. Moves: AC5. Where:
   `docs/cli.md`, `docs/workflow.md`, `kit/machine/roles/implementer.md`,
   `kit/machine/roles/orchestrator.md`, `CHANGELOG.md`; tests in
   `internal/cli/cli_test.go`, `internal/cli/machine_test.go`.
+  Landed: `docs/cli.md` gains a `forge push` section (commit subject,
+  default-branch refusal, the `nothing to push` line), names the `push: on`
+  opt-in in `forge advance`, and says `forge submit` commits pending work
+  first; the network list in the intro names `forge push`/`forge submit`.
+  `docs/workflow.md` gains a `## Checkpoints` section. The implementer role
+  runs `forge push` after a phase; the orchestrator role names the `push: on`
+  opt-in. `CHANGELOG.md` adds the `[Unreleased]` entry.
+  Tests: `TestDocPages_DocumentTheCheckpoint` (scopes the `forge push` and
+  `forge advance` sections, checks `docs/workflow.md`),
+  `TestRoles_DocumentTheCheckpoint` (the two role printouts).
+  Verified: `go test ./...` all `ok`; `gofmt -l .` empty; `go vet ./...`
+  clean; both tests pass with `-v`.
 
 ## Proposed conventions
 

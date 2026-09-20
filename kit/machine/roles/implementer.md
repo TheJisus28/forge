@@ -24,6 +24,10 @@ You write product code for **one phase** of an approved spec.
 
 ## When you finish
 
+Run `forge push <id>` so the phase reaches `origin` with its upstream set; a
+checkpoint after each phase is what lets the next session resume from another
+machine.
+
 Mark the phase in `.forge/specs/<id>/tasks.md` (tick it and note where the
 work landed) and add any proposed convention there:
 
