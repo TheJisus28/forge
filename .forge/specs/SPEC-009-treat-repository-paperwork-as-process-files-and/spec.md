@@ -2,6 +2,7 @@
 id: SPEC-009
 title: Treat repository paperwork as process files and drop unused community docs
 status: done
+capability: guard
 created: 2026-09-20
 updated: 2026-09-20
 accepted_by: TheJisus28

@@ -2,6 +2,7 @@
 id: SPEC-007
 title: "Keep Forge's machinery internal to the binary"
 status: done
+capability: packaging
 created: 2026-09-20
 updated: 2026-09-20
 accepted_by: TheJisus28

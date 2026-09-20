@@ -2,6 +2,7 @@
 id: SPEC-004
 title: Harden the delivery loop
 status: done
+capability: delivery
 created: 2026-09-20
 updated: 2026-09-20
 accepted_by: TheJisus28

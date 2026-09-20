@@ -334,3 +334,21 @@ func TestRun_AnyHandleCanAcceptOrApprove(t *testing.T) {
 		t.Fatalf("no authorization checks should fire: %v", got)
 	}
 }
+
+// Every delivered spec in this repository declares a capability (SPEC-013),
+// so a future spec that copies an old file cannot silently reintroduce the
+// missing-capability warning.
+func TestDeliveredSpecsDeclareCapability(t *testing.T) {
+	p, err := project.Load(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatalf("load repository: %v", err)
+	}
+	for _, s := range p.Specs {
+		if s.Status != "done" {
+			continue
+		}
+		if !project.ValidCapability(s.Capability) {
+			t.Errorf("%s is done without a capability", s.ID)
+		}
+	}
+}

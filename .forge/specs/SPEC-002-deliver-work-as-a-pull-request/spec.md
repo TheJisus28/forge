@@ -2,6 +2,7 @@
 id: SPEC-002
 title: Deliver work as a pull request
 status: done
+capability: delivery
 created: 2026-09-19
 updated: 2026-09-19
 accepted_by: TheJisus28

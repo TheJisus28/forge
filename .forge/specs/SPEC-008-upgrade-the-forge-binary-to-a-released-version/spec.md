@@ -2,6 +2,7 @@
 id: SPEC-008
 title: Upgrade the forge binary to a released version
 status: done
+capability: upgrade
 created: 2026-09-20
 updated: 2026-09-20
 accepted_by: TheJisus28

@@ -2,6 +2,7 @@
 id: SPEC-001
 title: Keep an existing AGENTS.md on init
 status: done
+capability: init
 created: 2026-09-19
 updated: 2026-09-19
 accepted_by: carra
