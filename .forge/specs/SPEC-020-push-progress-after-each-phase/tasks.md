@@ -73,7 +73,7 @@ later spec knows what exists without reading the diff.
   subject, a clean tree at push time, and the pushed branch.
   Verified: `go test ./...` all `ok`; `gofmt -l .` empty; `go vet ./...`
   clean; `TestSubmit_CommitsBeforePush` passes with `-v`.
-- [x] Phase 5 — Docs, roles and changelog. Moves: AC5. Where:
+- [x] Phase 5 — Docs, roles and changelog. Moves: AC5, AC6. Where:
   `docs/cli.md`, `docs/workflow.md`, `kit/machine/roles/implementer.md`,
   `kit/machine/roles/orchestrator.md`, `CHANGELOG.md`; tests in
   `internal/cli/cli_test.go`, `internal/cli/machine_test.go`.
