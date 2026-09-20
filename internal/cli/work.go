@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -578,15 +577,11 @@ func pendingConventions(dir string) []string {
 	return out
 }
 
-// commentRe matches an HTML comment, the shape the templates use to ship
-// guidance inside a section without proposing anything. The dash form is
-// excluded so a `<--` typo is not eaten as a comment.
-var commentRe = regexp.MustCompile(`(?s)<!--.*?-->`)
-
 // stripComments removes HTML comments, so the guidance a template ships in a
-// `Proposed conventions` section is not read as a proposal.
+// `Proposed conventions` section is not read as a proposal. The rule lives in
+// internal/doc, shared with the criterion coverage derivation (SPEC-021).
 func stripComments(s string) string {
-	return commentRe.ReplaceAllString(s, "")
+	return doc.StripComments(s)
 }
 
 func isNone(body string) bool {

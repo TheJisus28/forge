@@ -396,13 +396,23 @@ type CriterionGap struct {
 	Kind      string // "task" or "evidence"
 }
 
-// acTokenRe matches a criterion id as a bounded, case-insensitive token in an
-// artifact. A plain `\b` boundary would still match AC1 inside AC1-, so the
-// boundary also rejects a neighbouring hyphen: AC1 never matches AC10, AC1x or
-// AC1-.
-func acTokenRe(id string) *regexp.Regexp {
-	const delim = `[^0-9A-Za-z_-]`
-	return regexp.MustCompile(`(?i)(?:^|` + delim + `)` + regexp.QuoteMeta(id) + `(?:$|` + delim + `)`)
+// tokenRe splits an artifact into the tokens a criterion id is compared
+// against. A token is a run of letters, digits, underscores and hyphens, so
+// AC1, AC10, AC1x and AC1- are four distinct tokens.
+var tokenRe = regexp.MustCompile(`[0-9A-Za-z_-]+`)
+
+// hasToken reports whether text contains id as a whole token, case
+// insensitively. It tokenizes rather than matching a consuming pattern so two
+// ids side by side are both read: in `AC1 AC2` and `AC1,AC2` the delimiter
+// between them is not eaten, while AC1 still does not equal AC10, AC1x or
+// AC1- (SPEC-021, decision 3).
+func hasToken(text, id string) bool {
+	for _, tok := range tokenRe.FindAllString(text, -1) {
+		if strings.EqualFold(tok, id) {
+			return true
+		}
+	}
+	return false
 }
 
 // taskGapApplies reports whether tasks.md is the record for the state: a task
@@ -445,27 +455,28 @@ func (s *Spec) CriterionGaps() []CriterionGap {
 	evidenceRecord := evidenceGapApplies(s.Status)
 
 	// A missing or unreadable file leaves the record empty, which names
-	// nothing and so reads as a gap for every criterion.
+	// nothing and so reads as a gap for every criterion. Comments are
+	// stripped first: a commented `AC1` is template guidance, not a task and
+	// not evidence (SPEC-021, the SPEC-019 principle one reader over).
 	var tasks string
 	if taskRecord {
 		if data, err := os.ReadFile(s.TasksPath()); err == nil {
-			tasks = string(data)
+			tasks = doc.StripComments(string(data))
 		}
 	}
 	var evidence string
 	if evidenceRecord {
 		if d, err := doc.Load(s.ReviewPath()); err == nil {
-			evidence = d.Section("Acceptance criteria")
+			evidence = doc.StripComments(d.Section("Acceptance criteria"))
 		}
 	}
 
 	var out []CriterionGap
 	for _, c := range criteria {
-		re := acTokenRe(c.ID)
-		if taskRecord && !re.MatchString(tasks) {
+		if taskRecord && !hasToken(tasks, c.ID) {
 			out = append(out, CriterionGap{Criterion: c, File: s.TasksPath(), Kind: "task"})
 		}
-		if evidenceRecord && !re.MatchString(evidence) {
+		if evidenceRecord && !hasToken(evidence, c.ID) {
 			out = append(out, CriterionGap{Criterion: c, File: s.ReviewPath(), Kind: "evidence"})
 		}
 	}

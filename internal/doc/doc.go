@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -159,6 +160,20 @@ func (d *Doc) Section(heading string) string {
 		}
 	}
 	return strings.TrimSpace(strings.Join(out, "\n"))
+}
+
+// htmlCommentRe matches an HTML comment, the shape the templates use to ship
+// guidance inside a section without it being read as content. The dash form
+// is excluded so a `<--` typo is not eaten as a comment.
+var htmlCommentRe = regexp.MustCompile(`(?s)<!--.*?-->`)
+
+// StripComments removes HTML comments from s, so the guidance a template
+// ships inside a section is not read as content. It is the one rule the
+// archive gate and the criterion coverage derivation share (SPEC-021, the
+// SPEC-019 principle one reader over). An unterminated comment is left as it
+// is rather than swallowing the rest of the text.
+func StripComments(s string) string {
+	return htmlCommentRe.ReplaceAllString(s, "")
 }
 
 // AppendToSection adds a line at the end of a section, creating the section

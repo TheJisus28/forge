@@ -1027,6 +1027,47 @@ func TestCheck_ReportsUncoveredCriteria(t *testing.T) {
 	}
 }
 
+// A comment is guidance, not coverage: a done spec whose only evidence sits
+// inside an HTML comment still reports the criterion and exits 1, so a
+// commented example cannot fake a settled criterion (SPEC-021, decision 3/5).
+func TestCheck_CommentedEvidenceIsNotCoverage(t *testing.T) {
+	dir := newRepo(t)
+	specDir := checkSpec(t, dir, "SPEC-001", workflow.Done)
+	// A real task, so only the evidence is in question.
+	write(t, filepath.Join(specDir, "tasks.md"), "# Tasks\n\n- [x] Phase 1 — moves AC1\n")
+	write(t, filepath.Join(specDir, "review.md"),
+		"# Review\n\nVerdict: pass\n\n## Acceptance criteria\n\n"+
+			"<!-- | AC1 | pass | `go test ./...` | -->\n")
+
+	out, code := run(t, dir, "check", "SPEC-001")
+	if code != 1 {
+		t.Fatalf("a commented evidence line at done should fail:\n%s", out)
+	}
+	review := filepath.ToSlash(filepath.Join(".forge", "specs", "SPEC-001-a-change", "review.md"))
+	if want := "SPEC-001: AC1 has no evidence in " + review; !strings.Contains(out, want) {
+		t.Errorf("forge check should print %q:\n%s", want, out)
+	}
+}
+
+// Feeding the real `forge template review` output to a done spec still reports
+// the criterion uncovered: the shipped example rows are commented and written
+// as `ACn`, so copying the template cannot read as evidence (SPEC-021,
+// decision 4).
+func TestCheck_TemplateReviewLeavesCriterionUncovered(t *testing.T) {
+	dir := newRepo(t)
+	specDir := checkSpec(t, dir, "SPEC-001", workflow.Done)
+	write(t, filepath.Join(specDir, "tasks.md"), "# Tasks\n\n- [x] Phase 1 — moves AC1\n")
+	write(t, filepath.Join(specDir, "review.md"), mustRun(t, dir, "template", "review"))
+
+	out, code := run(t, dir, "check", "SPEC-001")
+	if code != 1 {
+		t.Fatalf("the review template is not evidence:\n%s", out)
+	}
+	if want := "SPEC-001: AC1 has no evidence in "; !strings.Contains(out, want) {
+		t.Errorf("forge check should print %q:\n%s", want, out)
+	}
+}
+
 // In flight the review does not exist yet, so a criterion with no task is
 // reported and the command still succeeds: it is advice to the implementer,
 // not a failure (SPEC-021, decision 2/5).

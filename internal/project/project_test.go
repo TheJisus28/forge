@@ -487,10 +487,10 @@ func criterionGapsBody(id string, status workflow.State, existing bool) string {
 	return body
 }
 
-// The coverage derivation matches a bounded token: a task names the criteria
-// it moves, evidence lives only in review.md's Acceptance criteria section,
-// and neither AC10 nor AC1x counts as AC1 (SPEC-021, decision 3).
-func TestCriterionGaps_MatchesBoundedTokens(t *testing.T) {
+// criterionGaps writes the two artifacts of a reviewing spec that declares
+// AC1, AC2 and AC3, and returns the gaps the spec derives.
+func criterionGaps(t *testing.T, tasks, review string) (*project.Spec, []project.CriterionGap) {
+	t.Helper()
 	root := write(t, config, map[string]string{
 		"SPEC-001-a.md": criterionGapsBody("SPEC-001", workflow.Reviewing, true),
 	})
@@ -502,16 +502,120 @@ func TestCriterionGaps_MatchesBoundedTokens(t *testing.T) {
 	if !ok {
 		t.Fatal("SPEC-001 should load")
 	}
+	if err := os.WriteFile(s.TasksPath(), []byte(tasks), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(s.ReviewPath(), []byte(review), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return s, s.CriterionGaps()
+}
+
+// gapIDs lists the criteria each gap kind names, in declaration order.
+func gapIDs(gaps []project.CriterionGap) (tasks, evidence []string) {
+	for _, g := range gaps {
+		switch g.Kind {
+		case "task":
+			tasks = append(tasks, g.Criterion.ID)
+		case "evidence":
+			evidence = append(evidence, g.Criterion.ID)
+		}
+	}
+	return tasks, evidence
+}
+
+// The coverage derivation matches a bounded token: a task names the criteria
+// it moves, evidence lives only in review.md's Acceptance criteria section,
+// and neither AC10 nor AC1x counts as AC1 (SPEC-021, decision 3). A token is
+// matched whole, so two ids side by side are both read and no delimiter is
+// consumed between them.
+func TestCriterionGaps_MatchesBoundedTokens(t *testing.T) {
+	cases := []struct {
+		name      string
+		tasks     string
+		evidence  string
+		wantTasks []string
+		wantEvid  []string
+	}{
+		{
+			name:      "a delimited list",
+			tasks:     "- [x] Phase 1 — AC1, AC3, and not AC10 or AC1x.\n",
+			evidence:  "| AC1 | pass | `go test ./...` |\n| AC10 | pass | none |\n| AC1x | pass | none |\n",
+			wantTasks: []string{"AC2"},
+			wantEvid:  []string{"AC2", "AC3"},
+		},
+		{
+			name:      "two ids separated by a space",
+			tasks:     "- [x] Phase 1 — AC1 AC2\n",
+			evidence:  "| AC1 | pass | |\n| AC2 | pass | |\n",
+			wantTasks: []string{"AC3"},
+			wantEvid:  []string{"AC3"},
+		},
+		{
+			name:      "two ids separated by a comma",
+			tasks:     "- [x] Phase 1 — AC1,AC2\n",
+			evidence:  "| AC1 | pass | |\n| AC2 | pass | |\n",
+			wantTasks: []string{"AC3"},
+			wantEvid:  []string{"AC3"},
+		},
+		{
+			name:      "a hyphen and a longer id are different tokens",
+			tasks:     "- [x] Phase 1 — AC1- AC10\n",
+			evidence:  "| AC1- | pass | |\n| AC10 | pass | |\n",
+			wantTasks: []string{"AC1", "AC2", "AC3"},
+			wantEvid:  []string{"AC1", "AC2", "AC3"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s, gaps := criterionGaps(t, tc.tasks,
+				"# Review\n\n## Acceptance criteria\n\n"+tc.evidence+"\n\n"+
+					"## Notes\n\nAC2 is mentioned here but is not evidence.\n")
+			tasks, evidence := gapIDs(gaps)
+			if got, want := strings.Join(tasks, ","), strings.Join(tc.wantTasks, ","); got != want {
+				t.Errorf("task gaps = %q, want %q", got, want)
+			}
+			if got, want := strings.Join(evidence, ","), strings.Join(tc.wantEvid, ","); got != want {
+				t.Errorf("evidence gaps = %q, want %q", got, want)
+			}
+			for _, g := range gaps {
+				switch g.Kind {
+				case "task":
+					if g.File != s.TasksPath() {
+						t.Errorf("task gap %s file = %q, want %q", g.Criterion.ID, g.File, s.TasksPath())
+					}
+				case "evidence":
+					if g.File != s.ReviewPath() {
+						t.Errorf("evidence gap %s file = %q, want %q", g.Criterion.ID, g.File, s.ReviewPath())
+					}
+				}
+			}
+		})
+	}
+}
+
+// A comment is template guidance, not coverage: a commented `AC1` is neither a
+// task nor evidence, and a real line after a comment still counts (SPEC-021,
+// the SPEC-019 principle one reader over).
+func TestCriterionGaps_IgnoresCommentedTokens(t *testing.T) {
+	root := write(t, config, map[string]string{
+		"SPEC-001-a.md": criterionGapsBody("SPEC-001", workflow.Done, true),
+	})
+	p, err := project.Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, ok := p.Spec("SPEC-001")
+	if !ok {
+		t.Fatal("SPEC-001 should load")
+	}
 	if err := os.WriteFile(s.TasksPath(),
-		[]byte("- [x] Phase 1 — AC1, AC3, and not AC10 or AC1x.\n"), 0o644); err != nil {
+		[]byte("<!-- - [x] Phase 1 — AC1 -->\n- [x] Phase 2 — AC3\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	review := "# Review\n\n## Acceptance criteria\n\n" +
-		"| Criterion | Result | Evidence |\n|---|---|---|\n" +
-		"| AC1 | pass | `go test ./...` |\n" +
-		"| AC10 | pass | none |\n" +
-		"| AC1x | pass | none |\n\n" +
-		"## Notes\n\nAC2 is mentioned here but is not evidence.\n"
+		"<!-- | AC1 | pass | `go test ./...` | -->\n" +
+		"| AC3 | pass | `go test ./...` |\n"
 	if err := os.WriteFile(s.ReviewPath(), []byte(review), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -521,9 +625,10 @@ func TestCriterionGaps_MatchesBoundedTokens(t *testing.T) {
 		id   string
 		kind string
 	}{
+		{"AC1", "task"},
+		{"AC1", "evidence"},
 		{"AC2", "task"},
 		{"AC2", "evidence"},
-		{"AC3", "evidence"},
 	}
 	if len(gaps) != len(want) {
 		t.Fatalf("gaps = %+v, want %+v", gaps, want)
@@ -533,12 +638,6 @@ func TestCriterionGaps_MatchesBoundedTokens(t *testing.T) {
 			t.Errorf("gap %d = %s/%s, want %s/%s",
 				i, gaps[i].Criterion.ID, gaps[i].Kind, w.id, w.kind)
 		}
-	}
-	if gaps[0].File != s.TasksPath() {
-		t.Errorf("task gap file = %q, want %q", gaps[0].File, s.TasksPath())
-	}
-	if gaps[1].File != s.ReviewPath() {
-		t.Errorf("evidence gap file = %q, want %q", gaps[1].File, s.ReviewPath())
 	}
 }
 
