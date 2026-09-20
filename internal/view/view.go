@@ -12,6 +12,11 @@ import (
 	"github.com/TheJisus28/forge/internal/workflow"
 )
 
+// deliveredLimit bounds the "already delivered" list in the brief. The list
+// must not grow with the number of closed specs: every session and
+// compaction pays for it. forge status stays the way to see all of them.
+const deliveredLimit = 5
+
 // Brief is the short project state injected at the start of an agent session.
 // It is deliberately small: it is paid for on every session and every compaction.
 func Brief(p *project.Project) string {
@@ -67,9 +72,7 @@ func Brief(p *project.Project) string {
 		return string(s.Status)
 	})
 	section(&b, "ready to start", ready, func(*project.Spec) string { return "forge start" })
-	section(&b, "already delivered", delivered, func(*project.Spec) string {
-		return "reuse before rebuilding"
-	})
+	deliveredSection(&b, delivered)
 
 	if drift := Drift(p); len(drift) > 0 {
 		b.WriteString("contract drift:\n")
@@ -98,6 +101,27 @@ func section(b *strings.Builder, title string, specs []*project.Spec, note func(
 	fmt.Fprintf(b, "%s:\n", title)
 	for _, s := range specs {
 		fmt.Fprintf(b, "  %s  %-40s %s\n", s.ID, truncate(s.Title, 40), note(s))
+	}
+	b.WriteString("\n")
+}
+
+// deliveredSection lists the most recent done specs, capped so the brief
+// stays small, and points at forge status when it hides older ones.
+func deliveredSection(b *strings.Builder, delivered []*project.Spec) {
+	if len(delivered) == 0 {
+		return
+	}
+	hidden := len(delivered) - deliveredLimit
+	shown := delivered
+	if hidden > 0 {
+		shown = delivered[hidden:] // specs arrive oldest first
+	}
+	b.WriteString("already delivered (newest first, reuse before rebuilding):\n")
+	for i := len(shown) - 1; i >= 0; i-- {
+		fmt.Fprintf(b, "  %s  %s\n", shown[i].ID, truncate(shown[i].Title, 40))
+	}
+	if hidden > 0 {
+		fmt.Fprintf(b, "  +%d earlier, not listed; forge status shows every spec\n", hidden)
 	}
 	b.WriteString("\n")
 }

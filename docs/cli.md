@@ -76,6 +76,10 @@ The short state an agent reads at the start of a session. `--json` emits the
 Claude Code `SessionStart` payload. In a repository without Forge it prints
 nothing and succeeds, so the hook is harmless everywhere.
 
+It lists the most recent five `done` specs, so a session knows what already
+exists without the context growing with every closed spec; `forge status`
+shows the whole list and is the place to drill down.
+
 ### `forge board [--print]`
 
 Regenerates `.forge/BOARD.md`, which is gitignored on purpose.
