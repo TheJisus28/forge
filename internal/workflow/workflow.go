@@ -1,5 +1,7 @@
-// Package workflow holds the spec lifecycle: the states, the transitions
-// between them and which ones need a human.
+// Package workflow holds the spec lifecycle: the states and the legal
+// transitions between them. It has no notion of who may make a move;
+// Forge records who did, the same way git records an author, without
+// deciding whether they were allowed to.
 package workflow
 
 import (
@@ -47,28 +49,26 @@ func Terminal(s State) bool { return s == Done || s == Dropped }
 type Transition struct {
 	From State
 	To   State
-	// Gate marks a move only a maintainer may make.
-	Gate bool
 	// Why explains the move in the history line and in help output.
 	Why string
 }
 
 var transitions = []Transition{
-	{Proposed, Accepted, true, "a maintainer accepts the work into the queue"},
-	{Proposed, Dropped, false, "the work will not be done"},
-	{Accepted, Specifying, false, "someone starts the work"},
-	{Accepted, Dropped, false, "the work will not be done"},
-	{Specifying, AwaitingApproval, false, "the contract is ready for review"},
-	{AwaitingApproval, Specifying, false, "changes were requested"},
-	{AwaitingApproval, Planning, true, "a maintainer approves the contract"},
-	{AwaitingApproval, Dropped, false, "the work will not be done"},
-	{Planning, Implementing, false, "the plan is split into phases"},
-	{Implementing, Reviewing, false, "every phase is finished"},
-	{Implementing, Blocked, false, "the work cannot continue"},
-	{Blocked, Implementing, false, "the blocker is gone"},
-	{Blocked, Dropped, false, "the work will not be done"},
-	{Reviewing, Implementing, false, "the review found failures"},
-	{Reviewing, Done, false, "the review passed and the spec is archived"},
+	{Proposed, Accepted, "accepted into the queue"},
+	{Proposed, Dropped, "the work will not be done"},
+	{Accepted, Specifying, "someone starts the work"},
+	{Accepted, Dropped, "the work will not be done"},
+	{Specifying, AwaitingApproval, "the contract is ready for review"},
+	{AwaitingApproval, Specifying, "changes were requested"},
+	{AwaitingApproval, Planning, "the contract is approved"},
+	{AwaitingApproval, Dropped, "the work will not be done"},
+	{Planning, Implementing, "the plan is split into phases"},
+	{Implementing, Reviewing, "every phase is finished"},
+	{Implementing, Blocked, "the work cannot continue"},
+	{Blocked, Implementing, "the blocker is gone"},
+	{Blocked, Dropped, "the work will not be done"},
+	{Reviewing, Implementing, "the review found failures"},
+	{Reviewing, Done, "the review passed and the spec is archived"},
 }
 
 // Find returns the transition between two states.
@@ -115,12 +115,6 @@ func Check(from, to State) error {
 	return nil
 }
 
-// NeedsMaintainer reports whether the move is a human gate.
-func NeedsMaintainer(from, to State) bool {
-	t, ok := Find(from, to)
-	return ok && t.Gate
-}
-
 // InFlight reports whether work on the spec has started and not finished.
 func InFlight(s State) bool {
 	switch s {
@@ -134,13 +128,13 @@ func InFlight(s State) bool {
 func WaitingFor(s State) string {
 	switch s {
 	case Proposed:
-		return "maintainer: accept or drop"
+		return "anyone: forge accept or drop"
 	case Accepted:
 		return "anyone: forge start"
 	case Specifying:
 		return "architect: write the contract"
 	case AwaitingApproval:
-		return "maintainer: approve the contract"
+		return "anyone: forge approve"
 	case Planning:
 		return "orchestrator: split into phases"
 	case Implementing:

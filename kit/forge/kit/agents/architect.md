@@ -27,8 +27,8 @@ If a decision will outlive this spec, say so; the orchestrator records it in
 ## When something is missing
 
 If the problem is ambiguous, ask. If answering requires a product decision,
-take it to a maintainer rather than choosing for them. An invented
-requirement is more expensive than a question.
+raise it with whoever is driving the work rather than choosing for them.
+An invented requirement is more expensive than a question.
 
 ## Never
 

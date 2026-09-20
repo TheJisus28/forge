@@ -141,28 +141,6 @@ func (p *Project) WipDir() string { return filepath.Join(p.Root, Dir, "wip") }
 // WipDirFor is the scaffolding directory of one spec.
 func (p *Project) WipDirFor(id string) string { return filepath.Join(p.WipDir(), id) }
 
-// Maintainers are the people allowed to accept and approve.
-func (p *Project) Maintainers() []string { return p.Config.List("maintainers") }
-
-// IsMaintainer reports whether handle may accept or approve.
-func (p *Project) IsMaintainer(handle string) bool {
-	for _, m := range p.Maintainers() {
-		if strings.EqualFold(strings.TrimSpace(m), strings.TrimSpace(handle)) {
-			return true
-		}
-	}
-	return false
-}
-
-// AllowSelfApproval reports whether a conductor may approve their own spec.
-// With a single maintainer it is always allowed: there is nobody else.
-func (p *Project) AllowSelfApproval() bool {
-	if len(p.Maintainers()) < 2 {
-		return true
-	}
-	return truthy(p.Config.Str("allow_self_approval"))
-}
-
 // GuardEnabled reports whether the PreToolUse guard should deny edits.
 func (p *Project) GuardEnabled() bool {
 	v := strings.ToLower(strings.TrimSpace(p.Config.Str("guard")))
@@ -171,7 +149,7 @@ func (p *Project) GuardEnabled() bool {
 
 // Configured reports whether onboarding has been done.
 func (p *Project) Configured() bool {
-	return len(p.Maintainers()) > 0 && p.Config.Str("test") != ""
+	return p.Config.Str("test") != ""
 }
 
 // Spec returns a spec by ID, case insensitive.
@@ -490,12 +468,4 @@ func upperAll(in []string) []string {
 		out = append(out, strings.ToUpper(strings.TrimSpace(s)))
 	}
 	return out
-}
-
-func truthy(s string) bool {
-	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "true", "yes", "on", "1":
-		return true
-	}
-	return false
 }

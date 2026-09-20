@@ -65,5 +65,5 @@ contributions are welcome.
 
 `forge validate` is the only command you need in CI. Everything else is
 optional. If your team does not use GitHub, skip `--ci github` entirely:
-Forge does not depend on it, and the gates fall back to a maintainer running
-`forge accept` and `forge approve` locally.
+Forge does not depend on it. `forge accept` and `forge approve` work the
+same locally as anywhere; there is no server-side gate to miss.

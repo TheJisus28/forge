@@ -33,9 +33,10 @@ local-first:
   already configured on the machine. Forge never handles those credentials
   itself, and the actions it triggers are limited by whatever permissions that
   account has.
-- The GitHub workflows Forge plants run `forge validate`, and can commit a
-  state change when a maintainer approves a pull request. Those workflows run
-  with the permissions granted by the repository that hosts them.
+- The GitHub workflow Forge plants runs `forge validate` on pull requests and
+  on pushes to main, and can open an issue when main is inconsistent. It has
+  no write access to your specs and runs with the permissions granted by the
+  repository that hosts it.
 
 Spec files are plain Markdown committed to the repository, and they are read by
 agents and by CI. Do not put secrets, credentials, or private data in them.

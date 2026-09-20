@@ -33,9 +33,6 @@ func write(t *testing.T, config string, specs map[string]string) string {
 }
 
 const config = `---
-maintainers:
-  - jesus
-  - ana
 test: "go test ./..."
 ---
 
@@ -104,13 +101,7 @@ func TestLoad_ReadsSpecsAndConfig(t *testing.T) {
 		t.Fatalf("specs = %d", len(p.Specs))
 	}
 	if !p.Configured() {
-		t.Error("a project with maintainers and a test command is configured")
-	}
-	if !p.IsMaintainer("ANA") || p.IsMaintainer("pedro") {
-		t.Error("maintainer lookup should be case insensitive and closed")
-	}
-	if p.AllowSelfApproval() {
-		t.Error("with two maintainers, self approval is off unless asked for")
+		t.Error("a project with a test command is configured")
 	}
 	if !p.GuardEnabled() {
 		t.Error("the guard is on unless the project turns it off")

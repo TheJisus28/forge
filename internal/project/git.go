@@ -77,15 +77,6 @@ func Fetch(root string) error {
 	return cmd.Run()
 }
 
-// ChangedSpecFiles lists the spec files this branch touches relative to base.
-func ChangedSpecFiles(root, base string) []string {
-	out, err := run(root, "git", "diff", "--name-only", base+"...HEAD", "--", Dir+"/specs")
-	if err != nil || strings.TrimSpace(out) == "" {
-		return nil
-	}
-	return strings.Split(out, "\n")
-}
-
 // UserName returns the configured git user, used as a default conductor.
 func UserName(root string) string {
 	name, err := run(root, "git", "config", "user.name")

@@ -10,7 +10,7 @@ Appended by the implementer, one block per phase.
 
 ## Proposed conventions
 
-Patterns decided here because nothing was written. A maintainer decides
+Patterns decided here because nothing was written. The team decides
 whether they become rules in `.forge/conventions/`.
 
 None.

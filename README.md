@@ -45,8 +45,11 @@ describing a problem and grows a contract as it advances. There is no
 separate backlog item and no separate epic; the backlog is the specs nobody
 started, and an epic is a spec that has children.
 
-Two moves belong to a human, and only to a maintainer: accepting work into
-the queue, and approving a contract. Everything else is the agents' job.
+Two moves are worth a human's attention: accepting work into the queue,
+and approving a contract before code exists. Forge has no maintainer list
+to check, though — anyone can do either, the same way anyone with push
+access can commit. The record says who did it; the scrutiny happens where
+your team already reviews, in the pull request.
 
 ## What `forge init` plants
 
@@ -54,7 +57,7 @@ the queue, and approving a contract. Everything else is the agents' job.
 your-project/
 ├── AGENTS.md  CLAUDE.md          pointers, three lines each
 ├── .forge/
-│   ├── project.md                stack, commands, maintainers
+│   ├── project.md                stack and commands
 │   ├── specs/                    one file per unit of work, any state
 │   ├── wip/                      plan, changes, review: deleted when archived
 │   ├── decisions/                why the system is like this
@@ -92,8 +95,8 @@ at. First-class support for Cursor, Codex and Gemini comes next.
   end's contract is approved, without waiting for its code. If that contract
   later changes, `forge validate` fails and names who was building against
   the old one.
-- Approving a pull request *is* the gate: the workflow records it in the
-  spec, so the file and GitHub cannot tell different stories.
+- No approval list to manage: `forge accept` and `forge approve` work for
+  anyone, and CI still catches what is objectively broken.
 
 ## Local-first
 
@@ -107,11 +110,11 @@ repository fails if the binary ever imports `net/http`.
 |---|---|
 | `forge init` / `update` | plant or refresh the kit |
 | `forge new "<title>"` | propose work |
-| `forge accept` / `approve` | the two maintainer gates |
+| `forge accept` / `approve` | into the queue, contract is right |
 | `forge start` / `advance` / `archive` | move the work |
 | `forge status` / `brief` / `board` | what is happening |
 | `forge validate` | the CI check |
-| `forge guard` / `gate` / `sync` | hooks and GitHub integration |
+| `forge guard` / `sync` | hooks and GitHub integration |
 
 Full reference: [docs/cli.md](docs/cli.md).
 

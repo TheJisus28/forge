@@ -25,8 +25,8 @@ Write `.forge/wip/<id>/changes.md`:
 - What you changed, in files and behaviour.
 - How you verified it, with the command and its result.
 - **Proposed conventions**: patterns you had to decide because nothing was
-  written. Say what you did and why. A maintainer decides whether it
-  becomes a rule; you never write to `.forge/conventions/` yourself.
+  written. Say what you did and why. The team decides whether it becomes a
+  rule; you never write to `.forge/conventions/` yourself.
 - Anything the contract got wrong.
 
 Do not change `status`. The orchestrator moves the spec.

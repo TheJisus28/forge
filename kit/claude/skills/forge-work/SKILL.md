@@ -21,8 +21,9 @@ your memory of the conversation.
 2. If it spans several deliverables: propose a parent spec with the outcome
    criteria, get them confirmed, then create children with `--parent` and
    `--covers` so nothing is promised without an owner.
-3. Tell the user to open the intake pull request. A maintainer accepts it
-   by approving that pull request; you never accept on their behalf.
+3. Open the intake pull request, then accept it into the queue:
+   `forge accept SPEC-00X`. Forge has no approval list to check against;
+   the pull request review is the real check.
 
 ## Accepted work
 
@@ -32,8 +33,8 @@ git checkout -b spec/00X-slug
 ```
 
 Launch `forge-architect` for the contract. When it comes back, summarise
-the decisions for the user and ask a maintainer to approve the pull
-request. Approval is theirs; asking for it is yours.
+the decisions for the user, and once the contract is right:
+`forge approve SPEC-00X`.
 
 ## Approved work
 

@@ -20,7 +20,7 @@ go run . init /tmp/scratch && go run . status
 
 - `kit/` — the Markdown planted into other repos, embedded with `go:embed`
 - `internal/doc` — frontmatter parser and writer
-- `internal/workflow` — states, transitions, human gates
+- `internal/workflow` — states and the legal transitions between them
 - `internal/project` — loading `.forge`, specs, ids, coverage, dependencies
 - `internal/view` — brief, status and board rendering
 - `internal/validate` — the consistency rules CI enforces
@@ -34,7 +34,11 @@ go run . init /tmp/scratch && go run . status
   how network happens, and only when the user asks.
 - **No technology opinions in `kit/`.** Forge must be useful in a Rust
   repository and a Rails one. Rules about frameworks, naming or style
-  belong to the user's `.forge/conventions/`, written by their maintainers.
+  belong to the user's `.forge/conventions/`, written by their own team.
+- **No authorization model.** Forge records who accepted or approved
+  something; it never checks whether they were allowed to. That decision
+  belongs to the team and, if they want it enforced, to their own
+  branch protection or `CODEOWNERS`, not to Forge.
 - **The CLI owns state.** Ids, `status`, history and the board are written
   by commands, never by hand and never by an agent editing Markdown.
 - Anything planted outside `.forge/kit/` belongs to the user and is written

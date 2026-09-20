@@ -24,8 +24,8 @@ func Brief(p *project.Project) string {
 	b.WriteString("\n\n")
 
 	if !p.Configured() {
-		b.WriteString("This project is not onboarded yet: .forge/project.md has no stack,\n")
-		b.WriteString("no test command and no maintainers.\n\n")
+		b.WriteString("This project is not onboarded yet: .forge/project.md has no stack\n")
+		b.WriteString("and no test command.\n\n")
 		b.WriteString("Next action: run the forge-onboard skill. Inspect the repository,\n")
 		b.WriteString("propose what you can infer, ask about the rest, and write project.md\n")
 		b.WriteString("only with confirmed answers.\n")
@@ -52,11 +52,11 @@ func Brief(p *project.Project) string {
 			ready = append(ready, s)
 		}
 	}
-	section(&b, "waiting for a maintainer", waiting, func(s *project.Spec) string {
+	section(&b, "open decisions", waiting, func(s *project.Spec) string {
 		if s.Status == workflow.Proposed {
-			return "accept or drop"
+			return "forge accept or drop"
 		}
-		return "approve the contract"
+		return "forge approve"
 	})
 	section(&b, "in flight", inFlight, func(s *project.Spec) string {
 		if s.Conductor != "" {
@@ -80,8 +80,8 @@ func Brief(p *project.Project) string {
 	}
 
 	b.WriteString("Rules that matter here: no product code without a spec in implementing,\n")
-	b.WriteString("only maintainers accept and approve, and conventions live in\n")
-	b.WriteString(".forge/conventions/ (propose new ones, never assume them).\n")
+	b.WriteString("and conventions live in .forge/conventions/ (propose new ones, never\n")
+	b.WriteString("assume them).\n")
 	return b.String()
 }
 

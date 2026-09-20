@@ -103,10 +103,11 @@ func denial(p *project.Project, file string) string {
 	switch cur.Status {
 	case workflow.Specifying:
 		return fmt.Sprintf("Forge: %s is still being specified. Write the Contract section "+
-			"first; a maintainer approves it before any product code.", cur.ID)
+			"first, then: forge advance %s --to awaiting-approval && forge approve %s",
+			cur.ID, cur.ID, cur.ID)
 	case workflow.AwaitingApproval:
-		return fmt.Sprintf("Forge: %s is waiting for a maintainer to approve its contract. "+
-			"Nothing is built until then.", cur.ID)
+		return fmt.Sprintf("Forge: %s has a contract but it is not approved yet. "+
+			"Nothing is built until: forge approve %s", cur.ID, cur.ID)
 	case workflow.Planning:
 		return fmt.Sprintf("Forge: %s is approved but has no plan yet. Write the phases in "+
 			".forge/wip/%s/plan.md, then: forge advance %s --to implementing",

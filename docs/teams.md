@@ -44,24 +44,22 @@ someone's laptop.
 Open the pull request **early, with the contract and no code**. It is the
 cheapest moment to disagree.
 
-## The gates are pull request approvals
+## Review happens where your team already reviews
 
-With `forge init --ci github` there are two workflows:
+Forge has no maintainer list and no approval gate of its own. Accepting a
+spec and approving its contract are commands anyone can run; `forge
+accept SPEC-005` and `forge approve SPEC-005` record who did it, and that
+is the whole mechanism. With `forge init --ci github`, `forge-validate.yml`
+runs `forge validate` on every pull request and on every push to main, and
+opens an issue if main ever became inconsistent.
 
-- `forge-validate.yml` runs `forge validate` on every pull request and on
-  every push to main. On a pull request it passes the real approvers with
-  `--approvers`, so a spec cannot claim an approval that never happened. On
-  main it opens an issue if the branch became inconsistent.
-- `forge-gate.yml` reacts to an approving review: it runs `forge gate`,
-  which accepts the spec or approves its contract depending on where it is,
-  and commits that change to the branch.
-
-Protect the paths with `CODEOWNERS` if you want the gate enforced by GitHub
-rather than recorded by Forge:
-
-```
-.forge/specs/  @your-org/maintainers
-```
+The scrutiny you actually want — is this the right thing to build, is this
+contract sane — happens in the normal pull request review, the same review
+a team already does for the code. Forge does not add a second approval on
+top of it. If your team wants a stricter rule (say, nobody merges their own
+spec's contract), that is a branch protection or `CODEOWNERS` setting on
+`.forge/specs/`, enforced by GitHub the way you enforce everything else,
+not a Forge-specific concept.
 
 ## Closing
 
@@ -79,11 +77,10 @@ audit header, any new decisions and conventions, and nothing else.
 
 ## Roles
 
-**Maintainers** are the handles in `.forge/project.md`. They accept work and
-approve contracts. They review agreements, not lines.
-
-**Conductors** are whoever takes a spec and drives the agents through it.
-They do not need to be maintainers. Anyone can propose a spec.
+There is one role that matters to Forge: the **conductor**, whoever takes
+a spec and drives the agents through it. Anyone can propose a spec, anyone
+can accept one, anyone can approve a contract. Real teams already know who
+should weigh in on what; Forge records who did, and does not referee it.
 
 ## Parallel work across a stack
 

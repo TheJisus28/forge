@@ -32,5 +32,5 @@ Write `.forge/wip/<id>/review.md`:
 - Problems ranked: what blocks the merge and what does not.
 - **Proposed conventions**, if you saw a pattern worth writing down.
 
-Do not change `status`, do not fix the code yourself, and do not approve
-anything: approval belongs to a maintainer and happens on the pull request.
+Do not change `status` and do not fix the code yourself. Whether the
+contract is approved happens on the pull request, not in your report.

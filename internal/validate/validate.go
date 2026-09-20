@@ -41,22 +41,15 @@ func (f Finding) String() string {
 	return fmt.Sprintf("%-7s %s: %s", f.Severity, f.Spec, f.Message)
 }
 
-// Options tune the checks CI can make but a laptop cannot.
-type Options struct {
-	// Approvers are the real approvers of the pull request, passed in by the
-	// workflow. Forge never asks GitHub itself.
-	Approvers []string
-}
-
 // Run checks the project and returns every finding, errors first.
-func Run(p *project.Project, opt Options) []Finding {
+func Run(p *project.Project) []Finding {
 	var out []Finding
 	add := func(sev Severity, spec, format string, args ...any) {
 		out = append(out, Finding{sev, spec, fmt.Sprintf(format, args...)})
 	}
 
 	if !p.Configured() {
-		add(Warning, "", "project.md has no maintainers or no test command; run the onboarding")
+		add(Warning, "", "project.md has no test command; run the onboarding")
 	}
 
 	seen := map[string]string{}
@@ -76,7 +69,6 @@ func Run(p *project.Project, opt Options) []Finding {
 		}
 		checkRelations(p, s, add)
 		checkArtifacts(p, s, add)
-		checkApprovals(p, s, opt, add)
 	}
 
 	for _, s := range p.Specs {
@@ -154,29 +146,6 @@ func checkArtifacts(p *project.Project, s *project.Spec, add func(Severity, stri
 		if s.ApprovedBy == "" {
 			add(Error, s.ID, "is done without an approved contract")
 		}
-	}
-}
-
-func checkApprovals(p *project.Project, s *project.Spec, opt Options,
-	add func(Severity, string, string, ...any)) {
-	for _, pair := range []struct{ who, what string }{
-		{s.AcceptedBy, "accepted_by"},
-		{s.ApprovedBy, "approved_by"},
-	} {
-		if pair.who == "" {
-			continue
-		}
-		if !p.IsMaintainer(pair.who) {
-			add(Error, s.ID, "%s is %q, who is not in maintainers", pair.what, pair.who)
-		}
-		if len(opt.Approvers) > 0 && !contains(opt.Approvers, pair.who) {
-			add(Error, s.ID, "%s claims %q, who did not approve this pull request",
-				pair.what, pair.who)
-		}
-	}
-	if s.ApprovedBy != "" && s.Conductor != "" &&
-		strings.EqualFold(s.ApprovedBy, s.Conductor) && !p.AllowSelfApproval() {
-		add(Error, s.ID, "%s approved the contract they conducted", s.ApprovedBy)
 	}
 }
 
@@ -312,13 +281,4 @@ func less(a, b Finding) bool {
 		return a.Spec < b.Spec
 	}
 	return a.Message < b.Message
-}
-
-func contains(list []string, want string) bool {
-	for _, s := range list {
-		if strings.EqualFold(strings.TrimSpace(s), strings.TrimSpace(want)) {
-			return true
-		}
-	}
-	return false
 }

@@ -37,14 +37,10 @@ func mustRun(t *testing.T, dir string, args ...string) string {
 }
 
 const projectConfig = `---
-maintainers:
-  - jesus
-  - ana
 test: "go test ./..."
 dev: "go run ."
 working_language: en
 guard: on
-allow_self_approval: false
 ---
 
 # Project
@@ -148,22 +144,19 @@ func TestLifecycle(t *testing.T) {
 	if out, code := run(t, dir, "start", "SPEC-001"); code == 0 {
 		t.Fatalf("starting work nobody accepted should fail: %s", out)
 	}
-	if out, code := run(t, dir, "accept", "SPEC-001", "--by", "pedro"); code == 0 {
-		t.Fatalf("a stranger must not accept work: %s", out)
-	}
+	// Anyone can accept; there is no list to be a stranger to.
 	mustRun(t, dir, "accept", "SPEC-001", "--by", "jesus")
 	mustRun(t, dir, "start", "SPEC-001", "--by", "ana")
 
-	if out, code := run(t, dir, "approve", "SPEC-001", "--by", "jesus"); code == 0 {
+	if out, code := run(t, dir, "approve", "SPEC-001", "--by", "ana"); code == 0 {
 		t.Fatalf("an empty contract must not be approvable: %s", out)
 	}
 	body = read(t, path)
 	write(t, path, strings.Replace(body, "## Contract\n", "## Contract\n\nGET /cards\n", 1))
 	mustRun(t, dir, "advance", "SPEC-001", "--to", "awaiting-approval", "--by", "ana")
-	if out, code := run(t, dir, "approve", "SPEC-001", "--by", "ana"); code == 0 {
-		t.Fatalf("the conductor must not approve their own contract: %s", out)
-	}
-	mustRun(t, dir, "approve", "SPEC-001", "--by", "jesus")
+	// The conductor approving their own contract is fine: there is no
+	// separate approver role to ask, and the record still says it was ana.
+	mustRun(t, dir, "approve", "SPEC-001", "--by", "ana")
 	if !strings.Contains(read(t, path), "contract_hash:") {
 		t.Error("approving should fingerprint the contract")
 	}

@@ -8,7 +8,10 @@ usually make it smaller.
 - **Standard library only.** A new dependency needs a very good reason.
 - **The kit stays technology-agnostic.** No rules about frameworks,
   naming or style in `kit/`: those belong to each project's
-  `.forge/conventions/`, decided by its maintainers.
+  `.forge/conventions/`, decided by its own team.
+- **No authorization model.** Forge records who accepted or approved
+  something; it never checks whether they were allowed to. Do not add a
+  maintainer list, a role, or a permission check back in.
 - **The binary never touches the network.** `nonet_test.go` enforces it.
 - **The CLI owns ids and state.** If a change would let an agent edit
   `status` by hand, it is the wrong change.
@@ -30,7 +33,7 @@ go build -o /tmp/forge . && cd /tmp/scratch && /tmp/forge init && /tmp/forge sta
 |---|---|
 | `kit/` | The Markdown planted in other repositories, embedded via `go:embed` |
 | `internal/doc` | Frontmatter parsing and writing |
-| `internal/workflow` | States, transitions and gates |
+| `internal/workflow` | States and the legal transitions between them |
 | `internal/project` | `.forge` loading, specs, coverage, dependencies |
 | `internal/view` | Brief, status and board |
 | `internal/validate` | The CI rules |

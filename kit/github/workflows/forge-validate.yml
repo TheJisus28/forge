@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
   issues: write
 
 jobs:
@@ -21,22 +20,7 @@ jobs:
         with:
           go-version: stable
       - run: go install github.com/TheJisus28/forge@latest
-
-      # Forge never talks to GitHub. The workflow reads who really approved
-      # and passes it in, so a spec cannot claim an approval that never
-      # happened.
-      - name: Collect approvers
-        if: github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR: ${{ github.event.pull_request.number }}
-        run: |
-          approvers=$(gh pr view "$PR" --json reviews \
-            --jq '[.reviews[] | select(.state == "APPROVED") | .author.login] | unique | join(",")')
-          echo "approvers=$approvers" >> "$GITHUB_ENV"
-
-      - name: Validate
-        run: forge validate --approvers "${approvers:-}"
+      - run: forge validate
 
       # A broken main means somebody merged past the rules. Say it out loud.
       - name: Report a broken main branch

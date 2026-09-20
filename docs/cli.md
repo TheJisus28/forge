@@ -28,10 +28,10 @@ after upgrading the binary.
 Creates a spec in `proposed` with the next free number. `--covers` requires
 `--parent`, and fails if the parent does not declare those criteria.
 
-### `forge accept <id> --by <maintainer> [--note ...]`
+### `forge accept <id> [--by <you>] [--note ...]`
 
-The first human gate: into the queue. Fails if the handle is not in
-`maintainers`.
+Into the queue. `--by` defaults to `git config user.name`. Anyone can run
+this; Forge has no list to check the handle against.
 
 ### `forge start <id> [--by <you>] [--force]`
 
@@ -41,10 +41,10 @@ exception in the spec. Records the contract fingerprints of any
 `@contract` dependencies, creates `.forge/wip/<id>/`, and prints the branch
 to create.
 
-### `forge approve <id> --by <maintainer> [--note ...]`
+### `forge approve <id> [--by <you>] [--note ...]`
 
-The second human gate: the contract is right. Requires a non-empty
-`## Contract`, stores its fingerprint, and reports which specs it unblocks.
+The contract is right; code can start. Requires a non-empty `## Contract`,
+stores its fingerprint, and reports which specs it unblocks.
 
 ### `forge advance <id> --to <state> [--by ...] [--note ...]`
 
@@ -80,18 +80,13 @@ Regenerates `.forge/BOARD.md`, which is gitignored on purpose.
 
 ## CI and integration
 
-### `forge validate [--approvers "ana,jose"] [--quiet]`
+### `forge validate [--quiet]`
 
 Exits 1 when the project is inconsistent: unknown or duplicate ids, illegal
 history, missing artifacts for a state, broken references, dependency
-cycles, uncovered promises once a child closes, contract drift, approvals by
-non-maintainers, self-approval where it is not allowed, and `--approvers`
-mismatches.
-
-### `forge gate --by <maintainer> [--base origin/main] [--dry-run]`
-
-Turns a pull request approval into the state change it means: accepts the
-spec or approves its contract, depending on where it is. Run by CI.
+cycles, uncovered promises once a child closes, and contract drift. It
+does not check who accepted or approved anything: Forge has no
+authorization model to enforce.
 
 ### `forge guard [--explain] [--file path]`
 

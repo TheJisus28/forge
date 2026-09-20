@@ -17,10 +17,10 @@ one artifact removes the copying, and the drift that copying causes.
 
 | State | What it means | Who moves it |
 |---|---|---|
-| `proposed` | Written, not in the queue | maintainer accepts or drops |
+| `proposed` | Written, not in the queue | anyone, with `forge accept` or drop |
 | `accepted` | In the queue | anyone, with `forge start` |
 | `specifying` | The contract is being written | architect |
-| `awaiting-approval` | Contract ready for a human | maintainer |
+| `awaiting-approval` | Contract ready for a look | anyone, with `forge approve` |
 | `planning` | Being split into phases | orchestrator |
 | `implementing` | Product code, phase by phase | implementer |
 | `blocked` | Cannot continue | conductor |
@@ -31,19 +31,23 @@ one artifact removes the copying, and the drift that copying causes.
 Only `forge` writes `status`, and every move appends a line to the spec's
 History section saying who did it and why.
 
-## The two human gates
+## No authorization model
 
 ```bash
-forge accept SPEC-004 --by jesus      # into the queue
-forge approve SPEC-004 --by jesus     # the contract is right
+forge accept SPEC-004      # into the queue
+forge approve SPEC-004     # the contract is right
 ```
 
-Both require a handle listed in `maintainers` in `.forge/project.md`. With
-more than one maintainer, nobody approves the contract they conducted
-themselves; set `allow_self_approval: true` if your team wants otherwise.
+Anyone can run either. `--by` defaults to `git config user.name`, so
+nobody has to name themselves to move their own work forward. Forge does
+not have a maintainer list to check a handle against, the same way git
+does not check whether you were allowed to author a commit.
 
-In a repository with CI, approving the pull request is the gate: the
-workflow runs `forge gate --by <approver>` and records it for you.
+The scrutiny a team wants happens in the pull request review it already
+does, not in a second Forge-specific approval. `forge validate` still
+catches what is objectively wrong regardless of who touched what: a
+missing contract, an uncovered promise, a dependency cycle, a contract
+that drifted after it was approved.
 
 ## Acceptance criteria
 

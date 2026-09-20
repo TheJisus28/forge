@@ -1,10 +1,8 @@
 ---
-maintainers: []
 test: ""
 dev: ""
 working_language: en
 guard: on
-allow_self_approval: false
 ---
 
 # Project
@@ -32,8 +30,3 @@ anything else worth knowing here (migrations, seeding, containers).
 
 The things that are not obvious from the tree: HTTP response shape, auth,
 environments, deployment, what is legacy and must not be touched.
-
-## Maintainers
-
-The handles in the frontmatter. Any of them can accept work into the queue
-and approve a contract. Nobody else can.

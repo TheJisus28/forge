@@ -9,7 +9,7 @@ never chose. What belongs here is what your team decided, in your words.
 
 ## How it fills up
 
-Agents propose, maintainers decide.
+Agents propose, the team decides.
 
 When an implementer has to make a choice that nothing covers — the shape of
 an error response, where a new module goes, how a migration is named — it
@@ -17,14 +17,14 @@ does the reasonable thing, and then says so in the
 "Proposed conventions" section of `.forge/wip/<id>/changes.md`. The reviewer
 does the same when it notices a pattern repeating.
 
-The orchestrator brings it to a maintainer:
+The orchestrator surfaces it:
 
 > The implementer noticed the three new services return errors with the same
 > envelope, but that is not written anywhere. Should it become a convention?
-> If you approve it, other agents will follow it without being told.
+> If we agree, other agents will follow it without being told.
 
-On approval it becomes `.forge/conventions/api.md`, with the maintainer's
-handle and the date. On rejection, the code changes to match what the
+On agreement it becomes `.forge/conventions/api.md`, with whoever signed
+off and the date. On rejection, the code changes to match what the
 project already does. What does not happen is leaving it half agreed.
 
 ## What a convention looks like
@@ -32,7 +32,7 @@ project already does. What does not happen is leaving it half agreed.
 ```markdown
 ---
 domain: api
-approved_by: jesus
+approved_by: ana
 date: 2026-03-14
 ---
 

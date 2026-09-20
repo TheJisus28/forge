@@ -95,15 +95,17 @@ request so the number is taken:
   git checkout -b intake/%s
   git add %s && git commit -m "spec(%s): %s"
 
-A maintainer accepts it by approving that pull request.
+Someone accepts it into the queue when the team is ready:
+
+  forge accept %s
 `, s.ID, s.Title, filepath.ToSlash(rel), project.Slug(s.Title),
-		filepath.ToSlash(rel), strings.ToLower(s.ID), s.Title)
+		filepath.ToSlash(rel), strings.ToLower(s.ID), s.Title, s.ID)
 	return nil
 }
 
 func cmdAccept(args []string, out io.Writer) error {
-	fs := newFlagSet("accept", "usage: forge accept <id> --by <maintainer> [--note ...]", out)
-	by := fs.String("by", "", "maintainer accepting the work")
+	fs := newFlagSet("accept", "usage: forge accept <id> [--by <you>] [--note ...]", out)
+	by := fs.String("by", "", "who is accepting the work (defaults to git user.name)")
 	note := fs.String("note", "", "why, in one line")
 	rest, err := parseArgs(fs, args)
 	if err != nil {
@@ -113,18 +115,19 @@ func cmdAccept(args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if err := requireMaintainer(p, *by); err != nil {
+	actor, err := resolveActor(p, *by)
+	if err != nil {
 		return err
 	}
 	if err := workflow.Check(s.Status, workflow.Accepted); err != nil {
 		return err
 	}
-	s.AcceptedBy = *by
-	s.SetStatus(workflow.Accepted, *by, *note)
+	s.AcceptedBy = actor
+	s.SetStatus(workflow.Accepted, actor, *note)
 	if err := s.Save(); err != nil {
 		return err
 	}
-	fmt.Fprintf(out, "%s accepted by %s. Anyone can now run: forge start %s\n", s.ID, *by, s.ID)
+	fmt.Fprintf(out, "%s accepted by %s. Anyone can now run: forge start %s\n", s.ID, actor, s.ID)
 	return nil
 }
 
@@ -186,14 +189,14 @@ func cmdStart(args []string, out io.Writer) error {
   git checkout -b %s
 
 Next: the architect writes the Contract section of %s. No product code
-until a maintainer approves it.
+until it is approved.
 `, s.ID, project.BranchName(s.ID, s.Title), filepath.Base(s.Path))
 	return nil
 }
 
 func cmdApprove(args []string, out io.Writer) error {
-	fs := newFlagSet("approve", "usage: forge approve <id> --by <maintainer> [--note ...]", out)
-	by := fs.String("by", "", "maintainer approving the contract")
+	fs := newFlagSet("approve", "usage: forge approve <id> [--by <you>] [--note ...]", out)
+	by := fs.String("by", "", "who is approving the contract (defaults to git user.name)")
 	note := fs.String("note", "", "why, in one line")
 	rest, err := parseArgs(fs, args)
 	if err != nil {
@@ -203,7 +206,8 @@ func cmdApprove(args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if err := requireMaintainer(p, *by); err != nil {
+	actor, err := resolveActor(p, *by)
+	if err != nil {
 		return err
 	}
 	if err := workflow.Check(s.Status, workflow.Planning); err != nil {
@@ -217,17 +221,13 @@ func cmdApprove(args []string, out io.Writer) error {
 	if contract == "" {
 		return fmt.Errorf("%s has an empty Contract section; there is nothing to approve", s.ID)
 	}
-	if s.Conductor != "" && strings.EqualFold(s.Conductor, *by) && !p.AllowSelfApproval() {
-		return fmt.Errorf("%s conducted %s; with more than one maintainer somebody else approves "+
-			"(set allow_self_approval: true in project.md to change this)", *by, s.ID)
-	}
-	s.ApprovedBy = *by
+	s.ApprovedBy = actor
 	s.ContractHash = project.HashContract(contract)
-	s.SetStatus(workflow.Planning, *by, *note)
+	s.SetStatus(workflow.Planning, actor, *note)
 	if err := s.Save(); err != nil {
 		return err
 	}
-	fmt.Fprintf(out, "%s approved by %s, contract %s.\n", s.ID, *by, s.ContractHash)
+	fmt.Fprintf(out, "%s approved by %s, contract %s.\n", s.ID, actor, s.ContractHash)
 	if waiting := waitingOnContract(p, s.ID); len(waiting) > 0 {
 		fmt.Fprintf(out, "unblocked: %s\n", strings.Join(waiting, ", "))
 	}
@@ -245,7 +245,7 @@ func cmdAdvance(args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	p, s, err := specArg(rest)
+	_, s, err := specArg(rest)
 	if err != nil {
 		return err
 	}
@@ -260,16 +260,14 @@ func cmdAdvance(args []string, out io.Writer) error {
 	if target == workflow.Done {
 		return fmt.Errorf("use forge archive %s: done is reached by distilling the spec", s.ID)
 	}
-	if workflow.NeedsMaintainer(s.Status, target) {
-		if err := requireMaintainer(p, *by); err != nil {
-			return err
-		}
-		switch target {
-		case workflow.Accepted:
-			s.AcceptedBy = *by
-		case workflow.Planning:
-			return cmdApprove([]string{s.ID, "--by", *by, "--note", *note}, out)
-		}
+	// accept and approve exist as their own commands because they record
+	// who did them and, for approve, fingerprint the contract. Route
+	// through them so `forge advance` cannot bypass that bookkeeping.
+	switch target {
+	case workflow.Accepted:
+		return cmdAccept([]string{s.ID, "--by", *by, "--note", *note}, out)
+	case workflow.Planning:
+		return cmdApprove([]string{s.ID, "--by", *by, "--note", *note}, out)
 	}
 	who := *by
 	if who == "" {
@@ -302,8 +300,8 @@ func cmdArchive(args []string, out io.Writer) error {
 	}
 	if pending := pendingConventions(wip); len(pending) > 0 {
 		return fmt.Errorf("%s still proposes conventions that nobody decided:\n  %s\n"+
-			"record them in .forge/conventions/ (a maintainer decides) or remove the section",
-			s.ID, strings.Join(pending, "\n  "))
+			"record them in .forge/conventions/ or remove the section", s.ID,
+			strings.Join(pending, "\n  "))
 	}
 	if err := os.RemoveAll(wip); err != nil {
 		return err
@@ -322,82 +320,6 @@ What remains in main: the contract, the decisions and the conventions.
 		reportParent(out, p, parent)
 	}
 	return nil
-}
-
-// cmdGate turns a pull request approval into the state change it means.
-// It is what the CI workflow runs, so that approving in GitHub and the
-// spec file can never tell different stories.
-func cmdGate(args []string, out io.Writer) error {
-	fs := newFlagSet("gate", "usage: forge gate --by <maintainer> [--base origin/main]", out)
-	by := fs.String("by", "", "the maintainer who approved the pull request")
-	base := fs.String("base", "origin/main", "branch this pull request targets")
-	dry := fs.Bool("dry-run", false, "say what would happen and change nothing")
-	_, err := parseArgs(fs, args)
-	if err != nil {
-		return err
-	}
-	p, err := project.Load(cwd())
-	if err != nil {
-		return err
-	}
-	if err := requireMaintainer(p, *by); err != nil {
-		return err
-	}
-
-	targets := specsInBranch(p, *base)
-	if len(targets) == 0 {
-		fmt.Fprintln(out, "no spec in this pull request; nothing to record")
-		return nil
-	}
-	for _, s := range targets {
-		var action string
-		switch s.Status {
-		case workflow.Proposed:
-			action = "accept"
-		case workflow.AwaitingApproval:
-			action = "approve"
-		default:
-			fmt.Fprintf(out, "%s is %s; an approval does not move it\n", s.ID, s.Status)
-			continue
-		}
-		if *dry {
-			fmt.Fprintf(out, "would %s %s as %s\n", action, s.ID, *by)
-			continue
-		}
-		args := []string{s.ID, "--by", *by, "--note", "approved the pull request"}
-		var err error
-		if action == "accept" {
-			err = cmdAccept(args, out)
-		} else {
-			err = cmdApprove(args, out)
-		}
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// specsInBranch finds the specs this branch is about: the ones it changed,
-// or the one named by the branch.
-func specsInBranch(p *project.Project, base string) []*project.Spec {
-	var out []*project.Spec
-	seen := map[string]bool{}
-	for _, file := range project.ChangedSpecFiles(p.Root, base) {
-		name := filepath.Base(strings.TrimSpace(file))
-		for _, s := range p.Specs {
-			if filepath.Base(s.Path) == name && !seen[s.ID] {
-				seen[s.ID] = true
-				out = append(out, s)
-			}
-		}
-	}
-	if len(out) == 0 {
-		if cur, ok := p.Current(); ok {
-			out = append(out, cur)
-		}
-	}
-	return out
 }
 
 func cmdRenumber(args []string, out io.Writer) error {
@@ -470,19 +392,21 @@ func specArg(args []string) (*project.Project, *project.Spec, error) {
 	return p, s, nil
 }
 
-func requireMaintainer(p *project.Project, who string) error {
-	if strings.TrimSpace(who) == "" {
-		return fmt.Errorf("--by is required: this gate belongs to a maintainer (%s)",
-			strings.Join(p.Maintainers(), ", "))
+// resolveActor names whoever is making a move. Anyone may: Forge has no
+// authorization model, the same way git has no authorization model for who
+// may commit. An empty --by falls back to git user.name, so nobody has to
+// type their own name to move their own work forward; the record still
+// says who did it, which is what a teammate reviewing the pull request
+// reads instead of asking Forge to referee anything.
+func resolveActor(p *project.Project, by string) (string, error) {
+	by = strings.TrimSpace(by)
+	if by == "" {
+		by = project.UserName(p.Root)
 	}
-	if len(p.Maintainers()) == 0 {
-		return fmt.Errorf("project.md declares no maintainers; run the onboarding first")
+	if by == "" {
+		return "", fmt.Errorf("--by is required: git has no user.name configured either")
 	}
-	if !p.IsMaintainer(who) {
-		return fmt.Errorf("%q is not a maintainer; they are: %s", who,
-			strings.Join(p.Maintainers(), ", "))
-	}
-	return nil
+	return by, nil
 }
 
 func readyToStart(p *project.Project) []string {

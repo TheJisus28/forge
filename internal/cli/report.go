@@ -105,9 +105,7 @@ func cmdBoard(args []string, out io.Writer) error {
 }
 
 func cmdValidate(args []string, out, errOut io.Writer) int {
-	fs := newFlagSet("validate", "usage: forge validate [--approvers \"ana,jose\"]", out)
-	approvers := fs.String("approvers", "",
-		"who really approved the pull request; CI passes this in")
+	fs := newFlagSet("validate", "usage: forge validate [--quiet]", out)
 	quiet := fs.Bool("quiet", false, "print only errors")
 	_, err := parseArgs(fs, args)
 	if err != nil {
@@ -118,13 +116,7 @@ func cmdValidate(args []string, out, errOut io.Writer) int {
 		fmt.Fprintf(errOut, "forge: %v\n", err)
 		return 1
 	}
-	opt := validate.Options{}
-	for _, a := range strings.Split(*approvers, ",") {
-		if a = strings.TrimSpace(a); a != "" {
-			opt.Approvers = append(opt.Approvers, a)
-		}
-	}
-	findings := validate.Run(p, opt)
+	findings := validate.Run(p)
 	shown := 0
 	for _, f := range findings {
 		if *quiet && f.Severity != validate.Error {

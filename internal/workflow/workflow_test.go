@@ -51,18 +51,6 @@ func TestCheck_CannotSkipApproval(t *testing.T) {
 	}
 }
 
-func TestGates(t *testing.T) {
-	if !workflow.NeedsMaintainer(workflow.Proposed, workflow.Accepted) {
-		t.Error("accepting work is a maintainer gate")
-	}
-	if !workflow.NeedsMaintainer(workflow.AwaitingApproval, workflow.Planning) {
-		t.Error("approving a contract is a maintainer gate")
-	}
-	if workflow.NeedsMaintainer(workflow.Implementing, workflow.Reviewing) {
-		t.Error("finishing the phases is not a human gate")
-	}
-}
-
 func TestCheck_SameState(t *testing.T) {
 	if err := workflow.Check(workflow.Implementing, workflow.Implementing); err == nil {
 		t.Fatal("moving to the same state should be rejected")

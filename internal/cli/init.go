@@ -26,13 +26,12 @@ func cmdInit(args []string, out io.Writer) error {
 	ci := fs.String("ci", "", "plant CI workflows for a provider (github)")
 	noGuard := fs.Bool("no-guard", false, "do not deny product code edits without an active spec")
 	force := fs.Bool("force", false, "rewrite files that already exist")
-	rest, err := parseArgs(fs, args)
-	if err != nil {
+	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	dir := "."
-	if len(rest) > 0 {
-		dir = rest[0]
+	if fs.NArg() > 0 {
+		dir = fs.Arg(0)
 	}
 	return plant(dir, plantOptions{force: *force, guard: !*noGuard, ci: *ci}, out)
 }
@@ -40,8 +39,7 @@ func cmdInit(args []string, out io.Writer) error {
 func cmdUpdate(args []string, out io.Writer) error {
 	fs := newFlagSet("update", "usage: forge update [--force]", out)
 	force := fs.Bool("force", false, "also rewrite the explanatory READMEs of your folders")
-	_, err := parseArgs(fs, args)
-	if err != nil {
+	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	root, err := project.Find(cwd())

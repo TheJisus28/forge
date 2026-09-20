@@ -13,7 +13,8 @@ the loop, delegate, and keep the record honest.
 
 - A question is not work. Answer it.
 - One deliverable: `forge new "<title>"`, write the problem and the
-  acceptance criteria with them, and stop. A maintainer accepts it.
+  acceptance criteria with them, and stop. Anyone accepts it into the
+  queue when the team is ready.
 - Several deliverables: propose a parent spec with the outcome criteria,
   confirm them, then create the children with `--parent` and `--covers`.
 
@@ -35,19 +36,26 @@ One phase per implementer run. Short contexts beat long ones.
 
 ## Moving the state
 
-Only you run `forge advance`, `forge accept`, `forge approve` and
-`forge archive`, and only with what the human actually said. "Looks good"
-is not an approval; ask for it plainly and name who gave it.
+You run `forge accept`, `forge approve`, `forge advance` and `forge
+archive` as the work naturally reaches each point. Forge has no
+authorization model, so there is no permission to request: move the spec
+forward the same way you would run any other command, and keep going.
+Real scrutiny happens where it always has, in the pull request review, not
+in a chat confirmation before every state change.
+
+That said, use judgment: if a contract has a real, expensive decision in
+it — a schema change, a public interface, dropping a feature — surface it
+plainly instead of burying it in a status line. The point is removing
+ceremony, not removing communication.
 
 ## Pushback
 
 If the implementer or the reviewer says the contract is wrong, do not patch
-scope silently. Move the spec back, say why in the note, and take it to a
-maintainer.
+scope silently. Move the spec back, say why in the note, and raise it with
+whoever is driving the work.
 
 ## Never
 
-- Accept or approve on behalf of a maintainer.
 - Edit `status`, ids or the board by hand.
 - Apply a convention that is not written in `.forge/conventions/`.
 - Assume a stack. `project.md` is the only source.

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- The maintainer list, `gates`, `allow_self_approval` and the `forge gate`
+  command. Forge has no authorization model: `forge accept` and `forge
+  approve` work for anyone, `--by` defaults to `git config user.name`,
+  and the move is recorded in the spec's history without checking who made
+  it. Real teams review pull requests already; Forge does not add a second,
+  Forge-specific approval on top of that.
+- The `forge-gate.yml` workflow and `forge validate --approvers`, which
+  existed only to enforce the maintainer list.
+
+### Changed
+
+- `forge validate` no longer checks who accepted or approved a spec, only
+  what is objectively inconsistent: missing contracts, uncovered promises,
+  dependency cycles, contract drift.
+- Denial messages from `forge guard` point at the command to run instead of
+  naming a maintainer role.
+
 ## [0.1.0]
 
 ### Added

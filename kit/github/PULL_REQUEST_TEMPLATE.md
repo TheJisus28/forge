@@ -1,6 +1,4 @@
-<!-- Approving this pull request is a Forge gate: it accepts the spec into
-     the queue, or approves its contract. Review the agreement, not the
-     diff line by line. -->
+<!-- Review the agreement, not just the diff. -->
 
 ## Spec
 
@@ -17,6 +15,6 @@ Copy them from the spec and tick what the review verified.
 
 The command the reviewer ran and what it printed.
 
-## Notes for the maintainer
+## Notes for the reviewer
 
-Decisions that need a human, and anything the contract had to change.
+Decisions worth a second look, and anything the contract had to change.

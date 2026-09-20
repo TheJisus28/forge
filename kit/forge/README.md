@@ -4,7 +4,7 @@ Everything this project agreed on, in files you can read and review.
 
 | Path | What it is |
 |---|---|
-| `project.md` | What this project is: stack, commands, maintainers, language |
+| `project.md` | What this project is: stack, commands, language |
 | `specs/` | One file per unit of work, in any state from proposed to done |
 | `wip/` | Scaffolding of work in flight: plan, changes, review. Deleted when the spec is archived |
 | `decisions/` | Why the system is the way it is. One file per decision |
@@ -28,9 +28,9 @@ wins and the board should be regenerated.
 ```bash
 forge status                  # what is open and who is waiting
 forge new "<title>"           # propose work
-forge accept <id> --by <you>  # a maintainer takes it into the queue
+forge accept <id>             # into the queue
 forge start <id>              # begin: checks dependencies first
-forge approve <id> --by <you> # a maintainer approves the contract
+forge approve <id>            # the contract is right; code can start
 forge archive <id>            # close it, last commit of the pull request
 ```
 

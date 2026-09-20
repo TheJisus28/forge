@@ -20,8 +20,8 @@ fail with evidence.
 
 ## Contract
 
-Written by the architect once a maintainer accepts the work, and frozen
-once approved. Real names from this repository: modules, endpoints,
+Written by the architect once the work is accepted, and frozen once
+approved. Real names from this repository: modules, endpoints,
 tables, screens. Numbered decisions with what they discard. Anything other
 specs will build against goes here.
 

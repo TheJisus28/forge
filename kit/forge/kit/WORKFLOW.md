@@ -9,10 +9,10 @@ item and no separate epic: the backlog is the specs in `proposed` or
 
 | State | Meaning | Who acts next |
 |---|---|---|
-| `proposed` | Written, not in the queue | maintainer: accept or drop |
-| `accepted` | In the queue, with priority | anyone: `forge start` |
+| `proposed` | Written, not in the queue | anyone: `forge accept` or drop |
+| `accepted` | In the queue | anyone: `forge start` |
 | `specifying` | The contract is being written | architect |
-| `awaiting-approval` | Contract ready | maintainer: approve |
+| `awaiting-approval` | Contract ready | anyone: `forge approve` |
 | `planning` | Splitting into phases | orchestrator |
 | `implementing` | Product code, phase by phase | implementer |
 | `blocked` | Cannot continue | conductor |
@@ -20,9 +20,14 @@ item and no separate epic: the backlog is the specs in `proposed` or
 | `done` | Archived and closed | nobody |
 | `dropped` | Will not be done | nobody |
 
-Two of those moves belong to a human: `proposed → accepted` and
-`awaiting-approval → planning`. Both require a maintainer and both are
-recorded with their name.
+Forge has no authorization model. Anyone can accept work into the queue
+and anyone can approve a contract, the same way anyone with push access can
+commit; `--by` defaults to `git config user.name`, and the move is recorded
+in the spec's history either way. There is no restricted role to ask
+permission from, because a real team already reviews pull requests, and
+that review is where scrutiny belongs — not in a second, Forge-specific
+gate. `forge validate` still catches what is objectively broken: missing
+contracts, uncovered promises, dependency cycles, contract drift.
 
 ## Hierarchy and coverage
 
@@ -70,6 +75,7 @@ scaffolding stays in git history.
 
 - No product code without a spec in `implementing`.
 - Subagents never change `status`; the orchestrator runs `forge advance`.
-- A conventions file is written only after a maintainer approves it.
+- A conventions file is written only after the team agrees on it, not
+  invented on the spot by whoever is implementing.
 - Decisions that outlive the spec go to `.forge/decisions/`.
 - If the contract is wrong, push back and stop. Do not improvise scope.

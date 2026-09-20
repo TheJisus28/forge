@@ -19,12 +19,11 @@ const usage = `forge — spec-driven agentic development, in files you own
   forge update                  refresh the kit, never touching your content
 
   forge new "<title>"           open a spec (proposed)
-  forge accept <id> --by <you>  a maintainer accepts it into the queue
+  forge accept <id>             into the queue (defaults --by to git user.name)
   forge start <id>              begin the work: checks dependencies
-  forge approve <id> --by <you> a maintainer approves the contract
+  forge approve <id>            the contract is right; code can start
   forge advance <id> --to <state>
   forge archive <id>            distil the spec, last commit of the pull request
-  forge gate --by <maintainer>  record a pull request approval; run by CI
 
   forge status [id]             what is open, who is waiting, what blocks
   forge brief                   the short state an agent reads at session start
@@ -69,8 +68,6 @@ func Main(args []string, stdout, stderr io.Writer) int {
 		err = cmdAdvance(rest, stdout)
 	case "archive":
 		err = cmdArchive(rest, stdout)
-	case "gate":
-		err = cmdGate(rest, stdout)
 	case "status":
 		err = cmdStatus(rest, stdout)
 	case "brief":
