@@ -5,10 +5,12 @@
 
 **A spec-driven workflow for coding agents, in files your team owns.**
 
-One Go binary, no dependencies, no account, no server. It plants a `.forge/`
-directory in your repository and then keeps the process honest: ids, states,
-dependencies, coverage and validation are the tool's job, so the agents can
-spend their tokens on the work.
+Forge is one Go binary with no dependencies, no account and no server. It
+plants a `.forge/` directory in your repository and keeps the process honest:
+ids, states, dependencies, coverage and validation are the tool's job, so the
+agents spend their tokens on the work.
+
+## Install
 
 ```bash
 go install github.com/TheJisus28/forge@latest
@@ -16,46 +18,76 @@ cd your-project
 forge init
 ```
 
-Then open your agent and say: **"run the Forge onboarding"**.
+You need Go 1.22+ and `git`. `gh` is optional, and only for opening pull
+requests.
 
-## Why
+Then open your coding agent (Claude Code, opencode, or anything that reads
+`AGENTS.md`) and say: **"run the Forge onboarding"**. The agent inspects the
+repository, asks what it cannot infer, and fills `.forge/project.md`.
 
-Agents are good at writing code and bad at remembering what your team
-decided. Every session rediscovers the stack, re-infers the conventions, and
-occasionally builds the wrong thing very well.
+## Use it
 
-Forge writes that down once, in Markdown the agents already read, and adds
-the one thing a chat cannot give you: **a contract approved by a human
-before any code exists**.
+Everything moves through one artifact: the **spec**.
 
-It ships with **no opinions about your technology**. There is no list of
-frameworks to prefer and no rules about how to name things. What belongs in
-`.forge/conventions/` is what your team decided, and agents propose new ones
-rather than inventing them.
+```bash
+forge new "Export invoices to CSV"   # propose work
+forge accept SPEC-005                # into the queue
+forge start SPEC-005                 # a branch, then the contract
+forge approve SPEC-005               # the contract is right; code can start
+forge advance SPEC-005 --to reviewing
+forge archive SPEC-005               # close it; a review is required
+forge submit SPEC-005                # push the branch, open the pull request
+```
 
-## The loop
+A person reviews and merges the pull request. Forge never merges for you.
+
+Check where things stand at any time:
+
+```bash
+forge status     # every spec, what is waiting, what blocks
+forge brief      # the short state an agent reads at session start
+forge validate   # exit 1 when the project is inconsistent
+```
+
+## Why teams use it
+
+- **A contract approved before any code.** The agent writes down what it will
+  build and a human agrees; then it builds exactly that.
+- **No re-litigating every session.** The stack, the commands, the conventions
+  and the decisions that outlive a spec live in `.forge/`, in Markdown the
+  agent already reads.
+- **The tool owns the bookkeeping.** Ids, states, hierarchy, coverage,
+  dependency cycles and contract drift are checked by `forge`, not by a tired
+  reviewer.
+- **A record that stays.** Every spec ends as a folder, `spec.md`, `plan.md`,
+  `tasks.md` and `review.md`, so a later change knows what exists and how it
+  was verified.
+- **It enforces itself.** While no spec is `implementing`, the guard denies
+  edits to product code; it also refuses pushes and merges into the default
+  branch, so work ends as a pull request a person approves.
+- **No opinions about your stack.** Forge works in a Rust repository and a
+  Rails one. What belongs in `.forge/conventions/` is what your team decided.
+
+## How the loop works
 
 ```
 proposed → accepted → specifying → awaiting-approval → planning →
 implementing → reviewing → done
 ```
 
-One artifact moves through it: the **spec**. It is born as fifteen lines
-describing a problem and grows a contract as it advances. There is no
-separate backlog item and no separate epic; the backlog is the specs nobody
-started, and an epic is a spec that has children.
-
-Two moves are worth a human's attention: accepting work into the queue,
-and approving a contract before code exists. Forge has no maintainer list
-to check, though — anyone can do either, the same way anyone with push
-access can commit. The record says who did it; the scrutiny happens where
-your team already reviews, in the pull request.
+The spec is born as a problem and a few acceptance criteria, and grows a
+contract as it advances. Two moves are worth a human's attention: accepting
+work into the queue, and approving the contract. Forge has no maintainer list
+to check; anyone can do either, the way anyone with push access can commit.
+The record says who did it, and the scrutiny happens in the pull request
+review your team already does. [The workflow](docs/workflow.md) has the
+detail.
 
 ## What `forge init` plants
 
 ```
 your-project/
-├── AGENTS.md  CLAUDE.md          pointers, three lines each
+├── AGENTS.md  CLAUDE.md          pointers, a few lines each
 ├── .forge/
 │   ├── project.md                stack and commands
 │   ├── specs/                    one folder per spec: spec, plan, tasks, review
@@ -63,69 +95,31 @@ your-project/
 │   ├── conventions/              how code is written here
 │   └── kit/                      the workflow and the agent roles
 ├── .claude/                      subagents, skills and session hooks
-├── .opencode/                    subagents and the guard plugin
+├── .opencode/                    subagents and plugins
 └── .github/workflows/            with --ci github
 ```
 
-One rule: everything outside `.forge/kit/` is yours and Forge never
-overwrites it.
+Everything outside `.forge/kit/` is yours; Forge never overwrites it.
 
-## Agents that start knowing where the project is
+## Works with your agent
 
-For Claude Code, `forge init` installs a `SessionStart` hook that runs
-`forge brief`. Before you type anything, the agent already knows which spec
-your branch is about, what it is waiting for, what is blocked and what
-changed. It runs again after every compaction, so long sessions do not drift.
-
-A `PreToolUse` hook runs `forge guard`, which **denies edits to product code
-while no spec is in `implementing`**, and says how to unblock. That is the
-difference between a workflow people respect and one they respect when they
-are not in a hurry. Turn it off with `guard: off` in `project.md`.
-
-For opencode, `forge init` plants `.opencode/agents/` and a guard plugin:
-opencode reads `AGENTS.md` and Forge's skills natively, and the plugin calls
-`forge guard` before every edit, so the same rule holds without a hook.
-[Using Forge with opencode](docs/opencode.md) has the details. Other agents
-read `AGENTS.md`, which is the single source the wrappers point at.
-
-## Built for teams
-
-- The number of a spec is reserved by a one-file intake pull request.
-- Work in flight lives in its own branch, so two people never touch the
-  same file; `forge archive` marks the spec done and keeps its folder, and
-  the main branch accumulates contracts, plans, tasks, reviews, decisions
-  and conventions.
-- `depends_on: [SPEC-011@contract]` unblocks a front end as soon as the back
-  end's contract is approved, without waiting for its code. If that contract
-  later changes, `forge validate` fails and names who was building against
-  the old one.
-- No approval list to manage: `forge accept` and `forge approve` work for
-  anyone, and CI still catches what is objectively broken.
+`AGENTS.md` is the single source. For **Claude Code**, `forge init` installs a
+`SessionStart` hook that runs `forge brief` (and again after every compaction)
+and a `PreToolUse` hook that runs `forge guard`. For **opencode**, it plants
+`.opencode/agents/` and two plugins that do the same: the brief in the system
+prompt, the guard before edits and shell commands. Other agents read
+`AGENTS.md` on their own. See [Using Forge with opencode](docs/opencode.md).
 
 ## Local-first
 
-No account, no telemetry, no network calls. Forge reads and writes files;
-`git` and `gh` are invoked explicitly when you ask for them. A test in this
-repository fails if the binary ever imports `net/http`.
-
-## Commands
-
-| | |
-|---|---|
-| `forge init` / `update` | plant or refresh the kit |
-| `forge new "<title>"` | propose work |
-| `forge accept` / `approve` | into the queue, contract is right |
-| `forge start` / `advance` / `archive` | move the work |
-| `forge status` / `brief` | what is happening |
-| `forge validate` | the CI check |
-| `forge guard` / `sync` | hooks and GitHub integration |
-
-Full reference: [docs/cli.md](docs/cli.md).
+No account, no telemetry, no network. Forge reads and writes files; `git` and
+`gh` run only when you ask. A test in this repository fails if the binary ever
+imports `net/http`.
 
 ## Documentation
 
 - [Workflow](docs/workflow.md) — states, hierarchy, coverage, dependencies
-- [Teams](docs/teams.md) — branches, pull requests, gates, CI
+- [Teams](docs/teams.md) — branches, pull requests, CI
 - [Conventions](docs/conventions.md) — how a project accumulates criteria
 - [CLI reference](docs/cli.md)
 - [opencode](docs/opencode.md) — installing and using Forge from opencode
