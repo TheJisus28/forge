@@ -46,6 +46,20 @@ gofmt -l .
 go run . init /tmp/scratch && go run . status
 ```
 
+## Releases
+
+Each merge to `main` that closes a spec is packaged as a release, cut by
+hand (decision 0002). After the spec's pull request is merged:
+
+1. The conductor proposes the next `vX.Y.Z` from Conventional Commits
+   (`fix` → patch, `feat` → minor, breaking → major); the maintainer
+   approves the exact number.
+2. Tag the approved commit and push the tag: `git tag vX.Y.Z` then
+   `git push origin vX.Y.Z`. GoReleaser publishes from there.
+
+The tag is what `forge upgrade` resolves, so a merge without a tag leaves
+installed binaries behind.
+
 ## Layout
 
 - `kit/` — the Markdown embedded with `go:embed`; `kit/machine/` is served
