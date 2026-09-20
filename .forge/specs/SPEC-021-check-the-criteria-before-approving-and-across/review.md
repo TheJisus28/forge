@@ -116,11 +116,11 @@ forward-only per decision 5); every other delivered spec has no
 
 ## Proposed conventions
 
-The comment-stripping convention this review proposed was accepted and
-recorded by the maintainer (decided 2026-09-20):
-`.forge/conventions/coverage.md` (strip comments before matching tokens,
-one shared `doc.StripComments`), `.forge/conventions/parsing.md` (whole-token
-id matching instead of `\b`) and `.forge/conventions/architecture.md`
-(`internal/validate` delegates the derivation to `internal/project`).
-`tasks.md`'s `## Proposed conventions` is now `None.` Nothing further to
-propose.
+None.
+
+<!-- The comment-stripping convention this review proposed was accepted and
+recorded by the maintainer 2026-09-20: .forge/conventions/coverage.md (strip
+comments before matching tokens, one shared doc.StripComments),
+.forge/conventions/parsing.md (whole-token id matching) and
+.forge/conventions/architecture.md (internal/validate delegates the
+derivation). -->
