@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The workflow states, transitions and roles have one source of truth: the
+  states live in `internal/workflow` and `forge workflow` renders them into
+  `kit/machine/WORKFLOW.md`, so the docs and the pages no longer restate the
+  loop and point at the command instead.
+- Whoever drives a spec is named `orchestrator` everywhere: the frontmatter
+  key, `forge status`, `forge roles`, the help text and the docs. Specs
+  written before the rename keep their recorded actor through a read-only
+  `conductor` fallback, and `Save` writes only the new key.
+- The CLI reads English section headings only (`Acceptance criteria`,
+  `Contract`, `Open questions`, `Proposed conventions`, `Existing state`);
+  `working_language` governs the prose, not the headings. `docs/cli.md` no
+  longer claims `forge start` writes `plan.md` or `tasks.md`.
+
 ## [0.4.0] - 2026-09-20
 
 ### Changed
