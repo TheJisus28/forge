@@ -9,15 +9,29 @@ accepted_by: TheJisus28
 
 ## Problem
 
-What hurts today, in one paragraph. Not the solution.
+A contract says what a change does, but not which part of the system it
+touches. Nothing groups the contracts about the guard, or the upgrade path,
+or the workflow; a reader asking "which contracts concern this capability?"
+has to read every `done` contract, and a change that later replaces another
+looks unrelated to it. Without a shared axis to group by, the derived view
+that decision 0004 chooses has nothing to organise on.
 
 ## Acceptance criteria
 
-Observable outcomes. Someone else must be able to mark each one pass or
-fail with evidence.
-
-- AC1: ...
-- AC2: ...
+- AC1: `forge new "<title>"` without `--capability` fails with a message
+  that says to pass `--capability <name>`; a spec is no longer creatable
+  without one.
+- AC2: `forge new "<title>" --capability guard` writes `capability: guard`
+  to the new spec's frontmatter.
+- AC3: `forge validate` reports a warning naming each spec that has no
+  `capability`, so the delivered specs are visible without failing the build.
+- AC4: `forge new --capability <name>` prints a warning when no existing
+  spec declares `<name>`, and creates the spec anyway, so a typo is visible
+  but a genuinely new capability is allowed.
+- AC5: `forge validate` reports an error when `capability` is present but
+  empty or not a lowercase slug (`[a-z0-9-]+`).
+- AC6: `forge status <id>` and `forge brief` show the capability, and
+  `forge template spec` and `docs/cli.md` document the field.
 
 ## Open questions
 
