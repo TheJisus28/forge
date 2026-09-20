@@ -702,6 +702,36 @@ func countGaps(gaps []project.CriterionGap) (tasks, evidence int) {
 	return tasks, evidence
 }
 
+// The fetch opt-in is on/true/yes, case insensitive; absent and off leave it
+// off (SPEC-022, decision 1).
+func TestFetchEnabled(t *testing.T) {
+	for _, tc := range []struct {
+		val  string
+		want bool
+	}{
+		{"on", true},
+		{"true", true},
+		{"yes", true},
+		{"ON", true},
+		{"off", false},
+		{"false", false},
+		{"", false},
+	} {
+		front := "---\ntest: \"go test ./...\"\n"
+		if tc.val != "" {
+			front += "fetch: " + tc.val + "\n"
+		}
+		root := write(t, front+"---\n\n# Project\n", nil)
+		p, err := project.Load(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := p.FetchEnabled(); got != tc.want {
+			t.Errorf("fetch: %q -> %v, want %v", tc.val, got, tc.want)
+		}
+	}
+}
+
 func TestValidCapability(t *testing.T) {
 	if !project.ValidCapability("guard") {
 		t.Error("guard is a valid capability")

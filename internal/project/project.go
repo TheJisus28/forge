@@ -193,6 +193,18 @@ func (p *Project) PushEnabled() bool {
 	return false
 }
 
+// FetchEnabled reports whether `forge brief` refreshes the remote refs at
+// session start. It is opt-in through the `fetch` scalar: only on, true and
+// yes enable it; anything else, including an absent scalar, leaves it off
+// (SPEC-022, decision 1).
+func (p *Project) FetchEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(p.Config.Str("fetch"))) {
+	case "on", "true", "yes":
+		return true
+	}
+	return false
+}
+
 // Configured reports whether onboarding has been done.
 func (p *Project) Configured() bool {
 	return p.Config.Str("test") != ""

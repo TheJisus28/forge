@@ -63,6 +63,30 @@ func RemoteSpecIDs(root, ref string) []string {
 	return ids
 }
 
+// HasGitHubRemote reports whether any configured remote points at GitHub. It
+// reads only the remote list git already has, so it touches no network
+// (SPEC-022, decision 2).
+func HasGitHubRemote(root string) bool {
+	out, err := run(root, "git", "remote")
+	if err != nil {
+		return false
+	}
+	for _, name := range strings.Split(out, "\n") {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		url, err := run(root, "git", "remote", "get-url", name)
+		if err != nil {
+			continue
+		}
+		if strings.Contains(url, "github.com") {
+			return true
+		}
+	}
+	return false
+}
+
 // BranchName is the branch Forge suggests for a spec.
 func BranchName(id, title string) string {
 	num := strings.TrimPrefix(id, "SPEC-")
