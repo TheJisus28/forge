@@ -160,7 +160,7 @@ func cmdStart(args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if err := workflow.Check(s.Status, workflow.Specifying); err != nil {
+	if err := workflow.Check(s.Status, workflow.Contracting); err != nil {
 		return err
 	}
 	blockers := p.Blockers(s)
@@ -193,7 +193,7 @@ func cmdStart(args []string, out io.Writer) error {
 	if len(blockers) > 0 {
 		note = "forced despite: " + strings.Join(blockers, "; ")
 	}
-	s.SetStatus(workflow.Specifying, orchestrator, note)
+	s.SetStatus(workflow.Contracting, orchestrator, note)
 	if err := os.MkdirAll(s.Dir(), 0o755); err != nil {
 		return err
 	}
@@ -228,10 +228,6 @@ func cmdApprove(args []string, out io.Writer) error {
 		return err
 	}
 	if err := workflow.Check(s.Status, workflow.Planning); err != nil {
-		if s.Status == workflow.Specifying && strings.TrimSpace(s.Contract()) != "" {
-			return fmt.Errorf("%s still says it is being specified; when the contract is "+
-				"ready run: forge advance %s --to awaiting-approval", s.ID, s.ID)
-		}
 		return err
 	}
 	contract := strings.TrimSpace(s.Contract())

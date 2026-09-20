@@ -43,7 +43,8 @@ plainly: **do not change status**.
 | Write product code for one phase | `implementer.md` |
 | Verify the acceptance criteria | `reviewer.md` |
 
-One phase per implementer run. Short contexts beat long ones.
+One phase per implementer run. Short contexts beat long ones. Launch the
+architect while the spec is `contracting`.
 
 ## Before planning
 

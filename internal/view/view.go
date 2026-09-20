@@ -55,7 +55,7 @@ func Brief(p *project.Project) string {
 	var waiting, inFlight, ready, delivered []*project.Spec
 	for _, s := range p.Specs {
 		switch {
-		case s.Status == workflow.Proposed, s.Status == workflow.AwaitingApproval:
+		case s.Status == workflow.Proposed:
 			waiting = append(waiting, s)
 		case workflow.InFlight(s.Status):
 			inFlight = append(inFlight, s)
@@ -65,11 +65,8 @@ func Brief(p *project.Project) string {
 			delivered = append(delivered, s)
 		}
 	}
-	section(&b, "open decisions", waiting, func(s *project.Spec) string {
-		if s.Status == workflow.Proposed {
-			return "forge accept or drop"
-		}
-		return "forge approve"
+	section(&b, "open decisions", waiting, func(*project.Spec) string {
+		return "forge accept or drop"
 	})
 	section(&b, "in flight", inFlight, func(s *project.Spec) string {
 		if s.Orchestrator != "" {

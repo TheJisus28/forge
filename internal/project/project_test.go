@@ -285,7 +285,7 @@ func TestContractDrift(t *testing.T) {
 func TestSaveRoundTrip(t *testing.T) {
 	p := load(t)
 	s, _ := p.Spec("SPEC-003")
-	s.SetStatus(workflow.Specifying, "ana", "started")
+	s.SetStatus(workflow.Contracting, "ana", "started")
 	s.Orchestrator = "ana"
 	s.Capability = "notifications"
 	s.Supersedes = []string{"SPEC-002"}
@@ -298,7 +298,7 @@ func TestSaveRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	reloaded, _ := again.Spec("SPEC-003")
-	if reloaded.Status != workflow.Specifying || reloaded.Orchestrator != "ana" {
+	if reloaded.Status != workflow.Contracting || reloaded.Orchestrator != "ana" {
 		t.Errorf("not persisted: %+v", reloaded)
 	}
 	if reloaded.Capability != "notifications" {
@@ -395,6 +395,43 @@ func TestSpec_ReadsEnglishSectionHeadingsOnly(t *testing.T) {
 	}
 	if got := s.OpenQuestions(); got != "" {
 		t.Errorf("a Spanish-only body should yield no open questions: %q", got)
+	}
+}
+
+// A status written before the rename still loads as the canonical state, so
+// every command reports contracting before anything rewrites the file
+// (SPEC-015, decision 4).
+func TestFromDoc_CanonicalisesRetiredStatus(t *testing.T) {
+	root := write(t, config, map[string]string{
+		"SPEC-001-a.md": "---\nid: SPEC-001\ntitle: A\nstatus: specifying\n---\n",
+		"SPEC-002-b.md": "---\nid: SPEC-002\ntitle: B\nstatus: awaiting-approval\n---\n",
+		"SPEC-003-c.md": "---\nid: SPEC-003\ntitle: C\nstatus: done\n---\n",
+	})
+	p, err := project.Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for id, want := range map[string]workflow.State{
+		"SPEC-001": workflow.Contracting,
+		"SPEC-002": workflow.Contracting,
+		"SPEC-003": workflow.Done,
+	} {
+		s, ok := p.Spec(id)
+		if !ok {
+			t.Fatalf("%s should load", id)
+		}
+		if s.Status != want {
+			t.Errorf("%s status = %q, want %q", id, s.Status, want)
+		}
+	}
+	if got := workflow.Canonical("specifying"); got != workflow.Contracting {
+		t.Errorf(`Canonical("specifying") = %q, want %q`, got, workflow.Contracting)
+	}
+	if got := workflow.Canonical("awaiting-approval"); got != workflow.Contracting {
+		t.Errorf(`Canonical("awaiting-approval") = %q, want %q`, got, workflow.Contracting)
+	}
+	if got := workflow.Canonical("done"); got != workflow.Done {
+		t.Errorf(`Canonical("done") = %q, want %q`, got, workflow.Done)
 	}
 }
 

@@ -15,8 +15,9 @@ third person can verify. You read product code; you do not change it.
 
 ## The contract
 
-Write it in the spec's `## Contract` section, using the real names of this
-repository: modules, endpoints, tables, screens.
+The spec is `contracting` while you write this. Write it in the spec's
+`## Contract` section, using the real names of this repository: modules,
+endpoints, tables, screens.
 
 - Numbered decisions, each with the option chosen and what it discards.
 - Interfaces other specs will build against, written precisely. Someone is

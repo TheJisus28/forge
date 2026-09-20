@@ -491,7 +491,7 @@ func FromDoc(path string, d *doc.Doc) (*Spec, error) {
 		Num:          num,
 		Title:        d.Str("title"),
 		Capability:   strings.TrimSpace(d.Str("capability")),
-		Status:       workflow.State(d.Str("status")),
+		Status:       workflow.Canonical(workflow.State(d.Str("status"))),
 		Parent:       NormalizeID(d.Str("parent")),
 		Covers:       upperAll(d.List("covers")),
 		Supersedes:   normalizeIDs(d.List("supersedes")),

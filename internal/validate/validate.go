@@ -65,6 +65,7 @@ func Run(p *project.Project) []Finding {
 			add(Error, s.ID, "missing title")
 		}
 		checkCapability(s, add)
+		checkLegacyStatus(s, add)
 		checkSupersedes(p, s, add)
 		if !workflow.Valid(s.Status) {
 			add(Error, s.ID, "unknown status %q", s.Status)
@@ -104,6 +105,18 @@ func checkCapability(s *project.Spec, add func(Severity, string, string, ...any)
 	if !project.ValidCapability(s.Capability) {
 		add(Error, s.ID, "capability %q is not a lowercase slug ([a-z0-9-]+)", s.Capability)
 	}
+}
+
+// checkLegacyStatus warns when the frontmatter still carries a retired state
+// name. The typed status already reads as the canonical one, so the raw
+// document is what tells the two apart, and `forge migrate` is the rewrite.
+// It is intrinsic, so it runs before the state gate.
+func checkLegacyStatus(s *project.Spec, add func(Severity, string, string, ...any)) {
+	raw := workflow.State(s.Doc().Str("status"))
+	if raw == "" || raw == s.Status {
+		return
+	}
+	add(Warning, s.ID, "status %q is the old name for %q; run forge migrate", raw, s.Status)
 }
 
 // checkSupersedes enforces the supersede link: it must point at a delivered
@@ -193,7 +206,9 @@ func checkArtifacts(p *project.Project, s *project.Spec, add func(Severity, stri
 		return filepath.ToSlash(path)
 	}
 	switch s.Status {
-	case workflow.AwaitingApproval, workflow.Planning, workflow.Implementing, workflow.Reviewing:
+	case workflow.Contracting:
+		// The contract may still be empty while it is being written.
+	case workflow.Planning, workflow.Implementing, workflow.Reviewing:
 		if strings.TrimSpace(s.Contract()) == "" {
 			add(Error, s.ID, "is %s with an empty Contract section", s.Status)
 		}

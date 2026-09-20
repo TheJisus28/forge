@@ -43,6 +43,15 @@ func TestWorkflowCommand_RendersTheStatesFromGo(t *testing.T) {
 		}
 		last = at
 	}
+
+	if !strings.Contains(first, "| `contracting` |") {
+		t.Errorf("workflow output does not render the renamed state:\n%s", first)
+	}
+	for _, retired := range []string{"specifying", "awaiting-approval"} {
+		if strings.Contains(first, retired) {
+			t.Errorf("workflow output still names the retired state %q:\n%s", retired, first)
+		}
+	}
 }
 
 func TestRolesCommand_ListsAndPrints(t *testing.T) {

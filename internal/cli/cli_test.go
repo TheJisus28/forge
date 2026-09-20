@@ -336,12 +336,17 @@ func TestLifecycle(t *testing.T) {
 	mustRun(t, dir, "accept", "SPEC-001", "--by", "jesus")
 	mustRun(t, dir, "start", "SPEC-001", "--by", "ana")
 
+	// The template ships guidance in the Contract section; strip it so the
+	// contract is genuinely empty and approve has nothing to freeze.
+	body = read(t, path)
+	empty := regexp.MustCompile(`(?s)## Contract\n.*?\n## Out of scope`).
+		ReplaceAllString(body, "## Contract\n\n## Out of scope")
+	write(t, path, empty)
 	if out, code := run(t, dir, "approve", "SPEC-001", "--by", "ana"); code == 0 {
 		t.Fatalf("an empty contract must not be approvable: %s", out)
 	}
 	body = read(t, path)
 	write(t, path, strings.Replace(body, "## Contract\n", "## Contract\n\nGET /cards\n", 1))
-	mustRun(t, dir, "advance", "SPEC-001", "--to", "awaiting-approval", "--by", "ana")
 	// The orchestrator approving their own contract is fine: there is no
 	// separate approver role to ask, and the record still says it was ana.
 	mustRun(t, dir, "approve", "SPEC-001", "--by", "ana")
@@ -498,7 +503,6 @@ func TestHierarchyAndDependencies(t *testing.T) {
 	mustRun(t, dir, "start", "SPEC-002", "--by", "ana")
 	api := filepath.Join(specs, "SPEC-002-api", "spec.md")
 	write(t, api, strings.Replace(read(t, api), "## Contract\n", "## Contract\n\nGET /n\n", 1))
-	mustRun(t, dir, "advance", "SPEC-002", "--to", "awaiting-approval")
 	mustRun(t, dir, "approve", "SPEC-002", "--by", "jesus")
 	mustRun(t, dir, "start", "SPEC-003", "--by", "jose")
 
@@ -634,12 +638,39 @@ func TestApprove_RefusesOpenQuestions(t *testing.T) {
 
 	spec := filepath.Join(dir, ".forge", "specs", "SPEC-001-thing", "spec.md")
 	body := read(t, spec)
+	body = strings.Replace(body, "## Contract\n", "## Contract\n\nGET /things\n", 1)
 	write(t, spec, strings.Replace(body, "## Open questions\n",
 		"## Open questions\n\n- OQ1: which store?\n", 1))
 
-	mustRun(t, dir, "advance", "SPEC-001", "--to", "awaiting-approval", "--by", "ana")
 	if out, code := run(t, dir, "approve", "SPEC-001", "--by", "ana"); code == 0 {
 		t.Fatalf("approve should refuse while questions are open: %s", out)
+	}
+}
+
+// Approval reads a contract written straight from contracting: there is no
+// separate move to a review state, and the approver and the fingerprint are
+// still frozen (SPEC-015, decision 2).
+func TestApprove_StraightFromContracting(t *testing.T) {
+	dir := newRepo(t)
+	mustRun(t, dir, "new", "Thing", "--capability", "workflow")
+	mustRun(t, dir, "accept", "SPEC-001", "--by", "ana")
+	mustRun(t, dir, "start", "SPEC-001", "--by", "ana")
+
+	spec := filepath.Join(dir, ".forge", "specs", "SPEC-001-thing", "spec.md")
+	body := read(t, spec)
+	write(t, spec, strings.Replace(body, "## Contract\n", "## Contract\n\nGET /things\n", 1))
+
+	mustRun(t, dir, "approve", "SPEC-001", "--by", "jesus")
+
+	got := read(t, spec)
+	if !strings.Contains(got, "status: planning") {
+		t.Errorf("approval should move the spec straight to planning:\n%s", got)
+	}
+	if !strings.Contains(got, "approved_by: jesus") || !strings.Contains(got, "contract_hash:") {
+		t.Errorf("approval should record the approver and the fingerprint:\n%s", got)
+	}
+	if strings.Contains(got, "awaiting-approval") {
+		t.Errorf("history should not name the retired state:\n%s", got)
 	}
 }
 
@@ -695,7 +726,6 @@ func TestStatusShowsSupersedes(t *testing.T) {
 	mustRun(t, dir, "accept", "SPEC-001", "--by", "ana")
 	mustRun(t, dir, "start", "SPEC-001", "--by", "ana")
 	write(t, old, strings.Replace(read(t, old), "## Contract\n", "## Contract\n\nGET /old\n", 1))
-	mustRun(t, dir, "advance", "SPEC-001", "--to", "awaiting-approval", "--by", "ana")
 	mustRun(t, dir, "approve", "SPEC-001", "--by", "ana")
 
 	oldDir := filepath.Dir(old)

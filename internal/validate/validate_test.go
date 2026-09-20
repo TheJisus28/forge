@@ -246,10 +246,29 @@ func TestRun_MissingArtifacts(t *testing.T) {
 	expectError(t, findings(t, p), "implementing without")
 
 	p = build(t, map[string]string{
-		"SPEC-001-a.md": "---\nid: SPEC-001\ntitle: A\nstatus: awaiting-approval\n---\n\n" +
+		"SPEC-001-a.md": "---\nid: SPEC-001\ntitle: A\nstatus: planning\n---\n\n" +
 			"## Contract\n\n",
 	})
 	expectError(t, findings(t, p), "empty Contract section")
+}
+
+// A repository written before the rename keeps loading; validation names the
+// canonical state and the command that converges the tree, as a warning
+// (SPEC-015, decision 4).
+func TestRun_WarnsLegacyStatusName(t *testing.T) {
+	p := build(t, map[string]string{
+		"SPEC-001-a.md": "---\nid: SPEC-001\ntitle: A\nstatus: specifying\ncapability: a\n" +
+			"---\n\n## Contract\n\nx\n",
+	})
+	if !warns(t, p, `status "specifying" is the old name for "contracting"`) {
+		t.Fatal("a retired status should warn with the canonical name")
+	}
+	if !warns(t, p, "forge migrate") {
+		t.Fatal("the warning should name forge migrate")
+	}
+	if got := findings(t, p); len(got) != 0 {
+		t.Fatalf("a retired status must not fail the build: %v", got)
+	}
 }
 
 // A plan that does not survey what already exists is only a warning: it
