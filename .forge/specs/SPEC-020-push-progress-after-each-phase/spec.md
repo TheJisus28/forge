@@ -1,7 +1,7 @@
 ---
 id: SPEC-020
 title: Push progress after each phase
-status: implementing
+status: done
 capability: delivery
 created: 2026-09-20
 updated: 2026-09-20
@@ -193,3 +193,5 @@ Written by `forge`. Do not edit by hand.
 - 2026-09-20  contracting  by TheJisus28
 - 2026-09-20  planning  by TheJisus28
 - 2026-09-20  implementing  by orchestrator
+- 2026-09-20  reviewing  by orchestrator
+- 2026-09-20  done  by orchestrator: archived
