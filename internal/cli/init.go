@@ -158,9 +158,13 @@ func mapDest(p string) string {
 }
 
 // kitOwned files belong to Forge and are rewritten on every update.
+//
+// AGENTS.md and CLAUDE.md are deliberately not here: they are the project's
+// own instructions, written when missing and overwritten only with --force,
+// like the rest of the tree outside kit/.
 func kitOwned(dest string) bool {
 	switch dest {
-	case "AGENTS.md", "CLAUDE.md", project.Dir + "/README.md":
+	case project.Dir + "/README.md":
 		return true
 	}
 	return strings.HasPrefix(dest, project.Dir+"/kit/") ||

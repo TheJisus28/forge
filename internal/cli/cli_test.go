@@ -117,6 +117,35 @@ func TestInit_PlantsTheKitAndKeepsYourContent(t *testing.T) {
 	}
 }
 
+// An existing AGENTS.md or CLAUDE.md belongs to the project: init and update
+// must not delete the instructions they hold. Only --force rewrites them.
+func TestInit_KeepsExistingRootPointers(t *testing.T) {
+	dir := t.TempDir()
+	const agents = "# My own agent rules\n\nDo not touch.\n"
+	const claude = "# My own Claude rules\n"
+	write(t, filepath.Join(dir, "AGENTS.md"), agents)
+	write(t, filepath.Join(dir, "CLAUDE.md"), claude)
+
+	mustRun(t, dir, "init")
+	for name, want := range map[string]string{"AGENTS.md": agents, "CLAUDE.md": claude} {
+		if got := read(t, filepath.Join(dir, name)); got != want {
+			t.Errorf("init overwrote %s:\n%s", name, got)
+		}
+	}
+
+	mustRun(t, dir, "update")
+	for name, want := range map[string]string{"AGENTS.md": agents, "CLAUDE.md": claude} {
+		if got := read(t, filepath.Join(dir, name)); got != want {
+			t.Errorf("update overwrote %s:\n%s", name, got)
+		}
+	}
+
+	mustRun(t, dir, "init", "--force")
+	if got := read(t, filepath.Join(dir, "AGENTS.md")); got == agents {
+		t.Error("--force should overwrite an existing AGENTS.md")
+	}
+}
+
 func TestInit_NoGuardAndCI(t *testing.T) {
 	dir := t.TempDir()
 	mustRun(t, dir, "init", "--no-guard", "--ci", "github")

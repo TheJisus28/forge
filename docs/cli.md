@@ -13,15 +13,18 @@ opencode subagents, skills and hooks, and the workflows when `--ci github`
 is given.
 
 Existing files are kept. `--force` rewrites them, except `.forge/project.md`,
-which is never overwritten. `--no-guard` skips the `PreToolUse` hook and the
-opencode guard plugin, so nothing denies product code edits without an
-active spec.
+which is never overwritten. `AGENTS.md` and `CLAUDE.md` are the project's
+own instructions, so they are never overwritten without `--force` either.
+`--no-guard` skips the `PreToolUse` hook and the opencode guard plugin, so
+nothing denies product code edits without an active spec.
 
 ### `forge update [--force]`
 
-Refreshes `.forge/kit/`, the root pointers and the agent integrations.
-Never touches `project.md`, `specs/`, `decisions/` or `conventions/`. Run it
-after upgrading the binary.
+Refreshes the kit Forge owns: `.forge/kit/`, `.forge/README.md`, the
+`.claude/` and `.opencode/` integrations, and the workflows. Never touches
+your `AGENTS.md`, `CLAUDE.md`, `project.md`, `specs/`, `decisions/` or
+`conventions/`; `--force` rewrites the files it does not own. Run it after
+upgrading the binary.
 
 ## Moving work
 

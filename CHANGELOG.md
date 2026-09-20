@@ -25,6 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   1 and prints the reason when an edit must be denied, reusing the rule the
   Claude Code hook already enforces.
 
+### Fixed
+
+- `forge init` and `forge update` no longer overwrite an existing
+  `AGENTS.md` or `CLAUDE.md`. They are the project's own instructions,
+  kept like every other file outside `.forge/kit/`; only `--force` rewrites
+  them. This is what let the Forge repository manage itself without losing
+  the rules in its `AGENTS.md`.
+
 ## [0.2.0] - 2026-09-19
 
 ### Removed
