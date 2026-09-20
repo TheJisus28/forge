@@ -11,10 +11,13 @@ later spec knows what exists without reading the diff.
   `internal/cli/upgrade_internal_test.go` and
   `internal/cli/upgrade_test.go`. Verified: `go test ./...`, `gofmt -l .`,
   `go vet ./...` all clean; `go run . help` lists `forge upgrade`.
-- [ ] Phase 2 — safe replacement, cleanup and docs. Where:
+- [x] Phase 2 — safe replacement, cleanup and docs. Where:
   `internal/cli/upgrade.go` (`replaceExecutable`, `copyFile`,
-  `cleanupStaleBinary`), `internal/cli/cli.go` (`cleanupStaleBinary()` at the
-  top of `Main`), `docs/cli.md`.
+  `cleanupStaleBinary`, seams `renameFile`/`removeFile`, replacement wired
+  into `cmdUpgrade`), `internal/cli/cli.go` (`cleanupStaleBinary()` first in
+  `Main`), `docs/cli.md` (`forge upgrade [version]`), tests in
+  `internal/cli/upgrade_internal_test.go` and `internal/cli/upgrade_test.go`.
+  Verified: `go test ./...`, `gofmt -l .`, `go vet ./...` all clean.
 
 ## Proposed conventions
 

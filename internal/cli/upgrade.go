@@ -21,6 +21,8 @@ var (
 	goInstall  = installModule
 	goVersion  = moduleVersion
 	executable = os.Executable
+	renameFile = os.Rename
+	removeFile = os.Remove
 )
 
 // cmdUpgrade installs a released forge into a private temp GOBIN and reports
@@ -62,12 +64,65 @@ func cmdUpgrade(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 
+	exe, err := executable()
+	if err != nil {
+		return err
+	}
+	if err := replaceExecutable(exe, fresh, ref); err != nil {
+		return err
+	}
+
 	installed := ref
 	if v, err := goVersion(goBin, fresh); err == nil && v != "" {
 		installed = v
 	}
 	fmt.Fprintf(stdout, "forge upgraded to %s\n", installed)
 	return nil
+}
+
+// replaceExecutable swaps the running binary for the freshly installed one.
+// On Windows a running image cannot be overwritten but can be renamed, so the
+// old binary becomes a sidecar, the new one is copied into its place, and the
+// sidecar is removed best effort. The sidecar is cleaned up on the next
+// invocation by cleanupStaleBinary.
+func replaceExecutable(exe, fresh, ref string) error {
+	old := exe + ".old"
+	_ = removeFile(old)
+
+	if err := renameFile(exe, old); err != nil {
+		return fmt.Errorf("cannot replace the running forge binary: %w; close other forge processes and run: go install %s@%s", err, forgeModule, ref)
+	}
+
+	if err := copyFile(fresh, exe); err != nil {
+		if rbErr := renameFile(old, exe); rbErr != nil {
+			return fmt.Errorf("cannot write the new forge binary: %w; the previous forge is at %s, move it back or run: go install %s@%s", err, old, forgeModule, ref)
+		}
+		return fmt.Errorf("cannot write the new forge binary: %w; forge is unchanged, run: go install %s@%s", err, forgeModule, ref)
+	}
+
+	_ = removeFile(old)
+	return nil
+}
+
+// copyFile copies src over dst with mode 0o755. A copy rather than a rename,
+// because the temp GOBIN may be on another volume than the executable.
+func copyFile(src, dst string) error {
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(dst, data, 0o755)
+}
+
+// cleanupStaleBinary removes the sidecar a previous Windows replacement left
+// beside the running binary. It is best effort and never fails the command
+// that triggered it.
+func cleanupStaleBinary() {
+	path, err := executable()
+	if err != nil {
+		return
+	}
+	_ = removeFile(path + ".old")
 }
 
 // exeSuffix is the executable extension on the host, empty everywhere but

@@ -39,7 +39,11 @@ func stubToolchain(t *testing.T, version string, versionErr error) *installCall 
 		return "/fake/bin/go", nil
 	})
 	swap(t, &executable, func() (string, error) {
-		return filepath.Join(t.TempDir(), "forge"+exeSuffix()), nil
+		exe := filepath.Join(t.TempDir(), "forge"+exeSuffix())
+		if err := os.WriteFile(exe, []byte("old"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		return exe, nil
 	})
 	swap(t, &goInstall, func(goBin, destDir, ref string, stdout, stderr io.Writer) error {
 		call.goBin, call.destDir, call.ref = goBin, destDir, ref
@@ -149,6 +153,87 @@ func TestUpgrade_FallsBackToTheRefWhenVersionIsUnreadable(t *testing.T) {
 	if !strings.Contains(out.String(), "upgraded to latest") {
 		t.Errorf("output should fall back to the requested ref:\n%s", out.String())
 	}
+}
+
+func TestUpgrade_ReplacesTheRunningBinary(t *testing.T) {
+	exe := filepath.Join(t.TempDir(), "forge"+exeSuffix())
+	if err := os.WriteFile(exe, []byte("old"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	swap(t, &lookupGo, func(string) (string, error) { return "/fake/bin/go", nil })
+	swap(t, &executable, func() (string, error) { return exe, nil })
+	swap(t, &goInstall, func(goBin, destDir, ref string, stdout, stderr io.Writer) error {
+		return os.WriteFile(filepath.Join(destDir, "forge"+exeSuffix()), []byte("new"), 0o755)
+	})
+	swap(t, &goVersion, func(goBin, path string) (string, error) { return "v9.9.9", nil })
+
+	var out, errOut bytes.Buffer
+	if err := cmdUpgrade(nil, &out, &errOut); err != nil {
+		t.Fatalf("upgrade failed: %v", err)
+	}
+	got, err := os.ReadFile(exe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "new" {
+		t.Errorf("running binary = %q, want the freshly installed one", got)
+	}
+	if !strings.Contains(out.String(), "upgraded to v9.9.9") {
+		t.Errorf("output does not report the replacement:\n%s", out.String())
+	}
+}
+
+func TestUpgrade_WhenRenameFailsTheBinaryIsUnchanged(t *testing.T) {
+	exe := filepath.Join(t.TempDir(), "forge"+exeSuffix())
+	if err := os.WriteFile(exe, []byte("old"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	swap(t, &lookupGo, func(string) (string, error) { return "/fake/bin/go", nil })
+	swap(t, &executable, func() (string, error) { return exe, nil })
+	swap(t, &goInstall, func(goBin, destDir, ref string, stdout, stderr io.Writer) error {
+		return os.WriteFile(filepath.Join(destDir, "forge"+exeSuffix()), []byte("new"), 0o755)
+	})
+	swap(t, &renameFile, func(string, string) error { return errors.New("access is denied") })
+
+	var out, errOut bytes.Buffer
+	err := cmdUpgrade(nil, &out, &errOut)
+	if err == nil {
+		t.Fatal("a failed rename should fail the upgrade")
+	}
+	if !strings.Contains(err.Error(), "cannot replace the running forge binary") {
+		t.Errorf("error is not the actionable rename sentence:\n%v", err)
+	}
+	if !strings.Contains(err.Error(), "go install github.com/TheJisus28/forge@latest") {
+		t.Errorf("error does not give the manual command:\n%v", err)
+	}
+	got, readErr := os.ReadFile(exe)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if string(got) != "old" {
+		t.Errorf("running binary = %q, want it left unchanged", got)
+	}
+}
+
+func TestCleanupStaleBinary_RemovesTheSidecar(t *testing.T) {
+	exe := filepath.Join(t.TempDir(), "forge"+exeSuffix())
+	old := exe + ".old"
+	if err := os.WriteFile(old, []byte("stale"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	swap(t, &executable, func() (string, error) { return exe, nil })
+
+	cleanupStaleBinary()
+	if _, err := os.Stat(old); !os.IsNotExist(err) {
+		t.Errorf("sidecar should be gone, stat err = %v", err)
+	}
+}
+
+func TestCleanupStaleBinary_IgnoresRemoveErrors(t *testing.T) {
+	swap(t, &executable, func() (string, error) { return "/does/not/matter/forge", nil })
+	swap(t, &removeFile, func(string) error { return errors.New("still locked by the running process") })
+
+	cleanupStaleBinary()
 }
 
 func TestUpgrade_RejectsMoreThanOneVersion(t *testing.T) {

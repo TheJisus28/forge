@@ -43,6 +43,7 @@ Run any command with --help for its flags.
 
 // Main runs a command and returns the process exit code.
 func Main(args []string, stdout, stderr io.Writer) int {
+	cleanupStaleBinary()
 	if len(args) == 0 {
 		fmt.Fprint(stdout, usage)
 		return 0

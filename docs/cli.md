@@ -26,6 +26,16 @@ Refreshes what Forge owns: `.forge/README.md`, the `.claude/` and
 rewrites the files it does not own. It also removes a stale `.forge/kit/`
 left by an older Forge. Run it after upgrading the binary.
 
+### `forge upgrade [version]`
+
+Upgrades the forge binary itself, not the kit. It installs a released
+forge through the Go toolchain — `go install
+github.com/TheJisus28/forge@latest`, or an explicit version such as
+`forge upgrade v0.2.0` — and then replaces the running binary safely,
+renaming it to a sidecar on Windows and cleaning that sidecar up on the
+next invocation. It works outside a `.forge/` project and never touches the
+planted kit; refreshing the kit stays `forge update`.
+
 ## Moving work
 
 ### `forge new "<title>" [--parent SPEC-002] [--covers AC1,AC3]`
