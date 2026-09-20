@@ -3,6 +3,7 @@ test: "go test ./..."
 dev: "go run ."
 working_language: en
 guard: on
+push: on
 ---
 
 # Project
