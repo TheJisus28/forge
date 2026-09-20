@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `forge brief` refreshes the remote refs at session start when
+  `.forge/project.md` sets `fetch: on`, so a session does not start from a
+  stale clone. It runs `git fetch` only — never `pull`, `merge` or `rebase` —
+  and only for a GitHub remote with an authenticated `gh`; when the fetch
+  cannot run or fails it prints a `warning: ` line, renders from local refs
+  and exits 0. The default stays offline, and the docs, the roles and
+  `project.md` say so.
+
 ## [0.8.0] - 2026-09-20
 
 ### Added

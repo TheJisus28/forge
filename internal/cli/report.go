@@ -15,9 +15,11 @@ import (
 // Seams a test replaces: the network belongs to git and gh, so a unit test
 // stubs them rather than reaching either (SPEC-020, decision 8).
 var (
-	hasGH      = project.HasGH
-	pushBranch = project.Push
-	ghRun      = project.GH
+	hasGH        = project.HasGH
+	pushBranch   = project.Push
+	ghRun        = project.GH
+	githubRemote = project.HasGitHubRemote
+	ghUser       = project.GHUser
 )
 
 func cmdStatus(args []string, out io.Writer) error {
@@ -67,7 +69,16 @@ func cmdBrief(args []string, out io.Writer) error {
 		}
 		return err
 	}
+	warning, fetched := fetchBeforeBrief(p)
+	if fetched {
+		if reloaded, err := project.Load(p.Root); err == nil {
+			p = reloaded
+		}
+	}
 	text := view.Brief(p)
+	if warning != "" {
+		text = warning + "\n" + text
+	}
 	if !*asJSON {
 		fmt.Fprint(out, text)
 		return nil
@@ -84,6 +95,29 @@ func cmdBrief(args []string, out io.Writer) error {
 	}
 	fmt.Fprintln(out, string(data))
 	return nil
+}
+
+// fetchBeforeBrief refreshes the remote refs at session start, and only when
+// the project opted in with `fetch: on` (SPEC-022). It returns one `warning: `
+// line when the project opted in and the fetch could not run or failed, and
+// whether the fetch ran. A project that did not opt in returns before touching
+// gh or git. Only a fetch that ran can have changed the refs; the caller
+// reloads on that signal. `git fetch` updates refs and leaves the working
+// tree, the index and the branch alone (decision 4).
+func fetchBeforeBrief(p *project.Project) (warning string, fetched bool) {
+	if !p.FetchEnabled() {
+		return "", false
+	}
+	if !githubRemote(p.Root) {
+		return "warning: no GitHub remote configured; using local refs", false
+	}
+	if ghUser(p.Root) == "" {
+		return "warning: gh is not authenticated; using local refs", false
+	}
+	if err := project.Fetch(p.Root); err != nil {
+		return fmt.Sprintf("warning: git fetch failed: %v; using local refs", err), false
+	}
+	return "", true
 }
 
 // cmdCapabilities prints the current shape of the system: every done spec is

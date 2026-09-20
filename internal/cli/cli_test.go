@@ -1502,6 +1502,61 @@ func TestDocPages_DocumentTheCheckpoint(t *testing.T) {
 	}
 }
 
+// The opt-in fetch is documented where a reader looks: the network preamble
+// names `forge brief`, its command section states `fetch: on`, the
+// fetch-only behaviour and the three warnings, and the local-first promises
+// in README.md, AGENTS.md and `.forge/project.md` carry the same opt-in
+// (SPEC-022, AC6).
+func TestDocPages_DocumentTheOptInFetch(t *testing.T) {
+	cli := read(t, "../../docs/cli.md")
+
+	preamble := cli
+	if i := strings.Index(cli, "\n## "); i >= 0 {
+		preamble = cli[:i]
+	}
+	if !strings.Contains(preamble, "forge brief") {
+		t.Errorf("the network preamble should name forge brief:\n%s", preamble)
+	}
+
+	brief := docsSection(cli, "### `forge brief")
+	if brief == "" {
+		t.Fatal("docs/cli.md should document `forge brief`")
+	}
+	for _, want := range []string{
+		"fetch: on",
+		"git fetch",
+		"pull",
+		"merge",
+		"rebase",
+		"no GitHub remote configured",
+		"gh is not authenticated",
+		"git fetch failed",
+	} {
+		if !strings.Contains(brief, want) {
+			t.Errorf("the forge brief section should name %q:\n%s", want, brief)
+		}
+	}
+
+	local := docsSection(read(t, "../../README.md"), "## Local-first")
+	if !strings.Contains(local, "fetch: on") {
+		t.Errorf("README.md Local-first should name the fetch: on opt-in:\n%s", local)
+	}
+
+	rules := docsSection(read(t, "../../AGENTS.md"), "## Rules that are not negotiable")
+	if !strings.Contains(rules, "forge status --fetch") || !strings.Contains(rules, "fetch: on") {
+		t.Errorf("AGENTS.md should name the opt-in fetch beside forge status --fetch:\n%s", rules)
+	}
+
+	project := read(t, "../../.forge/project.md")
+	if !regexp.MustCompile(`(?m)^fetch: on$`).MatchString(project) {
+		t.Error(".forge/project.md frontmatter should opt in with `fetch: on`")
+	}
+	facts := docsSection(project, "## Facts an agent cannot guess")
+	if !strings.Contains(facts, "fetch: on") || !strings.Contains(facts, "forge brief") {
+		t.Errorf(".forge/project.md should document the opt-in fetch:\n%s", facts)
+	}
+}
+
 // `forge start` creates the spec folder and records fingerprints; planning
 // writes `plan.md` and `tasks.md` after approval. The page must match the
 // command and not claim start creates them (AC3).

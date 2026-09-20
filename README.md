@@ -110,8 +110,9 @@ prompt, the guard before edits and shell commands. Other agents read
 ## Local-first
 
 No account, no telemetry, no network. Forge reads and writes files; `git` and
-`gh` run only when you ask. A test in this repository fails if the binary ever
-imports `net/http`.
+`gh` run only when you ask, or when the project opts in with `fetch: on`, which
+lets `forge brief` refresh the remote refs at session start. A test in this
+repository fails if the binary ever imports `net/http`.
 
 ## Documentation
 

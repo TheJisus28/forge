@@ -149,3 +149,25 @@ func TestPushEnabled(t *testing.T) {
 		}
 	}
 }
+
+// A GitHub remote is recognised from the URL git already has: the https and
+// ssh forms both count, while a local bare path or no remote does not. Nothing
+// is fetched, so no test touches the network (SPEC-022, decision 2).
+func TestHasGitHubRemote(t *testing.T) {
+	dir := gitRepo(t, "main")
+	if project.HasGitHubRemote(dir) {
+		t.Error("a local bare remote is not GitHub")
+	}
+	for _, url := range []string{
+		"https://github.com/x/y.git",
+		"git@github.com:x/y.git",
+	} {
+		runGit(t, dir, "remote", "set-url", "origin", url)
+		if !project.HasGitHubRemote(dir) {
+			t.Errorf("origin at %s should be recognised as GitHub", url)
+		}
+	}
+	if project.HasGitHubRemote(t.TempDir()) {
+		t.Error("a directory outside a repository has no remote")
+	}
+}

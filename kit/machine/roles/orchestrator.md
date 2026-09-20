@@ -14,7 +14,9 @@ the loop, delegate, and keep the record honest.
 One spec is one session. The state lives in `.forge/`, and the brief is
 built again when a session starts and after a compaction, so a fresh session
 loses nothing. Restart between specs: a session that runs across several
-accumulates noise and drifts.
+accumulates noise and drifts. When `.forge/project.md` sets `fetch: on`, the
+brief refreshes the remote refs at session start; that is a fetch only,
+never a pull, merge or rebase.
 
 Inside a spec, send each phase to an implementer subagent and keep the main
 session short. Compact only when one session grows too long: compaction is

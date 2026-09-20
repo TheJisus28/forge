@@ -4,6 +4,7 @@ dev: "go run ."
 working_language: en
 guard: on
 push: on
+fetch: on
 ---
 
 # Project
@@ -33,5 +34,7 @@ imports `net/http` and friends.
 - No technology opinions belong in `kit/`; it must work in a Rust repo too.
 - No authorization model: Forge records who acted, never whether they were
   allowed.
-- The binary never touches the network by itself; only `git` and `gh` are
-  invoked, and only when the user asks.
+- The binary never touches the network by itself: only `git` and `gh` are
+  invoked, and only when the user asks — or when the project opts in with
+  `fetch: on`, which lets `forge brief` fetch the remote refs at session
+  start. That is a fetch only: it never pulls, merges or rebases.
