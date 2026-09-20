@@ -18,30 +18,10 @@
 
 ## Proposed conventions
 
-- **A list of spec ids read from frontmatter is normalised through
-  `normalizeIDs`, the id counterpart of `upperAll` for criteria.** `covers`
-  goes through `upperAll` in `FromDoc`; `supersedes` now goes through
-  `normalizeIDs` in `project.go`, and `parent`/`depends_on` already call
-  `NormalizeID`. `Save` uses the same `setListOrDelete` as every other list,
-  so an empty typed slice removes the key rather than writing `[]`.
-- **A validate finding about a shared defect names the other party inside
-  the message, not in a second finding field.** The contract left the cycle
-  and duplicate texts open. I used `supersedes cycle: A -> B -> A` (the
-  `dependency cycle:` shape) and `supersedes SPEC-NNN, which SPEC-MMM also
-  supersedes`, with the reporting spec carried by `Finding.Spec`. Every
-  offending live spec gets its own finding, matching `depCycle`; the pair
-  therefore yields two findings, each naming both.
-- **Detail row labels are hardcoded to a column, and a label longer than the
-  existing 12-column field starts a wider one.** All current `Detail` rows
-  put the value at column 13. `superseded by` is 13 characters, so the two
-  new rows use a 15-column value start (`supersedes` + 5 spaces,
-  `superseded by` + 2) so they align with each other without reformatting
-  the rows above. If the team wants one column for `Detail`, the existing
-  rows would need the same treatment.
+None.
 
 ## Notes for the reviewer
 
 - The contract and the plan call the list writer `setStrList`; the actual
-  helper in `internal/project/project.go` is `setListOrDelete`. I used the
-  real one, so the behaviour matches the intent (an empty list removes the
-  key). No other name in the contract diverged from the code.
+  helper in `internal/project/project.go` is `setListOrDelete`. The
+  implementer used the real one, so behaviour matches the intent.

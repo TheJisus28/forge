@@ -13,7 +13,11 @@ malformed `title` — is produced before the per-spec loop's unknown-status
 `continue`, beside the missing-title check, because it does not depend on the
 state the spec claims. A field's shape is stated as a trailing `# ` comment
 on its line in the template, which `internal/doc` strips before parsing, so
-`forge template <name>` shows the guidance while the value stays empty.
+`forge template <name>` shows the guidance while the value stays empty. A
+list of spec ids read from frontmatter is normalised through `normalizeIDs`
+(the id counterpart of `upperAll` for criteria) and written with
+`setListOrDelete`, so forgiving input and canonical output stay in one place
+and an empty typed slice removes the key rather than writing `[]`.
 
 ## Example
 
