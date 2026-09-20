@@ -43,16 +43,20 @@ planted kit; refreshing the kit stays `forge update`.
 ### `forge new "<title>" --capability <name> [--parent SPEC-002] [--covers AC1,AC3]`
 
 Creates a spec in `proposed` with the next free number, as
-`.forge/specs/<id-slug>/spec.md`. `--capability` is required and must be a
-lowercase slug naming the part of the system the spec touches, such as
-`guard`; an undeclared name prints a warning and the spec is still created.
-`--covers` requires `--parent`, and fails if the parent does not declare
-those criteria.
+`.forge/specs/<id-slug>/spec.md`. The number is provisional: `forge accept`
+confirms it against the ids already committed on `main`. `--capability` is
+required and must be a lowercase slug naming the part of the system the spec
+touches, such as `guard`; an undeclared name prints a warning and the spec
+is still created. `--covers` requires `--parent`, and fails if the parent
+does not declare those criteria.
 
 ### `forge accept <id> [--by <you>] [--note ...]`
 
-Into the queue. `--by` defaults to `git config user.name`. Anyone can run
-this; Forge has no list to check the handle against.
+Into the queue, and the single gate. Confirms the provisional number against
+the ids committed on `origin/main` (or `main`), renumbers the spec when the
+number is taken, and records who accepted it. `--by` defaults to `git config
+user.name`. Anyone can run this; Forge has no list to check the handle
+against.
 
 ### `forge start <id> [--by <you>] [--force]`
 

@@ -2,6 +2,7 @@ package project_test
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -34,6 +35,16 @@ func write(t *testing.T, config string, specs map[string]string) string {
 		}
 	}
 	return root
+}
+
+// runGit runs a git command in dir and fails the test when it fails.
+func runGit(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, out)
+	}
 }
 
 const config = `---
@@ -486,6 +497,38 @@ func TestSpecIDFromBranch(t *testing.T) {
 	for branch, want := range cases {
 		if got := project.SpecIDFromBranch(branch); got != want {
 			t.Errorf("SpecIDFromBranch(%q) = %q, want %q", branch, got, want)
+		}
+	}
+}
+
+// The ids on a git ref are the shared branch's authority: `forge accept`
+// reads them to confirm a provisional number, without fetching, and a ref
+// that is not there yields nothing (SPEC-015, decision 7).
+func TestRemoteSpecIDs_ReadsTheRef(t *testing.T) {
+	dir := t.TempDir()
+	runGit(t, dir, "init")
+	runGit(t, dir, "config", "user.email", "t@example.com")
+	runGit(t, dir, "config", "user.name", "tester")
+
+	specDir := filepath.Join(dir, project.Dir, "specs", "SPEC-020-x")
+	if err := os.MkdirAll(specDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(specDir, "spec.md"),
+		[]byte("---\nid: SPEC-020\ntitle: X\nstatus: done\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, dir, "add", "-A")
+	runGit(t, dir, "commit", "-m", "main")
+	runGit(t, dir, "branch", "-M", "main")
+
+	got := project.RemoteSpecIDs(dir, "main")
+	if len(got) != 1 || got[0] != "SPEC-020" {
+		t.Fatalf("RemoteSpecIDs(main) = %v, want [SPEC-020]", got)
+	}
+	for _, ref := range []string{"origin/main", "no-such-ref"} {
+		if got := project.RemoteSpecIDs(dir, ref); len(got) != 0 {
+			t.Errorf("RemoteSpecIDs(%q) = %v, want nothing", ref, got)
 		}
 	}
 }

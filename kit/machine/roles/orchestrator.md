@@ -25,7 +25,7 @@ the fallback inside a spec, not the way to move between specs.
 - A question is not work. Answer it.
 - One deliverable: `forge new "<title>"`, write the problem and the
   acceptance criteria with them, and stop. Anyone accepts it into the
-  queue when the team is ready.
+  queue with `forge accept <id>` when the team is ready.
 - Several deliverables: propose a parent spec with the outcome criteria,
   confirm them, then create the children with `--parent` and `--covers`.
 

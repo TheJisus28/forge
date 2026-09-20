@@ -25,9 +25,9 @@ your memory of the conversation.
 2. If it spans several deliverables: propose a parent spec with the outcome
    criteria, get them confirmed, then create children with `--parent` and
    `--covers` so nothing is promised without an owner.
-3. Open the intake pull request, then accept it into the queue:
-   `forge accept SPEC-00X`. Forge has no approval list to check against;
-   the pull request review is the real check.
+3. Accept it into the queue with `forge accept SPEC-00X`. The spec's own
+   pull request review is the real check, and Forge has no approval list to
+   check against.
 
 ## Accepted work
 

@@ -163,6 +163,10 @@ func commandDenial(p *project.Project, command string) string {
 	}
 	def := onDefaultBranch(p)
 	for _, seg := range splitSegments(command) {
+		if sub, _ := forgeCommand(seg); sub == "accept" {
+			return "Forge: only a person accepts a spec into the queue; ask a human to run: " +
+				"forge accept <id>"
+		}
 		sub, args := gitCommand(seg)
 		switch sub {
 		case "push":
@@ -279,6 +283,35 @@ func gitCommand(segment string) (string, []string) {
 			j += 2
 			continue
 		}
+		if strings.HasPrefix(fields[j], "-") {
+			j++
+			continue
+		}
+		return strings.ToLower(fields[j]), fields[j+1:]
+	}
+	return "", nil
+}
+
+// forgeCommand returns the subcommand of a segment that is a forge
+// invocation, and the words after it. Like gitCommand, a segment is a forge
+// command only when forge is its first word, so `echo forge accept` is not
+// read as one.
+func forgeCommand(segment string) (string, []string) {
+	fields := shellFields(segment)
+	i := 0
+	for i < len(fields) && isAssignment(fields[i]) {
+		i++
+	}
+	if i >= len(fields) {
+		return "", nil
+	}
+	switch filepath.Base(fields[i]) {
+	case "forge", "forge.exe":
+	default:
+		return "", nil
+	}
+	j := i + 1
+	for j < len(fields) {
 		if strings.HasPrefix(fields[j], "-") {
 			j++
 			continue

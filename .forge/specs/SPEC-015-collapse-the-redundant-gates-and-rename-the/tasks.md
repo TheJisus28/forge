@@ -34,7 +34,7 @@ what exists without reading the diff.
   states; it is release history and the phase 5 scan excludes it. The
   task's guard check "on this spec" cannot say `contracting` because
   SPEC-015 is itself `implementing`, where the guard allows product code.
-- [ ] Phase 2 — `forge accept` is the single gate and the id authority.
+- [x] Phase 2 — `forge accept` is the single gate and the id authority.
   Where: `internal/cli/work.go` (`cmdNew`, `cmdAccept`, `renumberSpec`,
   `cmdRenumber`), `internal/project/git.go` (`RemoteSpecIDs`),
   `internal/cli/guard.go` (`commandDenial`), `docs/teams.md`, `docs/cli.md`,
@@ -42,6 +42,20 @@ what exists without reading the diff.
   `kit/claude/skills/forge-work/SKILL.md`, `kit/forge/specs/README.md`,
   `.forge/specs/README.md`; tests in `internal/cli/cli_test.go`,
   `internal/project/project_test.go`.
+  Landed 2026-09-20: `forge new` prints only `forge accept`; the loop pages
+  name one entry into the queue; `project.RemoteSpecIDs(root, ref)` reads
+  `git ls-tree -d --name-only <ref> .forge/specs/` without fetching;
+  `cmdAccept` confirms the provisional id against `origin/main` then `main`,
+  renumbers through the shared `renumberSpec` when taken (history line
+  `renumbered from SPEC-NNN: taken on main`) and refuses when the id is
+  referenced; `commandDenial` denies a `forge`/`forge.exe accept` segment
+  inside compounds. Verified: `go test ./...` (all packages ok),
+  `gofmt -l .` (clean), `go vet ./...` (clean),
+  `go run . guard --explain --command "forge accept SPEC-020"` →
+  `would deny: Forge: only a person accepts...`; `forge new "x" --capability
+  workflow` in a scratch repo prints `forge accept SPEC-001` and no `intake`.
+  Also fixed `.claude/skills/forge-work/SKILL.md`, the planted copy `forge
+  update` refreshes, so the two do not disagree in this tree.
 - [ ] Phase 3 — `forge migrate` and the reported names. Where:
   `internal/cli/migrate.go` (new), `internal/cli/cli.go`, `docs/cli.md`;
   tests in `internal/cli/cli_test.go`.
@@ -59,4 +73,21 @@ what exists without reading the diff.
 
 ## Proposed conventions
 
-None.
+- **A negative docs scan means the forbidden word cannot appear at all.**
+  Decision 3's test reads each page and rejects any `intake`; prose written
+  to explain its absence ("there is no separate intake pull request") fails
+  the test it is describing. Either the scan is a positive check on the
+  replacement command, or the prose must avoid the word. I chose to avoid
+  it and renamed `docs/teams.md`'s `## Intake` heading to `## Entering the
+  queue`. Worth deciding which shape the next such scan takes.
+- **`forge accept` refuses a referenced id only when it would renumber.**
+  Decision 7's sentence does not say whether "already referenced" alone
+  blocks acceptance or only blocks the renumber. I read it as the latter,
+  because a proposed parent may already have children and refusing
+  acceptance whenever anything points at the spec would make the parent
+  impossible to accept. `TestAccept_RefusesWhenReferenced` covers the
+  collision case.
+- **No convention was needed for the git call.** `RemoteSpecIDs` had to pass
+  `.forge/specs/` with a trailing slash: `git ls-tree -d` without it returns
+  the `specs` tree entry, not its child folders. Recorded as an
+  implementation note, not a rule.
