@@ -1,7 +1,7 @@
 ---
 id: SPEC-014
 title: Scope the guard command check to the git command
-status: reviewing
+status: done
 capability: guard
 created: 2026-09-20
 updated: 2026-09-20
@@ -117,3 +117,4 @@ Written by `forge`. Do not edit by hand.
 - 2026-09-20  planning  by TheJisus28
 - 2026-09-20  implementing  by orchestrator
 - 2026-09-20  reviewing  by orchestrator
+- 2026-09-20  done  by orchestrator: archived
