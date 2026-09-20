@@ -1476,6 +1476,32 @@ func TestDocPages_DocumentTheCriterionRule(t *testing.T) {
 	})
 }
 
+// The checkpoint is documented where a user looks: the command section and
+// the workflow page (SPEC-020, AC5).
+func TestDocPages_DocumentTheCheckpoint(t *testing.T) {
+	cli := read(t, "../../docs/cli.md")
+
+	push := docsSection(cli, "### `forge push")
+	if push == "" {
+		t.Fatal("docs/cli.md should document `forge push`")
+	}
+	if !strings.Contains(push, "checkpoint") {
+		t.Errorf("the forge push section should name the checkpoint:\n%s", push)
+	}
+	if !strings.Contains(push, "default branch") {
+		t.Errorf("the forge push section should state the default-branch refusal:\n%s", push)
+	}
+
+	advance := docsSection(cli, "### `forge advance")
+	if !strings.Contains(advance, "push: on") {
+		t.Errorf("the forge advance section should document the push: on opt-in:\n%s", advance)
+	}
+
+	if !strings.Contains(read(t, "../../docs/workflow.md"), "forge push") {
+		t.Error("docs/workflow.md should name `forge push` beside the checkpoint rule")
+	}
+}
+
 // `forge start` creates the spec folder and records fingerprints; planning
 // writes `plan.md` and `tasks.md` after approval. The page must match the
 // command and not claim start creates them (AC3).
@@ -1578,5 +1604,178 @@ func TestUnknownCommandAndMissingProject(t *testing.T) {
 	}
 	if out, code := run(t, dir, "status"); code == 0 || !strings.Contains(out, "forge init") {
 		t.Fatalf("outside a project the error should point at init: %q", out)
+	}
+}
+
+// gitOut runs a git command in dir and returns its trimmed stdout.
+func gitOut(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("git %s: %v", strings.Join(args, " "), err)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// checkpointRepo returns a repository with a local bare origin, an initialized
+// forge project and one proposed spec, checked out on branch. The remote is a
+// directory, so no test touches the network (SPEC-020, the Risks note).
+func checkpointRepo(t *testing.T, branch string) string {
+	t.Helper()
+	remote := filepath.Join(t.TempDir(), "origin.git")
+	runGit(t, filepath.Dir(remote), "init", "--bare", remote)
+
+	dir := t.TempDir()
+	runGit(t, dir, "init")
+	runGit(t, dir, "config", "user.email", "t@example.com")
+	runGit(t, dir, "config", "user.name", "tester")
+	write(t, filepath.Join(dir, "README.md"), "root\n")
+	runGit(t, dir, "add", "-A")
+	runGit(t, dir, "commit", "-m", "root")
+	runGit(t, dir, "branch", "-M", "main")
+
+	mustRun(t, dir, "init")
+	write(t, filepath.Join(dir, ".forge", "project.md"), projectConfig)
+	mustRun(t, dir, "new", "Something", "--capability", "workflow")
+	if branch != "main" {
+		runGit(t, dir, "checkout", "-b", branch)
+	}
+	runGit(t, dir, "remote", "add", "origin", remote)
+	return dir
+}
+
+// forge push commits the pending work with a spec-and-phase subject and
+// publishes the branch with its upstream set (SPEC-020, AC1).
+func TestPush_CommitsAndPushes(t *testing.T) {
+	dir := checkpointRepo(t, "spec/001-something")
+	write(t, filepath.Join(dir, ".forge", "note.md"), "work\n")
+
+	out := mustRun(t, dir, "push", "SPEC-001")
+	if !strings.Contains(out, "pushed spec/001-something") {
+		t.Errorf("push should report the branch:\n%s", out)
+	}
+	if got := gitOut(t, dir, "log", "-1", "--pretty=%s"); got != "chore(SPEC-001): checkpoint proposed" {
+		t.Errorf("commit subject = %q", got)
+	}
+	if got := gitOut(t, dir, "status", "--porcelain"); got != "" {
+		t.Errorf("the tree should be clean after a push: %q", got)
+	}
+	if got := gitOut(t, dir, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"); got != "origin/spec/001-something" {
+		t.Errorf("upstream = %q", got)
+	}
+	if got, want := gitOut(t, dir, "rev-parse", "origin/spec/001-something"), gitOut(t, dir, "rev-parse", "HEAD"); got != want {
+		t.Errorf("origin should hold the pushed commit, got %s want %s", got, want)
+	}
+}
+
+// The subject names the spec and the phase the CLI can name (SPEC-020, AC1).
+func TestCommitMessage_NamesSpecAndState(t *testing.T) {
+	dir := checkpointRepo(t, "spec/001-something")
+	path := filepath.Join(dir, ".forge", "specs", "SPEC-001-something", "spec.md")
+	write(t, path, strings.Replace(read(t, path), "status: proposed", "status: implementing", 1))
+
+	mustRun(t, dir, "push", "SPEC-001")
+	if got := gitOut(t, dir, "log", "-1", "--pretty=%s"); got != "chore(SPEC-001): checkpoint implementing" {
+		t.Errorf("commit subject = %q", got)
+	}
+}
+
+// On the default branch the command refuses before it commits or pushes
+// (SPEC-020, AC2).
+func TestPush_RefusesDefaultBranch(t *testing.T) {
+	dir := checkpointRepo(t, "main")
+	before := gitOut(t, dir, "rev-parse", "HEAD")
+
+	out, code := run(t, dir, "push", "SPEC-001")
+	if code == 0 {
+		t.Fatalf("push on main should fail:\n%s", out)
+	}
+	if !strings.Contains(out, "default branch") {
+		t.Errorf("the refusal should name the default branch:\n%s", out)
+	}
+	if got := gitOut(t, dir, "rev-parse", "HEAD"); got != before {
+		t.Errorf("a refused push must not commit")
+	}
+}
+
+// A clean, in-sync branch succeeds and says so (SPEC-020, AC3).
+func TestPush_NothingToPush(t *testing.T) {
+	dir := checkpointRepo(t, "spec/001-something")
+	mustRun(t, dir, "push", "SPEC-001")
+
+	out := mustRun(t, dir, "push", "SPEC-001")
+	if !strings.Contains(out, "nothing to push") {
+		t.Errorf("a second push should report nothing to do:\n%s", out)
+	}
+}
+
+// advanceRepo is checkpointRepo with the spec moved to planning, so
+// `forge advance --to implementing` is legal. optIn adds `push: on`.
+func advanceRepo(t *testing.T, optIn bool) string {
+	t.Helper()
+	dir := checkpointRepo(t, "spec/001-something")
+	if optIn {
+		write(t, filepath.Join(dir, ".forge", "project.md"),
+			strings.Replace(projectConfig, "guard: on", "guard: on\npush: on", 1))
+	}
+	path := filepath.Join(dir, ".forge", "specs", "SPEC-001-something", "spec.md")
+	write(t, path, strings.Replace(read(t, path), "status: proposed", "status: planning", 1))
+	return dir
+}
+
+// With the opt-in, advance commits and pushes the state boundary (SPEC-020,
+// AC4).
+func TestAdvance_CheckpointsWhenOptedIn(t *testing.T) {
+	dir := advanceRepo(t, true)
+	before := gitOut(t, dir, "rev-parse", "HEAD")
+
+	out := mustRun(t, dir, "advance", "SPEC-001", "--to", "implementing")
+	if !strings.Contains(out, "pushed spec/001-something") {
+		t.Errorf("advance should report the checkpoint:\n%s", out)
+	}
+	if got := gitOut(t, dir, "rev-parse", "HEAD"); got == before {
+		t.Error("advance with push: on should commit")
+	}
+	if got := gitOut(t, dir, "status", "--porcelain"); got != "" {
+		t.Errorf("the checkpoint should leave a clean tree: %q", got)
+	}
+	if got := gitOut(t, dir, "ls-remote", "--heads", "origin", "spec/001-something"); got == "" {
+		t.Error("the branch should be on origin")
+	}
+}
+
+// Without the opt-in, advance never runs git: the state moves and the remote
+// is untouched (SPEC-020, AC4).
+func TestAdvance_OfflineWithoutOptIn(t *testing.T) {
+	dir := advanceRepo(t, false)
+	before := gitOut(t, dir, "rev-parse", "HEAD")
+
+	mustRun(t, dir, "advance", "SPEC-001", "--to", "implementing")
+	if got := gitOut(t, dir, "rev-parse", "HEAD"); got != before {
+		t.Error("without push: on advance must not commit")
+	}
+	if got := gitOut(t, dir, "ls-remote", "--heads", "origin", "spec/001-something"); got != "" {
+		t.Errorf("without push: on advance must not push, got %q", got)
+	}
+}
+
+// A failed checkpoint is a warning and the state move stands (SPEC-020,
+// decision 7).
+func TestAdvance_PushFailureIsAWarning(t *testing.T) {
+	dir := advanceRepo(t, true)
+	runGit(t, dir, "remote", "set-url", "origin", filepath.Join(dir, "missing.git"))
+
+	out, code := run(t, dir, "advance", "SPEC-001", "--to", "implementing")
+	if code != 0 {
+		t.Fatalf("a failed checkpoint should still exit 0:\n%s", out)
+	}
+	if !strings.Contains(out, "warning:") {
+		t.Errorf("the failed push should warn:\n%s", out)
+	}
+	body := read(t, filepath.Join(dir, ".forge", "specs", "SPEC-001-something", "spec.md"))
+	if !strings.Contains(body, "status: implementing") {
+		t.Error("the state move should stand after a failed push")
 	}
 }

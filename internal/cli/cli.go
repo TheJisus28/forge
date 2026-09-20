@@ -25,6 +25,7 @@ const usage = `forge — spec-driven agentic development, in files you own
   forge approve <id>            the contract is right; code can start
   forge advance <id> --to <state>
   forge archive <id>            distil the spec, last commit of the pull request
+  forge push [id]               commit and push the branch so work is resumable
   forge submit [id]             push the branch and open the pull request
 
   forge status [id]             what is open, who is waiting, what blocks
@@ -90,6 +91,8 @@ func Main(args []string, stdout, stderr io.Writer) int {
 		return cmdCheck(rest, stdout, stderr)
 	case "sync":
 		err = cmdSync(rest, stdout)
+	case "push":
+		err = cmdPush(rest, stdout)
 	case "submit":
 		err = cmdSubmit(rest, stdout)
 	case "renumber":

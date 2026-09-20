@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -141,6 +142,56 @@ func Push(root, branch string) error {
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
+}
+
+// CommitAll stages the whole tree and commits it with message, returning
+// whether it committed. A clean tree is checked first, so "nothing to commit"
+// is a false and never an error (SPEC-020, decision 2). The tree is staged
+// whole because a spec branch is single-purpose.
+func CommitAll(root, message string) (bool, error) {
+	status, err := run(root, "git", "status", "--porcelain")
+	if err != nil {
+		return false, err
+	}
+	if status == "" {
+		return false, nil
+	}
+	if _, err := run(root, "git", "add", "-A"); err != nil {
+		return false, err
+	}
+	if _, err := run(root, "git", "commit", "-m", message); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// HasUnpushed reports whether the current branch has commits origin does not.
+// A branch with no upstream has never been published, so it reports true rather
+// than an error: that is what makes `forge push` publish a new branch (SPEC-020,
+// decision 2 as corrected in tasks.md).
+func HasUnpushed(root string) (bool, error) {
+	if _, err := run(root, "git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"); err != nil {
+		return true, nil
+	}
+	out, err := run(root, "git", "rev-list", "--count", "@{upstream}..HEAD")
+	if err != nil {
+		return false, err
+	}
+	ahead, err := strconv.Atoi(out)
+	if err != nil {
+		return false, err
+	}
+	return ahead > 0, nil
+}
+
+// OnDefaultBranch reports whether the current branch is main or master. A
+// detached HEAD or a branch outside a repository is not the default branch.
+func OnDefaultBranch(root string) bool {
+	switch strings.ToLower(strings.TrimSpace(Branch(root))) {
+	case "main", "master":
+		return true
+	}
+	return false
 }
 
 // HasGH reports whether the GitHub CLI is available for optional sync.

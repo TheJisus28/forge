@@ -68,6 +68,11 @@ forward the same way you would run any other command, and keep going.
 Real scrutiny happens where it always has, in the pull request review, not
 in a chat confirmation before every state change.
 
+When `.forge/project.md` sets `push: on`, each `forge advance` checkpoints
+itself — commit and push. Without it, run `forge push <id>` after each phase
+so the work is not stranded on one machine; either way the default branch is
+never published.
+
 When the review passes and the spec is archived, commit and run `forge
 submit <id>`: it pushes the branch and opens the pull request. **Never push
 or merge into the default branch, and never merge the pull request

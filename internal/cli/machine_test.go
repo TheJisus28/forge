@@ -73,6 +73,18 @@ func TestRolesCommand_ListsAndPrints(t *testing.T) {
 	}
 }
 
+// The roles tell the implementer and the orchestrator how work reaches the
+// remote between phases (SPEC-020, AC5).
+func TestRoles_DocumentTheCheckpoint(t *testing.T) {
+	dir := t.TempDir()
+	if implementer := mustRun(t, dir, "roles", "implementer"); !strings.Contains(implementer, "forge push") {
+		t.Errorf("the implementer role should run forge push after a phase:\n%s", implementer)
+	}
+	if orchestrator := mustRun(t, dir, "roles", "orchestrator"); !strings.Contains(orchestrator, "push: on") {
+		t.Errorf("the orchestrator role should name the push: on opt-in:\n%s", orchestrator)
+	}
+}
+
 func TestTemplateCommand_PrintsAndRejects(t *testing.T) {
 	dir := t.TempDir()
 	out := mustRun(t, dir, "template", "decision")

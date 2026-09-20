@@ -145,6 +145,19 @@ contract is edited after approval without being approved again. This is the
 classic back-and-front integration failure, caught in the pull request
 instead of in staging.
 
+## Checkpoints
+
+By default the work reaches `origin` only at `forge submit`, so a spec in
+flight lives on one machine. `forge push <id>` closes that gap: it commits
+the pending tree with the subject `chore(<id>): checkpoint <state>` and
+pushes the spec branch with its upstream set. Run it after each phase and
+before a session ends, so another machine can fetch the branch and resume.
+
+With `push: on` in `.forge/project.md`'s frontmatter, `forge advance` runs
+the same checkpoint at every state boundary; without that scalar `forge
+advance` never touches `git` or the network. It refuses `main` and `master`,
+so the checkpoint only ever publishes a spec branch.
+
 ## Files
 
 ```

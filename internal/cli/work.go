@@ -290,7 +290,7 @@ func cmdAdvance(args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	_, s, err := specArg(rest)
+	p, s, err := specArg(rest)
 	if err != nil {
 		return err
 	}
@@ -323,6 +323,14 @@ func cmdAdvance(args []string, out io.Writer) error {
 		return err
 	}
 	fmt.Fprintf(out, "%s is now %s. Waiting on %s.\n", s.ID, target, workflow.WaitingFor(target))
+	// The checkpoint is opt-in: without `push: on`, advance never runs git.
+	// A failed checkpoint is a warning, because the state move already stands
+	// and the next forge push retries (SPEC-020, decisions 6 and 7).
+	if p.PushEnabled() {
+		if err := checkpoint(p, s, out); err != nil {
+			fmt.Fprintf(out, "warning: %v\n", err)
+		}
+	}
 	return nil
 }
 

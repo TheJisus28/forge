@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   comment-stripped `tasks.md` and the review's `## Acceptance criteria`,
   matching ids as whole tokens so `AC1` never counts `AC10`, `AC1x` or `AC1-`;
   the templates and the reviewer role teach the rule.
+- `forge push [id]` checkpoints the work between phases: it commits the
+  pending tree as `chore(<id>): checkpoint <state>` and pushes the spec
+  branch with its upstream set, refusing the default branch and succeeding
+  when there is nothing to push. With `push: on` in `.forge/project.md`,
+  `forge advance` runs the same checkpoint at every state boundary; without
+  it, advance never touches the network. `forge submit` commits pending work
+  before it pushes.
 
 ### Changed
 

@@ -3,8 +3,8 @@
 Most commands read and write files under `.forge/`; `forge upgrade` works
 outside a project and does not touch the kit. The binary itself never
 reaches the network: the only network comes from the user's own tools —
-`git`/`gh` for `forge status --fetch` and `forge sync`, and the Go
-toolchain for `forge upgrade`.
+`git`/`gh` for `forge status --fetch`, `forge sync`, `forge push` and
+`forge submit`, and the Go toolchain for `forge upgrade`.
 
 ## Setting up
 
@@ -79,7 +79,23 @@ contract fingerprint and reports which specs it unblocks.
 ### `forge advance <id> --to <state> [--by ...] [--note ...]`
 
 Any other move. Validates it against the state machine and appends the
-history line. `--to done` is refused: that is what `archive` is for.
+history line. `--to done` is refused: that is what `archive` is for. When
+`.forge/project.md` sets `push: on`, it also checkpoints the move — commit
+and push, the same as `forge push`; without that scalar `forge advance`
+never touches `git` or the network. A checkpoint that fails is a `warning:`
+line and the move still stands.
+
+### `forge push [id]`
+
+Checkpoints the work so it survives leaving the machine: commits everything
+pending with the message `chore(<ID>): checkpoint <state>` — the spec and
+the phase the CLI can name — then pushes the current branch and sets its
+upstream. Run it after each phase, so another machine can fetch the branch
+and resume.
+
+It refuses the default branch (`main` or `master`) before it commits, and
+when there is nothing to commit and the branch is already up to date it
+prints `nothing to push: <branch> is up to date` and succeeds.
 
 ### `forge archive <id>`
 
@@ -210,9 +226,9 @@ human.
 
 ### `forge submit [id] [--base <branch>] [--dry-run]`
 
-Closes a spec as a pull request. Pushes the current branch with `git` and
-opens the PR with `gh pr create`, then records its number and URL on the
-spec. It never merges: a person reviews and merges.
+Closes a spec as a pull request. Commits anything still pending, pushes the
+current branch with `git` and opens the PR with `gh pr create`, then records
+its number and URL on the spec. It never merges: a person reviews and merges.
 
 Without `gh`, or with `--dry-run`, it prints the exact `git push` and
 `gh pr create` commands instead of running them and succeeds. `--base`
