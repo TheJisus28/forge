@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   architect, implementer and reviewer) and `.opencode/plugins/forge-guard.js`.
   opencode reads `AGENTS.md` and Forge's skills natively, so no config file is
   required. See [docs/opencode.md](docs/opencode.md).
+- opencode now receives the brief automatically too:
+  `.opencode/plugins/forge-brief.js` puts `forge brief` in the system prompt
+  at session start and after every compaction, and feeds it into the
+  compaction prompt. In a repository without Forge, or without `forge`, it
+  injects nothing.
 - `forge guard --file <path>`: the hook-free mode other agents call. It exits
   1 and prints the reason when an edit must be denied, reusing the rule the
   Claude Code hook already enforces.
