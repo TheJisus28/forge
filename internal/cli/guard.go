@@ -226,5 +226,21 @@ func isProcessFile(root, file string) bool {
 		"opencode.json", "opencode.jsonc":
 		return true
 	}
-	return false
+	return isRootPaperwork(rel)
+}
+
+// isRootPaperwork reports whether a repository-root file is paperwork: root
+// Markdown and licence/notice files are always editable, so correcting a
+// changelog or a licence needs no product spec.
+func isRootPaperwork(rel string) bool {
+	if rel == "" || strings.Contains(rel, "/") {
+		return false
+	}
+	switch strings.ToLower(filepath.Ext(rel)) {
+	case ".md", ".markdown":
+		return true
+	}
+	name := strings.ToUpper(filepath.Base(rel))
+	return name == "LICENSE" || name == "NOTICE" ||
+		strings.HasPrefix(name, "LICENSE.") || strings.HasPrefix(name, "NOTICE.")
 }

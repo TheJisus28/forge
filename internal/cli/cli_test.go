@@ -375,9 +375,21 @@ func TestGuardFileMode(t *testing.T) {
 		".forge/specs/SPEC-001.md",
 		".opencode/plugins/forge-guard.js",
 		"opencode.json",
+		"CHANGELOG.md",
 	} {
 		if out, code := run(t, dir, "guard", "--file", rel); code != 0 {
 			t.Errorf("%s is process paperwork and must be allowed: %s", rel, out)
+		}
+	}
+	for _, rel := range []string{
+		"internal/cli/guard.go",
+		"main.go",
+		"docs/customizing.md",
+		"go.mod",
+	} {
+		if out, code := run(t, dir, "guard", "--file", rel); code != 1 ||
+			!strings.Contains(out, "no spec") {
+			t.Errorf("%s is product code and must be denied: %q", rel, out)
 		}
 	}
 }
