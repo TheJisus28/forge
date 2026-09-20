@@ -21,7 +21,4 @@ later spec knows what exists without reading the diff.
 
 ## Proposed conventions
 
-Patterns decided because nothing was written. The team decides whether they
-become rules in `.forge/conventions/`.
-
 None.

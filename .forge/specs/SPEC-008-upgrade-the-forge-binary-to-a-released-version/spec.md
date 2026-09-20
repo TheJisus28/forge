@@ -1,7 +1,7 @@
 ---
 id: SPEC-008
 title: Upgrade the forge binary to a released version
-status: implementing
+status: done
 created: 2026-09-20
 updated: 2026-09-20
 accepted_by: TheJisus28
@@ -249,3 +249,5 @@ Written by `forge`. Do not edit by hand.
 - 2026-09-20  implementing  by orchestrator
 - 2026-09-20  reviewing  by orchestrator
 - 2026-09-20  implementing  by orchestrator: close review notes: docs/cli.md intro and the AC5 Main test
+- 2026-09-20  reviewing  by orchestrator
+- 2026-09-20  done  by orchestrator: archived
