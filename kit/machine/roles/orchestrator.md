@@ -25,7 +25,7 @@ the fallback inside a spec, not the way to move between specs.
 - A question is not work. Answer it.
 - One deliverable: `forge new "<title>"`, write the problem and the
   acceptance criteria with them, and stop. Anyone accepts it into the
-  queue when the team is ready.
+  queue with `forge accept <id>` when the team is ready.
 - Several deliverables: propose a parent spec with the outcome criteria,
   confirm them, then create the children with `--parent` and `--covers`.
 
@@ -43,7 +43,8 @@ plainly: **do not change status**.
 | Write product code for one phase | `implementer.md` |
 | Verify the acceptance criteria | `reviewer.md` |
 
-One phase per implementer run. Short contexts beat long ones.
+One phase per implementer run. Short contexts beat long ones. Launch the
+architect while the spec is `contracting`.
 
 ## Before planning
 
@@ -51,10 +52,10 @@ Planning starts from what exists, not from an empty file. Run `forge
 capabilities` first: it derives the current contracts, grouped by capability
 and marked with what each one supersedes. Then read the contracts it points
 at, run `forge status` for what is open, and search the code for modules or
-tools that already do part of the job. Then fill `## Existing
-state` in `.forge/specs/<id>/plan.md`: what this builds on, what it reuses,
-the conventions that apply, the duplication it avoids, and what genuinely
-has to be built. Planning writes both `.forge/specs/<id>/plan.md` and
+tools that already do part of the job. Read the architect's survey in the
+spec's `## Existing state` (`.forge/specs/<id>/spec.md`): what this builds
+on, what it reuses, the conventions that apply and what genuinely has to be
+built. Planning writes both `.forge/specs/<id>/plan.md` and
 `.forge/specs/<id>/tasks.md`: the approach and phases in the plan, and the
 same phases as checkboxes in tasks.
 

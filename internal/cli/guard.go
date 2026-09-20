@@ -129,13 +129,9 @@ func denial(p *project.Project, file string) string {
 		return ""
 	}
 	switch cur.Status {
-	case workflow.Specifying:
-		return fmt.Sprintf("Forge: %s is still being specified. Write the Contract section "+
-			"first, then: forge advance %s --to awaiting-approval && forge approve %s",
-			cur.ID, cur.ID, cur.ID)
-	case workflow.AwaitingApproval:
-		return fmt.Sprintf("Forge: %s has a contract but it is not approved yet. "+
-			"Nothing is built until: forge approve %s", cur.ID, cur.ID)
+	case workflow.Contracting:
+		return fmt.Sprintf("Forge: %s is contracting; write the Contract section first, "+
+			"then: forge approve %s", cur.ID, cur.ID)
 	case workflow.Planning:
 		plan, _ := filepath.Rel(p.Root, cur.PlanPath())
 		return fmt.Sprintf("Forge: %s is approved but has no plan yet. Write %s, "+
@@ -167,6 +163,10 @@ func commandDenial(p *project.Project, command string) string {
 	}
 	def := onDefaultBranch(p)
 	for _, seg := range splitSegments(command) {
+		if sub, _ := forgeCommand(seg); sub == "accept" {
+			return "Forge: only a person accepts a spec into the queue; ask a human to run: " +
+				"forge accept <id>"
+		}
 		sub, args := gitCommand(seg)
 		switch sub {
 		case "push":
@@ -283,6 +283,35 @@ func gitCommand(segment string) (string, []string) {
 			j += 2
 			continue
 		}
+		if strings.HasPrefix(fields[j], "-") {
+			j++
+			continue
+		}
+		return strings.ToLower(fields[j]), fields[j+1:]
+	}
+	return "", nil
+}
+
+// forgeCommand returns the subcommand of a segment that is a forge
+// invocation, and the words after it. Like gitCommand, a segment is a forge
+// command only when forge is its first word, so `echo forge accept` is not
+// read as one.
+func forgeCommand(segment string) (string, []string) {
+	fields := shellFields(segment)
+	i := 0
+	for i < len(fields) && isAssignment(fields[i]) {
+		i++
+	}
+	if i >= len(fields) {
+		return "", nil
+	}
+	switch filepath.Base(fields[i]) {
+	case "forge", "forge.exe":
+	default:
+		return "", nil
+	}
+	j := i + 1
+	for j < len(fields) {
 		if strings.HasPrefix(fields[j], "-") {
 			j++
 			continue

@@ -380,6 +380,13 @@ func (s *Spec) OpenQuestions() string {
 	return s.doc.Section("Open questions")
 }
 
+// ExistingState returns the architect's survey of what already exists to
+// reuse, empty while it is not written. It lives in spec.md; plan.md no
+// longer owns that section. The heading is fixed English, never translated.
+func (s *Spec) ExistingState() string {
+	return s.doc.Section("Existing state")
+}
+
 // HasOpenQuestions reports whether the spec still lists an unanswered
 // question. Questions are list items; prose and `None.` are not.
 func (s *Spec) HasOpenQuestions() bool {
@@ -491,7 +498,7 @@ func FromDoc(path string, d *doc.Doc) (*Spec, error) {
 		Num:          num,
 		Title:        d.Str("title"),
 		Capability:   strings.TrimSpace(d.Str("capability")),
-		Status:       workflow.State(d.Str("status")),
+		Status:       workflow.Canonical(workflow.State(d.Str("status"))),
 		Parent:       NormalizeID(d.Str("parent")),
 		Covers:       upperAll(d.List("covers")),
 		Supersedes:   normalizeIDs(d.List("supersedes")),

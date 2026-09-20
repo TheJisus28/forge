@@ -33,6 +33,16 @@ approved. Real names from this repository: modules, endpoints,
 tables, screens. Numbered decisions with what they discard. Anything other
 specs will build against goes here.
 
+## Existing state
+
+<!-- Written by the architect, read while planning: name what already
+     exists that this builds on, in this repository's real names.
+     - Delivered specs and contracts this one builds on (`forge status`).
+     - Modules, files or tools that already do part of the job: reuse them.
+     - Conventions in `.forge/conventions/` that apply.
+     - Duplication this change deliberately avoids.
+     - What does not exist yet and genuinely has to be built. -->
+
 ## Out of scope
 
 A closed list.

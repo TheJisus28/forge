@@ -14,22 +14,33 @@ import (
 type State string
 
 const (
-	Proposed         State = "proposed"
-	Accepted         State = "accepted"
-	Specifying       State = "specifying"
-	AwaitingApproval State = "awaiting-approval"
-	Planning         State = "planning"
-	Implementing     State = "implementing"
-	Blocked          State = "blocked"
-	Reviewing        State = "reviewing"
-	Done             State = "done"
-	Dropped          State = "dropped"
+	Proposed     State = "proposed"
+	Accepted     State = "accepted"
+	Contracting  State = "contracting"
+	Planning     State = "planning"
+	Implementing State = "implementing"
+	Blocked      State = "blocked"
+	Reviewing    State = "reviewing"
+	Done         State = "done"
+	Dropped      State = "dropped"
 )
 
 // All lists every state in lifecycle order.
 func All() []State {
-	return []State{Proposed, Accepted, Specifying, AwaitingApproval, Planning,
+	return []State{Proposed, Accepted, Contracting, Planning,
 		Implementing, Blocked, Reviewing, Done, Dropped}
+}
+
+// Canonical maps a retired state name to its current one, so a repository
+// written before the rename keeps loading and every command reports the new
+// name. Every other state is returned unchanged; `forge migrate` is what
+// converges the written tree.
+func Canonical(s State) State {
+	switch s {
+	case "specifying", "awaiting-approval":
+		return Contracting
+	}
+	return s
 }
 
 // Meaning returns the one-line explanation of a state, the normative copy
@@ -40,10 +51,8 @@ func Meaning(s State) string {
 		return "Written, not in the queue"
 	case Accepted:
 		return "In the queue"
-	case Specifying:
+	case Contracting:
 		return "The contract is being written"
-	case AwaitingApproval:
-		return "Contract ready"
 	case Planning:
 		return "Splitting into phases"
 	case Implementing:
@@ -84,12 +93,10 @@ type Transition struct {
 var transitions = []Transition{
 	{Proposed, Accepted, "accepted into the queue"},
 	{Proposed, Dropped, "the work will not be done"},
-	{Accepted, Specifying, "someone starts the work"},
+	{Accepted, Contracting, "someone starts the work"},
 	{Accepted, Dropped, "the work will not be done"},
-	{Specifying, AwaitingApproval, "the contract is ready for review"},
-	{AwaitingApproval, Specifying, "changes were requested"},
-	{AwaitingApproval, Planning, "the contract is approved"},
-	{AwaitingApproval, Dropped, "the work will not be done"},
+	{Contracting, Planning, "the contract is approved"},
+	{Contracting, Dropped, "the work will not be done"},
 	{Planning, Implementing, "the plan is split into phases"},
 	{Implementing, Reviewing, "every phase is finished"},
 	{Implementing, Blocked, "the work cannot continue"},
@@ -146,7 +153,7 @@ func Check(from, to State) error {
 // InFlight reports whether work on the spec has started and not finished.
 func InFlight(s State) bool {
 	switch s {
-	case Specifying, AwaitingApproval, Planning, Implementing, Blocked, Reviewing:
+	case Contracting, Planning, Implementing, Blocked, Reviewing:
 		return true
 	}
 	return false
@@ -159,10 +166,8 @@ func WaitingFor(s State) string {
 		return "anyone: forge accept or drop"
 	case Accepted:
 		return "anyone: forge start"
-	case Specifying:
+	case Contracting:
 		return "architect: write the contract"
-	case AwaitingApproval:
-		return "anyone: forge approve"
 	case Planning:
 		return "orchestrator: split into phases"
 	case Implementing:

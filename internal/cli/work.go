@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -106,17 +107,11 @@ func cmdNew(args []string, out io.Writer) error {
 	fmt.Fprintf(out, `%s  %s
   %s
 
-Write the problem and the acceptance criteria, then open the intake pull
-request so the number is taken:
-
-  git checkout -b intake/%s
-  git add %s && git commit -m "spec(%s): %s"
-
-Someone accepts it into the queue when the team is ready:
+Write the problem and the acceptance criteria, then accept it into the
+queue:
 
   forge accept %s
-`, s.ID, s.Title, filepath.ToSlash(rel), project.Slug(s.Title),
-		filepath.ToSlash(rel), strings.ToLower(s.ID), s.Title, s.ID)
+`, s.ID, s.Title, filepath.ToSlash(rel), s.ID)
 	return nil
 }
 
@@ -139,10 +134,31 @@ func cmdAccept(args []string, out io.Writer) error {
 	if err := workflow.Check(s.Status, workflow.Accepted); err != nil {
 		return err
 	}
+	// The number forge new wrote is provisional: confirm it against the ids
+	// already committed on the shared branch before recording the acceptance
+	// (SPEC-015, decision 7).
+	remote := sharedSpecIDs(p.Root)
+	was := s.ID
+	historyNote := *note
+	if idTaken(p, s, remote) {
+		if len(referencesTo(p, s.ID)) > 0 {
+			return referencedError(p, s.ID)
+		}
+		if err := renumberSpec(p, s, nextFreeNum(p, remote)); err != nil {
+			return err
+		}
+		historyNote = fmt.Sprintf("renumbered from %s: taken on main", was)
+		if *note != "" {
+			historyNote += "; " + *note
+		}
+	}
 	s.AcceptedBy = actor
-	s.SetStatus(workflow.Accepted, actor, *note)
+	s.SetStatus(workflow.Accepted, actor, historyNote)
 	if err := s.Save(); err != nil {
 		return err
+	}
+	if was != s.ID {
+		fmt.Fprintf(out, "%s was taken on main; renumbered to %s\n", was, s.ID)
 	}
 	fmt.Fprintf(out, "%s accepted by %s. Anyone can now run: forge start %s\n", s.ID, actor, s.ID)
 	return nil
@@ -160,7 +176,7 @@ func cmdStart(args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if err := workflow.Check(s.Status, workflow.Specifying); err != nil {
+	if err := workflow.Check(s.Status, workflow.Contracting); err != nil {
 		return err
 	}
 	blockers := p.Blockers(s)
@@ -193,7 +209,7 @@ func cmdStart(args []string, out io.Writer) error {
 	if len(blockers) > 0 {
 		note = "forced despite: " + strings.Join(blockers, "; ")
 	}
-	s.SetStatus(workflow.Specifying, orchestrator, note)
+	s.SetStatus(workflow.Contracting, orchestrator, note)
 	if err := os.MkdirAll(s.Dir(), 0o755); err != nil {
 		return err
 	}
@@ -228,10 +244,6 @@ func cmdApprove(args []string, out io.Writer) error {
 		return err
 	}
 	if err := workflow.Check(s.Status, workflow.Planning); err != nil {
-		if s.Status == workflow.Specifying && strings.TrimSpace(s.Contract()) != "" {
-			return fmt.Errorf("%s still says it is being specified; when the contract is "+
-				"ready run: forge advance %s --to awaiting-approval", s.ID, s.ID)
-		}
 		return err
 	}
 	contract := strings.TrimSpace(s.Contract())
@@ -357,14 +369,27 @@ func cmdRenumber(args []string, out io.Writer) error {
 	if num == 0 {
 		num = p.NextNum()
 	}
+	old := s.ID
+	if len(referencesTo(p, old)) > 0 {
+		return referencedError(p, old)
+	}
+	if err := renumberSpec(p, s, num); err != nil {
+		return err
+	}
+	if err := s.Save(); err != nil {
+		return err
+	}
+	fmt.Fprintf(out, "%s is now %s\n", old, s.ID)
+	return nil
+}
+
+// renumberSpec moves a spec's folder and rewrites its `id` field and number to
+// num. It is the one implementation behind `forge renumber` and the id
+// confirmation `forge accept` does (SPEC-015, decision 7); the caller saves.
+func renumberSpec(p *project.Project, s *project.Spec, num int) error {
 	newID := project.FormatID(num)
 	if _, taken := p.Spec(newID); taken {
 		return fmt.Errorf("%s is already taken", newID)
-	}
-	old := s.ID
-	if references := referencesTo(p, old); len(references) > 0 {
-		return fmt.Errorf("%s is referenced by %s; renumber is only safe before anything points "+
-			"at a spec", old, strings.Join(references, ", "))
 	}
 	oldDir := s.Dir()
 	newDir := p.SpecDir(newID, s.Title)
@@ -372,13 +397,59 @@ func cmdRenumber(args []string, out io.Writer) error {
 		return fmt.Errorf("move %s to %s: %w", filepath.Base(oldDir), filepath.Base(newDir), err)
 	}
 	s.ID = newID
+	s.Num = num
 	s.Doc().SetStr("id", newID)
 	s.Path = filepath.Join(newDir, "spec.md")
-	if err := s.Save(); err != nil {
-		return err
-	}
-	fmt.Fprintf(out, "%s is now %s\n", old, newID)
 	return nil
+}
+
+// referencedError is the refusal both `forge renumber` and `forge accept` use:
+// a number can only be changed while nothing points at the spec.
+func referencedError(p *project.Project, id string) error {
+	return fmt.Errorf("%s is referenced by %s; renumber is only safe before anything points "+
+		"at a spec", id, strings.Join(referencesTo(p, id), ", "))
+}
+
+// sharedSpecIDs reads the ids committed on the shared branch, trying
+// origin/main and then main. A repository with neither keeps local numbering.
+func sharedSpecIDs(root string) []string {
+	if ids := project.RemoteSpecIDs(root, "origin/main"); len(ids) > 0 {
+		return ids
+	}
+	return project.RemoteSpecIDs(root, "main")
+}
+
+// idTaken reports whether the spec's number is already used, either on the
+// shared branch or by another spec in the local tree.
+func idTaken(p *project.Project, s *project.Spec, remote []string) bool {
+	for _, id := range remote {
+		if id == s.ID {
+			return true
+		}
+	}
+	for _, other := range p.Specs {
+		if other != s && other.ID == s.ID {
+			return true
+		}
+	}
+	return false
+}
+
+// nextFreeNum is the next number over the union of the local tree and the ids
+// on the shared branch, so a renumbered spec cannot collide with either.
+func nextFreeNum(p *project.Project, remote []string) int {
+	max := p.NextNum() - 1
+	for _, id := range remote {
+		if n, err := idNum(id); err == nil && n > max {
+			max = n
+		}
+	}
+	return max + 1
+}
+
+// idNum reads the number out of a normalised SPEC-NNN id.
+func idNum(id string) (int, error) {
+	return strconv.Atoi(strings.TrimPrefix(project.NormalizeID(id), "SPEC-"))
 }
 
 // loadTemplate reads a file template from the binary. It has no project

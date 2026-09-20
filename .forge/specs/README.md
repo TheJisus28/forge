@@ -9,8 +9,9 @@ frontmatter, not in which folder it sits.
   criteria, contract, history), `plan.md` (approach and the existing state
   it builds on), `tasks.md` (the phases, ticked as they land) and
   `review.md` (evidence per criterion).
-- The number is reserved when the spec is merged into the main branch, so
-  open the intake pull request early even if the spec is just a paragraph.
+- The number is confirmed by `forge accept` against the ids already on
+  `main`, and the spec's pull request opens early even if the spec is just a
+  paragraph.
 - A spec with children is what other tools call an epic. It is not built
   directly: its children are.
 

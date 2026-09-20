@@ -290,6 +290,154 @@ func TestNew_WritesCapabilityAndWarnsOnANewName(t *testing.T) {
 	}
 }
 
+// Accepting work is one gate: `forge new` names `forge accept` and no intake
+// pull request, and the pages that describe the loop agree (SPEC-015,
+// decision 3).
+func TestNew_DescribesOneGate(t *testing.T) {
+	dir := newRepo(t)
+
+	out := mustRun(t, dir, "new", "A change", "--capability", "workflow")
+	if !strings.Contains(out, "forge accept") {
+		t.Errorf("forge new should name the one gate:\n%s", out)
+	}
+	if strings.Contains(out, "intake") {
+		t.Errorf("forge new should not describe an intake pull request:\n%s", out)
+	}
+
+	accepted := mustRun(t, dir, "accept", "SPEC-001", "--by", "ana")
+	if strings.Contains(accepted, "intake") {
+		t.Errorf("forge accept should not describe an intake pull request:\n%s", accepted)
+	}
+
+	for _, page := range []string{
+		"../../docs/teams.md",
+		"../../docs/cli.md",
+		"../../kit/forge/specs/README.md",
+		"../../kit/claude/skills/forge-work/SKILL.md",
+	} {
+		if strings.Contains(strings.ToLower(read(t, page)), "intake") {
+			t.Errorf("%s should not describe an intake pull request", page)
+		}
+	}
+}
+
+// A number taken on main is confirmed by renumbering when the spec is
+// accepted: the folder, the id and the history line all carry it
+// (SPEC-015, decision 7).
+func TestAccept_RenumbersWhenTakenOnMain(t *testing.T) {
+	dir := newRepo(t)
+	runGit(t, dir, "init")
+	runGit(t, dir, "config", "user.email", "t@example.com")
+	runGit(t, dir, "config", "user.name", "tester")
+
+	// main already carries SPEC-001, committed before this branch existed.
+	write(t, filepath.Join(dir, ".forge", "specs", "SPEC-001-taken", "spec.md"),
+		"---\nid: SPEC-001\ntitle: Taken on main\nstatus: done\ncapability: workflow\n---\n\n## Contract\n\nShipped.\n")
+	runGit(t, dir, "add", "-A")
+	runGit(t, dir, "commit", "-m", "main")
+	runGit(t, dir, "branch", "-M", "main")
+
+	// The branch also created SPEC-001: the race decision 7 names.
+	runGit(t, dir, "checkout", "-b", "spec/001-local")
+	if err := os.RemoveAll(filepath.Join(dir, ".forge", "specs")); err != nil {
+		t.Fatal(err)
+	}
+	mustRun(t, dir, "new", "Local change", "--capability", "workflow")
+
+	accepted := mustRun(t, dir, "accept", "SPEC-001", "--by", "ana")
+	if !strings.Contains(accepted, "SPEC-002") {
+		t.Errorf("accept should report the confirmed id:\n%s", accepted)
+	}
+
+	specs := filepath.Join(dir, ".forge", "specs")
+	renamed := filepath.Join(specs, "SPEC-002-local-change", "spec.md")
+	if _, err := os.Stat(renamed); err != nil {
+		t.Fatalf("the spec should move to SPEC-002: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(specs, "SPEC-001-local-change")); !os.IsNotExist(err) {
+		t.Errorf("the provisional folder should be gone, stat err = %v", err)
+	}
+	body := read(t, renamed)
+	for _, want := range []string{
+		"id: SPEC-002",
+		"status: accepted",
+		"accepted_by: ana",
+		"renumbered from SPEC-001: taken on main",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the confirmed spec should contain %q:\n%s", want, body)
+		}
+	}
+	if out := mustRun(t, dir, "status"); !strings.Contains(out, "SPEC-002") {
+		t.Errorf("status should show the confirmed id:\n%s", out)
+	}
+}
+
+// A referenced spec cannot be renumbered, because the reference would break:
+// accept refuses and leaves the fixing to `forge renumber` (SPEC-015,
+// decision 7).
+func TestAccept_RefusesWhenReferenced(t *testing.T) {
+	dir := newRepo(t)
+	runGit(t, dir, "init")
+	runGit(t, dir, "config", "user.email", "t@example.com")
+	runGit(t, dir, "config", "user.name", "tester")
+
+	write(t, filepath.Join(dir, ".forge", "specs", "SPEC-001-taken", "spec.md"),
+		"---\nid: SPEC-001\ntitle: Taken on main\nstatus: done\ncapability: workflow\n---\n\n## Contract\n\nShipped.\n")
+	runGit(t, dir, "add", "-A")
+	runGit(t, dir, "commit", "-m", "main")
+	runGit(t, dir, "branch", "-M", "main")
+
+	runGit(t, dir, "checkout", "-b", "spec/001-local")
+	if err := os.RemoveAll(filepath.Join(dir, ".forge", "specs")); err != nil {
+		t.Fatal(err)
+	}
+	mustRun(t, dir, "new", "Local change", "--capability", "workflow")
+	write(t, filepath.Join(dir, ".forge", "specs", "SPEC-002-dependent", "spec.md"),
+		"---\nid: SPEC-002\ntitle: Dependent\nstatus: proposed\ncapability: workflow\ndepends_on: [SPEC-001]\n---\n")
+
+	out, code := run(t, dir, "accept", "SPEC-001", "--by", "ana")
+	if code == 0 {
+		t.Fatalf("accept should refuse while the id is referenced:\n%s", out)
+	}
+	if !strings.Contains(out, "referenced by") || !strings.Contains(out, "SPEC-002") {
+		t.Errorf("the refusal should name the reference:\n%s", out)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".forge", "specs", "SPEC-001-local-change")); err != nil {
+		t.Errorf("the spec should not have been renumbered: %v", err)
+	}
+}
+
+// Two specs accepted from the same base share an id; `forge validate` reports
+// the duplicate and `forge renumber` is the migration (SPEC-015, decision 7).
+func TestRenumber_ResolvesTheRace(t *testing.T) {
+	dir := newRepo(t)
+	specs := filepath.Join(dir, ".forge", "specs")
+	write(t, filepath.Join(specs, "SPEC-020-mine", "spec.md"),
+		"---\nid: SPEC-020\ntitle: Mine\nstatus: proposed\ncapability: workflow\n---\n")
+	write(t, filepath.Join(specs, "SPEC-020-theirs", "spec.md"),
+		"---\nid: SPEC-020\ntitle: Theirs\nstatus: proposed\ncapability: workflow\n---\n")
+
+	out, code := run(t, dir, "validate")
+	if code == 0 || !strings.Contains(out, "duplicate id") ||
+		!strings.Contains(out, "run forge renumber") {
+		t.Fatalf("validate should report the duplicate:\n%s", out)
+	}
+
+	if out := mustRun(t, dir, "renumber", "SPEC-020"); !strings.Contains(out, "SPEC-021") {
+		t.Errorf("renumber should report the new id:\n%s", out)
+	}
+	if out, code := run(t, dir, "validate"); code != 0 {
+		t.Errorf("validate should pass after the renumber:\n%s", out)
+	}
+	if moved, _ := filepath.Glob(filepath.Join(specs, "SPEC-021-*")); len(moved) != 1 {
+		t.Errorf("exactly one spec should be renumbered, got %v", moved)
+	}
+	if remaining, _ := filepath.Glob(filepath.Join(specs, "SPEC-020-*")); len(remaining) != 1 {
+		t.Errorf("exactly one SPEC-020 should remain, got %v", remaining)
+	}
+}
+
 // Without gh, or with --dry-run, submit prints the commands instead of
 // touching the network.
 func TestSubmit_DryRunPrintsCommands(t *testing.T) {
@@ -336,12 +484,17 @@ func TestLifecycle(t *testing.T) {
 	mustRun(t, dir, "accept", "SPEC-001", "--by", "jesus")
 	mustRun(t, dir, "start", "SPEC-001", "--by", "ana")
 
+	// The template ships guidance in the Contract section; strip it so the
+	// contract is genuinely empty and approve has nothing to freeze.
+	body = read(t, path)
+	empty := regexp.MustCompile(`(?s)## Contract\n.*?\n## Out of scope`).
+		ReplaceAllString(body, "## Contract\n\n## Out of scope")
+	write(t, path, empty)
 	if out, code := run(t, dir, "approve", "SPEC-001", "--by", "ana"); code == 0 {
 		t.Fatalf("an empty contract must not be approvable: %s", out)
 	}
 	body = read(t, path)
 	write(t, path, strings.Replace(body, "## Contract\n", "## Contract\n\nGET /cards\n", 1))
-	mustRun(t, dir, "advance", "SPEC-001", "--to", "awaiting-approval", "--by", "ana")
 	// The orchestrator approving their own contract is fine: there is no
 	// separate approver role to ask, and the record still says it was ana.
 	mustRun(t, dir, "approve", "SPEC-001", "--by", "ana")
@@ -498,7 +651,6 @@ func TestHierarchyAndDependencies(t *testing.T) {
 	mustRun(t, dir, "start", "SPEC-002", "--by", "ana")
 	api := filepath.Join(specs, "SPEC-002-api", "spec.md")
 	write(t, api, strings.Replace(read(t, api), "## Contract\n", "## Contract\n\nGET /n\n", 1))
-	mustRun(t, dir, "advance", "SPEC-002", "--to", "awaiting-approval")
 	mustRun(t, dir, "approve", "SPEC-002", "--by", "jesus")
 	mustRun(t, dir, "start", "SPEC-003", "--by", "jose")
 
@@ -625,6 +777,130 @@ func TestGuardCommand_BarePushFollowsTheBranch(t *testing.T) {
 	}
 }
 
+// Only a person accepts a spec into the queue: the agent guard denies the
+// command, inside a compound too, and `guard: off` puts it back
+// (SPEC-015, decision 8).
+func TestGuard_DeniesForgeAcceptForAgents(t *testing.T) {
+	dir := newRepo(t)
+
+	if out, code := run(t, dir, "guard", "--command", "forge accept SPEC-020"); code == 0 ||
+		!strings.Contains(out, "only a person accepts") {
+		t.Fatalf("forge accept should be denied for an agent: %q", out)
+	}
+	if out, code := run(t, dir, "guard", "--command", "cd .forge && forge accept SPEC-020"); code == 0 ||
+		!strings.Contains(out, "only a person accepts") {
+		t.Errorf("a compound forge accept should be denied too: %q", out)
+	}
+	if out, code := run(t, dir, "guard", "--command", `forge new "x" --capability workflow`); code != 0 {
+		t.Errorf("forge new should be allowed: %s", out)
+	}
+	if out := mustRun(t, dir, "guard", "--explain", "--command", "forge accept SPEC-020"); !strings.Contains(out, "would deny") {
+		t.Errorf("explain should say would deny: %s", out)
+	}
+
+	write(t, filepath.Join(dir, ".forge", "project.md"),
+		strings.Replace(projectConfig, "guard: on", "guard: off", 1))
+	if out, code := run(t, dir, "guard", "--command", "forge accept SPEC-020"); code != 0 {
+		t.Errorf("guard off should allow forge accept: %s", out)
+	}
+}
+
+// The guard reports the contract phase by its current name whichever retired
+// name the frontmatter still carries, because the spec loads as `contracting`
+// and the denial names `forge approve` (SPEC-015, decision 6).
+func TestGuard_NamesContracting(t *testing.T) {
+	dir := newRepo(t)
+	runGit(t, dir, "init")
+	runGit(t, dir, "config", "user.email", "t@example.com")
+	runGit(t, dir, "config", "user.name", "T")
+	write(t, filepath.Join(dir, "README.md"), "# x\n")
+	runGit(t, dir, "add", "README.md")
+	runGit(t, dir, "commit", "-m", "init")
+	runGit(t, dir, "checkout", "-b", "spec/001-thing")
+
+	spec := filepath.Join(dir, ".forge", "specs", "SPEC-001-thing", "spec.md")
+	for _, status := range []string{"contracting", "specifying", "awaiting-approval"} {
+		write(t, spec, "---\nid: SPEC-001\ntitle: Thing\nstatus: "+status+
+			"\ncapability: workflow\n---\n\n## Contract\n\nGET /things\n")
+
+		out, code := run(t, dir, "guard", "--file", "src/x")
+		if code == 0 {
+			t.Fatalf("a %s spec should deny product code: %s", status, out)
+		}
+		if !strings.Contains(out, "contracting") || !strings.Contains(out, "forge approve") {
+			t.Errorf("the %s denial should name contracting and forge approve: %q", status, out)
+		}
+		if strings.Contains(out, "specifying") || strings.Contains(out, "awaiting-approval") {
+			t.Errorf("the %s denial should not name a retired state: %q", status, out)
+		}
+	}
+}
+
+// forge migrate rewrites the retired status scalars to contracting, leaves the
+// body including ## History byte-identical, writes nothing under --dry-run,
+// and reports a clean no-op on a second run (SPEC-015, decision 6).
+func TestMigrate_RewritesRetiredStatus(t *testing.T) {
+	dir := newRepo(t)
+
+	specBody := func(id, status string) string {
+		return "---\nid: " + id + "\ntitle: " + id + "\nstatus: " + status +
+			"\ncapability: workflow\n---\n\n## Problem\n\nSomething.\n\n" +
+			"## History\n\nWritten by `forge`. Do not edit by hand.\n" +
+			"- 2026-09-20  accepted  by ana\n" +
+			"- 2026-09-20  " + status + "  by ana\n"
+	}
+	specs := map[string]string{
+		filepath.Join(dir, ".forge", "specs", "SPEC-001-old", "spec.md"): "specifying",
+		filepath.Join(dir, ".forge", "specs", "SPEC-002-old", "spec.md"): "awaiting-approval",
+	}
+	for path, status := range specs {
+		id := strings.TrimSuffix(filepath.Base(filepath.Dir(path)), "-old")
+		write(t, path, specBody(id, status))
+	}
+
+	historyOf := func(path string) string {
+		body := read(t, path)
+		i := strings.Index(body, "## History")
+		if i < 0 {
+			t.Fatalf("%s has no History section:\n%s", path, body)
+		}
+		return body[i:]
+	}
+	beforeHistory := map[string]string{}
+	for path := range specs {
+		beforeHistory[path] = historyOf(path)
+	}
+
+	before := tree(t, filepath.Join(dir, ".forge"))
+	out := mustRun(t, dir, "migrate", "--dry-run")
+	for path := range specs {
+		rel, _ := filepath.Rel(dir, path)
+		if !strings.Contains(out, filepath.ToSlash(rel)) {
+			t.Errorf("--dry-run should list %s:\n%s", rel, out)
+		}
+	}
+	if after := tree(t, filepath.Join(dir, ".forge")); after != before {
+		t.Errorf("forge migrate --dry-run wrote to .forge:\nbefore:\n%s\nafter:\n%s", before, after)
+	}
+
+	mustRun(t, dir, "migrate")
+	for path := range specs {
+		got := read(t, path)
+		if !strings.Contains(got, "status: contracting") {
+			t.Errorf("%s should say contracting:\n%s", path, got)
+		}
+		if historyOf(path) != beforeHistory[path] {
+			t.Errorf("%s rewrote ## History:\nbefore:\n%s\nafter:\n%s",
+				path, beforeHistory[path], historyOf(path))
+		}
+	}
+
+	out = mustRun(t, dir, "migrate")
+	if !strings.Contains(out, "nothing to migrate") {
+		t.Errorf("a current tree should print nothing to migrate: %q", out)
+	}
+}
+
 // Open questions block the contract: a design built on them is the mistake.
 func TestApprove_RefusesOpenQuestions(t *testing.T) {
 	dir := newRepo(t)
@@ -634,12 +910,39 @@ func TestApprove_RefusesOpenQuestions(t *testing.T) {
 
 	spec := filepath.Join(dir, ".forge", "specs", "SPEC-001-thing", "spec.md")
 	body := read(t, spec)
+	body = strings.Replace(body, "## Contract\n", "## Contract\n\nGET /things\n", 1)
 	write(t, spec, strings.Replace(body, "## Open questions\n",
 		"## Open questions\n\n- OQ1: which store?\n", 1))
 
-	mustRun(t, dir, "advance", "SPEC-001", "--to", "awaiting-approval", "--by", "ana")
 	if out, code := run(t, dir, "approve", "SPEC-001", "--by", "ana"); code == 0 {
 		t.Fatalf("approve should refuse while questions are open: %s", out)
+	}
+}
+
+// Approval reads a contract written straight from contracting: there is no
+// separate move to a review state, and the approver and the fingerprint are
+// still frozen (SPEC-015, decision 2).
+func TestApprove_StraightFromContracting(t *testing.T) {
+	dir := newRepo(t)
+	mustRun(t, dir, "new", "Thing", "--capability", "workflow")
+	mustRun(t, dir, "accept", "SPEC-001", "--by", "ana")
+	mustRun(t, dir, "start", "SPEC-001", "--by", "ana")
+
+	spec := filepath.Join(dir, ".forge", "specs", "SPEC-001-thing", "spec.md")
+	body := read(t, spec)
+	write(t, spec, strings.Replace(body, "## Contract\n", "## Contract\n\nGET /things\n", 1))
+
+	mustRun(t, dir, "approve", "SPEC-001", "--by", "jesus")
+
+	got := read(t, spec)
+	if !strings.Contains(got, "status: planning") {
+		t.Errorf("approval should move the spec straight to planning:\n%s", got)
+	}
+	if !strings.Contains(got, "approved_by: jesus") || !strings.Contains(got, "contract_hash:") {
+		t.Errorf("approval should record the approver and the fingerprint:\n%s", got)
+	}
+	if strings.Contains(got, "awaiting-approval") {
+		t.Errorf("history should not name the retired state:\n%s", got)
 	}
 }
 
@@ -695,7 +998,6 @@ func TestStatusShowsSupersedes(t *testing.T) {
 	mustRun(t, dir, "accept", "SPEC-001", "--by", "ana")
 	mustRun(t, dir, "start", "SPEC-001", "--by", "ana")
 	write(t, old, strings.Replace(read(t, old), "## Contract\n", "## Contract\n\nGET /old\n", 1))
-	mustRun(t, dir, "advance", "SPEC-001", "--to", "awaiting-approval", "--by", "ana")
 	mustRun(t, dir, "approve", "SPEC-001", "--by", "ana")
 
 	oldDir := filepath.Dir(old)
@@ -915,6 +1217,27 @@ func TestDocs_DoNotRestateTheStateMachine(t *testing.T) {
 		}
 		if m := row.FindString(body); m != "" {
 			t.Errorf("%s restates the state machine as a table row: %q", page, m)
+		}
+	}
+}
+
+// No reader-facing page keeps a retired state name: the docs carry the name
+// the binary renders. CHANGELOG.md and .forge/ are release and history records
+// and are not scanned (SPEC-015, decision 1; AC1).
+func TestDocPages_UseContracting(t *testing.T) {
+	pages := []string{"../../AGENTS.md", "../../kit/AGENTS.md", "../../README.md"}
+	docs, err := filepath.Glob("../../docs/*.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pages = append(pages, docs...)
+
+	for _, page := range pages {
+		body := read(t, page)
+		for _, retired := range []string{"specifying", "awaiting-approval"} {
+			if strings.Contains(body, retired) {
+				t.Errorf("%s still names the retired state %q", page, retired)
+			}
 		}
 	}
 }

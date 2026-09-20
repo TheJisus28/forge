@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/TheJisus28/forge/internal/doc"
 	"github.com/TheJisus28/forge/internal/project"
 	"github.com/TheJisus28/forge/internal/workflow"
 )
@@ -65,6 +64,7 @@ func Run(p *project.Project) []Finding {
 			add(Error, s.ID, "missing title")
 		}
 		checkCapability(s, add)
+		checkLegacyStatus(s, add)
 		checkSupersedes(p, s, add)
 		if !workflow.Valid(s.Status) {
 			add(Error, s.ID, "unknown status %q", s.Status)
@@ -72,6 +72,7 @@ func Run(p *project.Project) []Finding {
 		}
 		checkRelations(p, s, add)
 		checkArtifacts(p, s, add)
+		checkSurvey(s, add)
 		if s.HasOpenQuestions() {
 			q := s.OpenQuestions()
 			if i := strings.IndexByte(q, '\n'); i > 0 {
@@ -104,6 +105,18 @@ func checkCapability(s *project.Spec, add func(Severity, string, string, ...any)
 	if !project.ValidCapability(s.Capability) {
 		add(Error, s.ID, "capability %q is not a lowercase slug ([a-z0-9-]+)", s.Capability)
 	}
+}
+
+// checkLegacyStatus warns when the frontmatter still carries a retired state
+// name. The typed status already reads as the canonical one, so the raw
+// document is what tells the two apart, and `forge migrate` is the rewrite.
+// It is intrinsic, so it runs before the state gate.
+func checkLegacyStatus(s *project.Spec, add func(Severity, string, string, ...any)) {
+	raw := workflow.State(s.Doc().Str("status"))
+	if raw == "" || raw == s.Status {
+		return
+	}
+	add(Warning, s.ID, "status %q is the old name for %q; run forge migrate", raw, s.Status)
 }
 
 // checkSupersedes enforces the supersede link: it must point at a delivered
@@ -193,7 +206,9 @@ func checkArtifacts(p *project.Project, s *project.Spec, add func(Severity, stri
 		return filepath.ToSlash(path)
 	}
 	switch s.Status {
-	case workflow.AwaitingApproval, workflow.Planning, workflow.Implementing, workflow.Reviewing:
+	case workflow.Contracting:
+		// The contract may still be empty while it is being written.
+	case workflow.Planning, workflow.Implementing, workflow.Reviewing:
 		if strings.TrimSpace(s.Contract()) == "" {
 			add(Error, s.ID, "is %s with an empty Contract section", s.Status)
 		}
@@ -202,9 +217,6 @@ func checkArtifacts(p *project.Project, s *project.Spec, add func(Severity, stri
 	case workflow.Implementing:
 		if !exists("plan.md") {
 			add(Error, s.ID, "is implementing without %s", rel(s.PlanPath()))
-		} else if !planSurveysExisting(dir) {
-			add(Warning, s.ID, "plan.md has no Existing state section; name what to "+
-				"reuse before building")
 		}
 		if !exists("tasks.md") {
 			add(Error, s.ID, "is implementing without %s", rel(s.TasksPath()))
@@ -223,14 +235,19 @@ func checkArtifacts(p *project.Project, s *project.Spec, add func(Severity, stri
 	}
 }
 
-// planSurveysExisting reports whether the plan recorded what already exists
-// and can be reused. Only a warning: guidance, not a gate.
-func planSurveysExisting(dir string) bool {
-	d, err := doc.Load(filepath.Join(dir, "plan.md"))
-	if err != nil {
-		return true
+// checkSurvey warns when a live spec past `accepted` has not surveyed what
+// already exists to reuse. The survey lives once, in spec.md `## Existing
+// state`, written by the architect; a terminal spec is skipped so delivered
+// specs do not all warn. Only a warning: guidance, not a gate.
+func checkSurvey(s *project.Spec, add func(Severity, string, string, ...any)) {
+	if !workflow.InFlight(s.Status) {
+		return
 	}
-	return strings.TrimSpace(d.Section("Existing state")) != ""
+	if strings.TrimSpace(s.ExistingState()) != "" {
+		return
+	}
+	add(Warning, s.ID, "spec.md has no Existing state section; name what to "+
+		"reuse before building")
 }
 
 func checkCoverage(p *project.Project, s *project.Spec, add func(Severity, string, string, ...any)) {

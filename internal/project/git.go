@@ -28,6 +28,40 @@ func SpecIDFromBranch(branch string) string {
 	return ""
 }
 
+// RemoteSpecIDs returns the spec ids committed under `.forge/specs` on a git
+// ref, or nothing when that ref does not exist. Nothing is fetched: only refs
+// already present are read, because the network belongs to git and fetching is
+// the user's call (SPEC-015, decision 7).
+func RemoteSpecIDs(root, ref string) []string {
+	ref = strings.TrimSpace(ref)
+	if ref == "" {
+		return nil
+	}
+	out, err := run(root, "git", "ls-tree", "-d", "--name-only", ref, Dir+"/specs/")
+	if err != nil {
+		return nil
+	}
+	var ids []string
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		// A folder is `SPEC-NNN-slug`; the id is the first two dash-separated
+		// parts, normalised the same way every other id is.
+		parts := strings.SplitN(filepath.Base(line), "-", 3)
+		if len(parts) < 2 {
+			continue
+		}
+		id := NormalizeID(parts[0] + "-" + parts[1])
+		if !idRe.MatchString(id) {
+			continue
+		}
+		ids = append(ids, id)
+	}
+	return ids
+}
+
 // BranchName is the branch Forge suggests for a spec.
 func BranchName(id, title string) string {
 	num := strings.TrimPrefix(id, "SPEC-")

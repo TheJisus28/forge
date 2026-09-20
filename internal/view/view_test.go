@@ -7,6 +7,7 @@ import (
 	"github.com/TheJisus28/forge/internal/doc"
 	"github.com/TheJisus28/forge/internal/project"
 	"github.com/TheJisus28/forge/internal/view"
+	"github.com/TheJisus28/forge/internal/workflow"
 )
 
 // doneProject builds an onboarded project with n specs, all done.
@@ -76,6 +77,28 @@ func TestBrief_ShowsCapabilitySummary(t *testing.T) {
 	}
 	if !strings.Contains(brief, "1 current contract") {
 		t.Errorf("one of the two workflow contracts is superseded:\n%s", brief)
+	}
+}
+
+// The contract phase is work in flight, not a decision waiting on someone:
+// the brief files it under `in flight` and the detail names who acts next
+// (SPEC-015, decision 2).
+func TestBrief_ContractingIsInFlight(t *testing.T) {
+	p := doneProject(t, 1)
+	s := p.Specs[0]
+	s.Status = workflow.Contracting
+
+	brief := view.Brief(p)
+	if !strings.Contains(brief, "in flight:") || !strings.Contains(brief, string(workflow.Contracting)) {
+		t.Fatalf("a contracting spec belongs under in flight:\n%s", brief)
+	}
+	if strings.Contains(brief, "open decisions:") {
+		t.Errorf("nothing is waiting on an acceptance decision:\n%s", brief)
+	}
+
+	detail := view.Detail(p, s)
+	if !strings.Contains(detail, "waiting on  architect: write the contract") {
+		t.Errorf("the detail should name who writes the contract:\n%s", detail)
 	}
 }
 

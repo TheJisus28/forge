@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The state after `accepted` is `contracting` and `awaiting-approval` is gone:
+  `forge approve` moves a spec straight from `contracting` to `planning`,
+  still freezing the approver and the contract fingerprint. `forge accept` is
+  the single gate into the queue and confirms the spec's id against
+  `origin/main`, renumbering it when the number is taken; the agent guard
+  denies `forge accept`, so only a person accepts a spec. `forge migrate`
+  rewrites retired state names, and the existing-state survey lives once, in
+  `spec.md` `## Existing state`, written by the architect.
+
+## [0.5.0] - 2026-09-20
+
+### Changed
+
 - The workflow states, transitions and roles have one source of truth: the
   states live in `internal/workflow` and `forge workflow` renders them into
   `kit/machine/WORKFLOW.md`, so the docs and the pages no longer restate the
@@ -158,7 +171,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `archive`, `gate`, `status`, `brief`, `board`, `validate`, `sync`, `renumber`,
   `guard` and `version`.
 
-[Unreleased]: https://github.com/TheJisus28/forge/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/TheJisus28/forge/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/TheJisus28/forge/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/TheJisus28/forge/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/TheJisus28/forge/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/TheJisus28/forge/compare/v0.1.1...v0.2.0

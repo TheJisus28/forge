@@ -43,6 +43,15 @@ func TestWorkflowCommand_RendersTheStatesFromGo(t *testing.T) {
 		}
 		last = at
 	}
+
+	if !strings.Contains(first, "| `contracting` |") {
+		t.Errorf("workflow output does not render the renamed state:\n%s", first)
+	}
+	for _, retired := range []string{"specifying", "awaiting-approval"} {
+		if strings.Contains(first, retired) {
+			t.Errorf("workflow output still names the retired state %q:\n%s", retired, first)
+		}
+	}
 }
 
 func TestRolesCommand_ListsAndPrints(t *testing.T) {
@@ -73,6 +82,20 @@ func TestTemplateCommand_PrintsAndRejects(t *testing.T) {
 	}
 	if out, code := run(t, dir, "template"); code == 0 {
 		t.Errorf("a template name is required:\n%s", out)
+	}
+}
+
+// The existing-state survey lives in spec.md, so the spec template carries
+// the section and the plan template no longer does (SPEC-015, decision 5).
+func TestTemplate_SurveySection(t *testing.T) {
+	dir := t.TempDir()
+	spec := mustRun(t, dir, "template", "spec")
+	if !strings.Contains(spec, "## Existing state") {
+		t.Errorf("forge template spec should carry the Existing state section:\n%s", spec)
+	}
+	plan := mustRun(t, dir, "template", "plan")
+	if strings.Contains(plan, "## Existing state") {
+		t.Errorf("forge template plan should not carry the Existing state section:\n%s", plan)
 	}
 }
 

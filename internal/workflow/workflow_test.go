@@ -10,10 +10,8 @@ import (
 func TestCheck_LegalAndIllegalMoves(t *testing.T) {
 	legal := [][2]workflow.State{
 		{workflow.Proposed, workflow.Accepted},
-		{workflow.Accepted, workflow.Specifying},
-		{workflow.Specifying, workflow.AwaitingApproval},
-		{workflow.AwaitingApproval, workflow.Planning},
-		{workflow.AwaitingApproval, workflow.Specifying},
+		{workflow.Accepted, workflow.Contracting},
+		{workflow.Contracting, workflow.Planning},
 		{workflow.Planning, workflow.Implementing},
 		{workflow.Implementing, workflow.Reviewing},
 		{workflow.Reviewing, workflow.Implementing},
@@ -28,7 +26,7 @@ func TestCheck_LegalAndIllegalMoves(t *testing.T) {
 	illegal := [][2]workflow.State{
 		{workflow.Proposed, workflow.Implementing},
 		{workflow.Accepted, workflow.Done},
-		{workflow.Specifying, workflow.Implementing},
+		{workflow.Contracting, workflow.Implementing},
 		{workflow.Done, workflow.Implementing},
 		{workflow.Dropped, workflow.Accepted},
 	}
@@ -42,7 +40,7 @@ func TestCheck_LegalAndIllegalMoves(t *testing.T) {
 // Skipping the contract approval is the move the whole workflow exists to
 // prevent, so it gets its own test.
 func TestCheck_CannotSkipApproval(t *testing.T) {
-	err := workflow.Check(workflow.AwaitingApproval, workflow.Implementing)
+	err := workflow.Check(workflow.Contracting, workflow.Implementing)
 	if err == nil {
 		t.Fatal("a spec must not reach implementing without passing through planning")
 	}
@@ -57,6 +55,39 @@ func TestCheck_SameState(t *testing.T) {
 	}
 	if err := workflow.Check(workflow.Implementing, "shipping"); err == nil {
 		t.Fatal("unknown states should be rejected")
+	}
+}
+
+// The state after accepted is named for the contract it produces, and the
+// retired name is not a second state in the machine (SPEC-015, decision 1).
+func TestAll_UsesContracting(t *testing.T) {
+	want := []workflow.State{
+		workflow.Proposed, workflow.Accepted, workflow.Contracting,
+		workflow.Planning, workflow.Implementing, workflow.Blocked,
+		workflow.Reviewing, workflow.Done, workflow.Dropped,
+	}
+	got := workflow.All()
+	if len(got) != len(want) {
+		t.Fatalf("All() = %v, want %d states", got, len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("All()[%d] = %s, want %s", i, got[i], want[i])
+		}
+	}
+	for _, s := range got {
+		if s == "specifying" || s == "awaiting-approval" {
+			t.Errorf("All() still carries the retired state %q", s)
+		}
+	}
+	if strings.TrimSpace(workflow.Meaning(workflow.Contracting)) == "" {
+		t.Error("Meaning(Contracting) is empty")
+	}
+	if got := workflow.WaitingFor(workflow.Contracting); got != "architect: write the contract" {
+		t.Errorf("WaitingFor(Contracting) = %q, want the architect action", got)
+	}
+	if !workflow.InFlight(workflow.Contracting) {
+		t.Error("contracting is in flight")
 	}
 }
 
@@ -83,6 +114,9 @@ func TestWaitingFor_BlockedNamesTheOrchestrator(t *testing.T) {
 func TestInFlightAndTerminal(t *testing.T) {
 	if workflow.InFlight(workflow.Proposed) || workflow.InFlight(workflow.Done) {
 		t.Error("proposed and done are not in flight")
+	}
+	if !workflow.InFlight(workflow.Contracting) {
+		t.Error("contracting is in flight")
 	}
 	if !workflow.InFlight(workflow.Implementing) {
 		t.Error("implementing is in flight")

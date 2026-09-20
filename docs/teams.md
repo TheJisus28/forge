@@ -11,21 +11,28 @@ unlikely rather than politely avoided.
 - One file per decision, because a shared log would collide on every merge.
 - Coverage declared by children, so a parent is never rewritten.
 
-## Intake
+## Entering the queue
 
 ```bash
-forge new "Export invoices to CSV"
-git checkout -b intake/export-invoices
-git add .forge/specs/SPEC-005-export-invoices/spec.md
-git commit -m "spec(spec-005): export invoices to CSV"
+forge new "Export invoices to CSV" --capability export
 ```
 
-A one-file pull request that merges in minutes. This is what reserves the
-number, which is why it happens before anyone starts working.
+Write the problem and the acceptance criteria. When the team is ready, there
+is one entry into the queue:
 
-If two people run `forge new` at the same time, both get the same number,
-`forge validate` catches it on the second pull request, and
-`forge renumber SPEC-005` fixes it while nothing points at that id yet.
+```bash
+forge accept SPEC-005
+```
+
+`forge accept` confirms the number against the ids already committed on
+`main`, renumbers the spec when it is taken, and records who accepted it.
+Scrutiny does not disappear: the spec's own pull request opens early, with
+the contract and no code, and that is where a person reviews it.
+
+If two people run `forge new` at the same time, both get the same number.
+`forge accept` resolves the one it sees by renumbering; a duplicate that
+still slips through is caught by `forge validate` on the merge and fixed
+with `forge renumber SPEC-005` while nothing points at that id yet.
 
 ## Doing the work
 

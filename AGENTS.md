@@ -11,10 +11,9 @@ lives in `.forge/`.
 2. `.forge/conventions/` — how code is written here. Never assume a
    convention that is not written down; propose it instead.
 3. `forge status` — what is open, who is waiting, what is blocked.
-4. Before planning, survey what already exists: `forge status`, the
-   delivered specs and the code. Reuse it instead of rebuilding it, and
-   record what you reuse under `## Existing state` in
-   `.forge/specs/<id>/plan.md`.
+4. The existing-state survey lives once, in the spec's `## Existing state`
+   (`.forge/specs/<id>/spec.md`): the architect writes it and planning reads
+   it. Reuse what it names instead of rebuilding it.
 
 ## The loop
 
