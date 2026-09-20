@@ -5,10 +5,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/TheJisus28/forge/internal/cli"
+	"github.com/TheJisus28/forge/internal/workflow"
 )
 
 // runGit runs a git command in dir and fails the test when it fails.
@@ -85,6 +87,27 @@ func read(t *testing.T, path string) string {
 		t.Fatal(err)
 	}
 	return string(data)
+}
+
+// docsSection returns the text under the heading whose line starts with
+// heading, up to the next heading. It scopes a docs check to the command it
+// documents instead of the whole page.
+func docsSection(body, heading string) string {
+	var b strings.Builder
+	found := false
+	for _, line := range strings.SplitAfter(body, "\n") {
+		if !found {
+			if strings.HasPrefix(line, heading) {
+				found = true
+			}
+			continue
+		}
+		if strings.HasPrefix(line, "##") {
+			break
+		}
+		b.WriteString(line)
+	}
+	return b.String()
 }
 
 // doneSpec writes a delivered spec straight to disk: the capability view only
@@ -319,7 +342,7 @@ func TestLifecycle(t *testing.T) {
 	body = read(t, path)
 	write(t, path, strings.Replace(body, "## Contract\n", "## Contract\n\nGET /cards\n", 1))
 	mustRun(t, dir, "advance", "SPEC-001", "--to", "awaiting-approval", "--by", "ana")
-	// The conductor approving their own contract is fine: there is no
+	// The orchestrator approving their own contract is fine: there is no
 	// separate approver role to ask, and the record still says it was ana.
 	mustRun(t, dir, "approve", "SPEC-001", "--by", "ana")
 	if !strings.Contains(read(t, path), "contract_hash:") {
@@ -391,6 +414,44 @@ func TestArchive_IgnoresTemplateConventionsComment(t *testing.T) {
 	if body := read(t, filepath.Join(specDir, "spec.md")); !strings.Contains(body, "status: done") {
 		t.Errorf("the shipped template default should not block archiving:\n%s", body)
 	}
+}
+
+// The CLI reads English section headings only: a proposal under the retired
+// Spanish heading is invisible, while one under `Proposed conventions` blocks
+// archiving (AC4, SPEC-018 decision 6).
+func TestArchive_ReadsOnlyEnglishConventionHeading(t *testing.T) {
+	prepare := func(t *testing.T) (string, string) {
+		t.Helper()
+		dir := newRepo(t)
+		specDir := filepath.Join(dir, ".forge", "specs", "SPEC-001-a-change")
+		write(t, filepath.Join(specDir, "spec.md"),
+			"---\nid: SPEC-001\ntitle: A change\nstatus: reviewing\ncapability: workflow\n---\n\n## Contract\n\nx\n")
+		write(t, filepath.Join(specDir, "review.md"), "Verdict: pass\n")
+		return dir, specDir
+	}
+
+	t.Run("English heading blocks", func(t *testing.T) {
+		dir, specDir := prepare(t)
+		write(t, filepath.Join(specDir, "tasks.md"),
+			"# Tasks\n\n- [x] Phase 1\n\n## Proposed conventions\n\nErrors use an envelope.\n")
+		out, code := run(t, dir, "archive", "SPEC-001")
+		if code == 0 {
+			t.Fatalf("a proposal under the English heading should block archiving:\n%s", out)
+		}
+		if !strings.Contains(out, "Errors use an envelope.") {
+			t.Errorf("the proposal should be the reported line:\n%s", out)
+		}
+	})
+
+	t.Run("Spanish heading is invisible", func(t *testing.T) {
+		dir, specDir := prepare(t)
+		write(t, filepath.Join(specDir, "tasks.md"),
+			"# Tasks\n\n- [x] Phase 1\n\n## Convenciones propuestas\n\nErrors use an envelope.\n")
+		mustRun(t, dir, "archive", "SPEC-001")
+		if body := read(t, filepath.Join(specDir, "spec.md")); !strings.Contains(body, "status: done") {
+			t.Errorf("a proposal under the Spanish heading should not block archiving:\n%s", body)
+		}
+	})
 }
 
 func TestHierarchyAndDependencies(t *testing.T) {
@@ -824,6 +885,140 @@ func TestDocs_DescribeCapabilities(t *testing.T) {
 	}
 	if !strings.Contains(string(doc), "forge capabilities") {
 		t.Error("docs/cli.md should document forge capabilities")
+	}
+}
+
+// The pages an agent or a person reads must not keep a second copy of the
+// state machine: an arrow chain between two states, or a table row whose first
+// cell is a state. The names come from the binary, so a page cannot keep a
+// list that diverged from it (AC1, AC5).
+func TestDocs_DoNotRestateTheStateMachine(t *testing.T) {
+	pages := []string{"../../AGENTS.md", "../../kit/AGENTS.md", "../../README.md"}
+	docs, err := filepath.Glob("../../docs/*.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pages = append(pages, docs...)
+
+	names := make([]string, 0, len(workflow.All()))
+	for _, s := range workflow.All() {
+		names = append(names, regexp.QuoteMeta(string(s)))
+	}
+	alt := strings.Join(names, "|")
+	chain := regexp.MustCompile(`\b(?:` + alt + `)\s*(?:→|↔)\s*(?:` + alt + `)\b`)
+	row := regexp.MustCompile("(?m)^\\|\\s*`(?:" + alt + ")`\\s*\\|")
+
+	for _, page := range pages {
+		body := read(t, page)
+		if m := chain.FindString(body); m != "" {
+			t.Errorf("%s restates the state machine as an arrow chain: %q", page, m)
+		}
+		if m := row.FindString(body); m != "" {
+			t.Errorf("%s restates the state machine as a table row: %q", page, m)
+		}
+	}
+}
+
+// docs/ explains the process and points at the binary for the machine instead
+// of holding an ordered state list (AC5).
+func TestDocs_WorkflowPointsAtForgeWorkflow(t *testing.T) {
+	if !strings.Contains(read(t, "../../docs/workflow.md"), "forge workflow") {
+		t.Error("docs/workflow.md should point at `forge workflow` for the states and transitions")
+	}
+}
+
+// `forge start` creates the spec folder and records fingerprints; planning
+// writes `plan.md` and `tasks.md` after approval. The page must match the
+// command and not claim start creates them (AC3).
+func TestDocs_ForgeStartDoesNotCreatePlanningFiles(t *testing.T) {
+	start := docsSection(read(t, "../../docs/cli.md"), "### `forge start")
+	if start == "" {
+		t.Fatal("docs/cli.md should document `forge start`")
+	}
+
+	claim := regexp.MustCompile("(?i)creates?[^.\\n]{0,60}`(plan\\.md|tasks\\.md)`")
+	for _, m := range claim.FindAllStringIndex(start, -1) {
+		if strings.HasSuffix(strings.ToLower(start[:m[0]]), "not ") {
+			continue
+		}
+		t.Errorf("docs/cli.md claims `forge start` creates a planning file: %q", start[m[0]:m[1]])
+	}
+}
+
+// The driver is recorded under one key: `forge start` writes `orchestrator`
+// and never the retired `conductor`, and `forge status` names it (AC2).
+func TestStart_RecordsOneOrchestratorName(t *testing.T) {
+	dir := newRepo(t)
+	mustRun(t, dir, "new", "A change", "--capability", "workflow")
+	path := filepath.Join(dir, ".forge", "specs", "SPEC-001-a-change", "spec.md")
+
+	mustRun(t, dir, "accept", "SPEC-001", "--by", "jesus")
+	mustRun(t, dir, "start", "SPEC-001", "--by", "ana")
+
+	body := read(t, path)
+	if !strings.Contains(body, "orchestrator: ana") {
+		t.Errorf("start should record the orchestrator:\n%s", body)
+	}
+	if strings.Contains(body, "conductor:") {
+		t.Errorf("start should not write the legacy conductor key:\n%s", body)
+	}
+	if out := mustRun(t, dir, "status", "SPEC-001"); !strings.Contains(out, "orchestrator   ana") {
+		t.Errorf("status should name the orchestrator:\n%s", out)
+	}
+}
+
+// One name for the driver in every page a reader or an agent opens, and in the
+// roles the binary lists. The `.forge/` records are history and are not
+// scanned (AC2).
+func TestDocs_DoNotSayConductor(t *testing.T) {
+	pages := []string{
+		"../../AGENTS.md",
+		"../../kit/AGENTS.md",
+		"../../kit/machine/WORKFLOW.md",
+	}
+	docs, err := filepath.Glob("../../docs/*.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pages = append(pages, docs...)
+	for _, page := range pages {
+		if strings.Contains(read(t, page), "conductor") {
+			t.Errorf("%s should say orchestrator, not conductor", page)
+		}
+	}
+
+	if out := mustRun(t, t.TempDir(), "roles"); strings.Contains(out, "conductor") {
+		t.Errorf("forge roles should not list a conductor:\n%s", out)
+	}
+}
+
+// Headings are fixed English; `working_language` governs the prose inside a
+// spec, decision or convention, never the headings the CLI reads. The page
+// names the English headings and makes no claim that a translated heading is
+// accepted (AC4, SPEC-018 decision 6).
+func TestDocs_CustomizingDoesNotAcceptTranslatedHeadings(t *testing.T) {
+	doc := strings.Join(strings.Fields(read(t, "../../docs/customizing.md")), " ")
+
+	alias := regexp.QuoteMeta("Criterios de aceptación")
+	claim := regexp.MustCompile(`(?i)accept(?:s|ed)?[^.;]{0,120}` + alias +
+		`|` + alias + `[^.;]{0,120}accept(?:s|ed)?`)
+	for _, m := range claim.FindAllString(doc, -1) {
+		lower := strings.ToLower(m)
+		if strings.Contains(lower, "not accept") ||
+			strings.Contains(lower, "no longer accept") ||
+			strings.Contains(lower, "never accept") {
+			continue
+		}
+		t.Errorf("docs/customizing.md claims the parser accepts a translated heading: %q", m)
+	}
+
+	for _, want := range []string{
+		"Acceptance criteria", "Contract", "Open questions",
+		"Proposed conventions", "Existing state",
+	} {
+		if !strings.Contains(doc, want) {
+			t.Errorf("docs/customizing.md should name the fixed English heading %q", want)
+		}
 	}
 }
 

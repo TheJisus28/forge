@@ -101,3 +101,15 @@ func TestDetail_ShowsNone(t *testing.T) {
 		t.Errorf("an empty capability should render as (none):\n%s", out)
 	}
 }
+
+// The driver is named once, under `orchestrator`, so the detail matches the
+// frontmatter key (SPEC-018, decision 4).
+func TestDetail_ShowsOrchestrator(t *testing.T) {
+	p := doneProject(t, 1)
+	p.Specs[0].Orchestrator = "ana"
+
+	out := view.Detail(p, p.Specs[0])
+	if !strings.Contains(out, "orchestrator   ana") {
+		t.Errorf("the detail should show the orchestrator:\n%s", out)
+	}
+}

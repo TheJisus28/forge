@@ -70,18 +70,14 @@ forge validate   # exit 1 when the project is inconsistent
 
 ## How the loop works
 
-```
-proposed → accepted → specifying → awaiting-approval → planning →
-implementing → reviewing → done
-```
-
-The spec is born as a problem and a few acceptance criteria, and grows a
-contract as it advances. Two moves are worth a human's attention: accepting
-work into the queue, and approving the contract. Forge has no maintainer list
-to check; anyone can do either, the way anyone with push access can commit.
-The record says who did it, and the scrutiny happens in the pull request
-review your team already does. [The workflow](docs/workflow.md) has the
-detail.
+The states and the legal transitions between them live in the binary:
+`forge workflow` prints them. The spec is born as a problem and a few
+acceptance criteria, and grows a contract as it advances. Two moves are
+worth a human's attention: accepting work into the queue, and approving the
+contract. Forge has no maintainer list to check; anyone can do either, the
+way anyone with push access can commit. The record says who did it, and the
+scrutiny happens in the pull request review your team already does. [The
+workflow](docs/workflow.md) has the detail.
 
 ## What `forge init` plants
 

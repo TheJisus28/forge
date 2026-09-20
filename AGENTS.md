@@ -18,10 +18,8 @@ lives in `.forge/`.
 
 ## The loop
 
-```
-proposed → accepted → specifying → awaiting-approval → planning →
-implementing → reviewing → done
-```
+The states and the legal transitions between them live in the binary: run
+`forge workflow` to print them. What matters when working:
 
 - Anyone proposes with `forge new`, accepts with `forge accept` and
   approves a contract with `forge approve`. Forge has no authorization
@@ -51,7 +49,7 @@ go run . init /tmp/scratch && go run . status
 Each merge to `main` that closes a spec is packaged as a release, cut by
 hand (decision 0002). After the spec's pull request is merged:
 
-1. The conductor proposes the next `vX.Y.Z` from Conventional Commits
+1. The orchestrator proposes the next `vX.Y.Z` from Conventional Commits
    (`fix` → patch, `feat` → minor, breaking → major); the maintainer
    approves the exact number.
 2. Tag the approved commit and push the tag: `git tag vX.Y.Z` then

@@ -2,31 +2,14 @@
 
 Forge has one artifact: the **spec**. It is born cheap and grows.
 
-```
-proposed → accepted → specifying → awaiting-approval → planning →
-implementing → reviewing → done
-
-any of them → dropped          implementing ↔ blocked
-```
+The states and the legal transitions between them live in the binary:
+`forge workflow` prints them in lifecycle order, with what each state means
+and who has to act next. This page explains the process around them and
+keeps no second copy of the machine.
 
 The backlog is not a folder: it is the specs in `proposed` and `accepted`.
 An epic is not a type: it is a spec that has children. Collapsing those into
 one artifact removes the copying, and the drift that copying causes.
-
-## States
-
-| State | What it means | Who moves it |
-|---|---|---|
-| `proposed` | Written, not in the queue | anyone, with `forge accept` or drop |
-| `accepted` | In the queue | anyone, with `forge start` |
-| `specifying` | The contract is being written | architect |
-| `awaiting-approval` | Contract ready for a look | anyone, with `forge approve` |
-| `planning` | Being split into phases | orchestrator |
-| `implementing` | Product code, phase by phase | implementer |
-| `blocked` | Cannot continue | conductor |
-| `reviewing` | Criteria being verified | reviewer |
-| `done` | Archived | nobody |
-| `dropped` | Will not be done | nobody |
 
 Only `forge` writes `status`, and every move appends a line to the spec's
 History section saying who did it and why.

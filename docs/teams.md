@@ -85,7 +85,7 @@ deleted, so a later spec can read what was built and why.
 
 ## Roles
 
-There is one role that matters to Forge: the **conductor**, whoever takes
+There is one role that matters to Forge: the **orchestrator**, whoever takes
 a spec and drives the agents through it. Anyone can propose a spec, anyone
 can accept one, anyone can approve a contract. Real teams already know who
 should weigh in on what; Forge records who did, and does not referee it.

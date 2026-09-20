@@ -1,10 +1,13 @@
 package cli_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/TheJisus28/forge/internal/workflow"
 )
 
 // The machinery is served from the binary, so it works in a directory with
@@ -14,6 +17,31 @@ func TestWorkflowCommand_PrintsTheWorkflow(t *testing.T) {
 	out := mustRun(t, dir, "workflow")
 	if !strings.Contains(out, "# Workflow") || !strings.Contains(out, "## States") {
 		t.Fatalf("workflow output unexpected:\n%s", out)
+	}
+}
+
+// The states table is generated from internal/workflow, in lifecycle order,
+// and the same bytes are written on every run.
+func TestWorkflowCommand_RendersTheStatesFromGo(t *testing.T) {
+	dir := t.TempDir()
+	first := mustRun(t, dir, "workflow")
+	second := mustRun(t, dir, "workflow")
+	if first != second {
+		t.Error("two runs of forge workflow are not byte-identical")
+	}
+
+	last := -1
+	for _, s := range workflow.All() {
+		row := fmt.Sprintf("| `%s` | %s | %s |", s, workflow.Meaning(s), workflow.WaitingFor(s))
+		at := strings.Index(first, row)
+		if at < 0 {
+			t.Errorf("workflow output missing the %s row %q:\n%s", s, row, first)
+			continue
+		}
+		if at < last {
+			t.Errorf("state %s is out of lifecycle order:\n%s", s, first)
+		}
+		last = at
 	}
 }
 

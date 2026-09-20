@@ -286,7 +286,7 @@ func TestSaveRoundTrip(t *testing.T) {
 	p := load(t)
 	s, _ := p.Spec("SPEC-003")
 	s.SetStatus(workflow.Specifying, "ana", "started")
-	s.Conductor = "ana"
+	s.Orchestrator = "ana"
 	s.Capability = "notifications"
 	s.Supersedes = []string{"SPEC-002"}
 	s.Agreed["SPEC-002"] = "abc123"
@@ -298,7 +298,7 @@ func TestSaveRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	reloaded, _ := again.Spec("SPEC-003")
-	if reloaded.Status != workflow.Specifying || reloaded.Conductor != "ana" {
+	if reloaded.Status != workflow.Specifying || reloaded.Orchestrator != "ana" {
 		t.Errorf("not persisted: %+v", reloaded)
 	}
 	if reloaded.Capability != "notifications" {
@@ -329,6 +329,72 @@ func TestSaveRoundTrip(t *testing.T) {
 	without, _ := cleared.Spec("SPEC-003")
 	if without.Doc().Has("supersedes") {
 		t.Error("an empty supersedes list should remove the key")
+	}
+}
+
+// A spec written before the key was renamed still reads its driver from the
+// legacy `conductor`, and the next save writes the single `orchestrator` key
+// and drops the old one (SPEC-018, decision 4).
+func TestSave_MigratesLegacyConductorKey(t *testing.T) {
+	root := write(t, config, map[string]string{
+		"SPEC-001-legacy.md": "---\nid: SPEC-001\ntitle: Legacy\nstatus: planning\n" +
+			"capability: workflow\nconductor: ana\n---\n\n## Contract\n\nx\n",
+	})
+	p, err := project.Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, ok := p.Spec("SPEC-001")
+	if !ok {
+		t.Fatal("SPEC-001 should load")
+	}
+	if s.Orchestrator != "ana" {
+		t.Fatalf("legacy conductor should load as the orchestrator: %q", s.Orchestrator)
+	}
+	if err := s.Save(); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(s.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(data)
+	if !strings.Contains(body, "orchestrator: ana") {
+		t.Errorf("the save should write orchestrator: ana:\n%s", body)
+	}
+	if strings.Contains(body, "conductor:") {
+		t.Errorf("the save should delete the legacy conductor key:\n%s", body)
+	}
+}
+
+// The CLI reads English section headings only. A body that uses the retired
+// Spanish aliases yields no criteria, contract or questions, so a second
+// language cannot become a second set of headings to read (AC4, SPEC-018
+// decision 6).
+func TestSpec_ReadsEnglishSectionHeadingsOnly(t *testing.T) {
+	root := write(t, config, map[string]string{
+		"SPEC-001-spanish.md": "---\nid: SPEC-001\ntitle: Spanish\nstatus: accepted\n" +
+			"capability: workflow\n---\n\n" +
+			"## Criterios de aceptación\n\n- AC1: something\n\n" +
+			"## Contrato\n\nGET /something\n\n" +
+			"## Preguntas abiertas\n\n- OQ1: something?\n",
+	})
+	p, err := project.Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, ok := p.Spec("SPEC-001")
+	if !ok {
+		t.Fatal("SPEC-001 should load")
+	}
+	if got := s.Criteria(); len(got) != 0 {
+		t.Errorf("a Spanish-only body should yield no criteria: %v", got)
+	}
+	if got := s.Contract(); got != "" {
+		t.Errorf("a Spanish-only body should yield no contract: %q", got)
+	}
+	if got := s.OpenQuestions(); got != "" {
+		t.Errorf("a Spanish-only body should yield no open questions: %q", got)
 	}
 }
 

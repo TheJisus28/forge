@@ -17,10 +17,8 @@ agreement lives in `.forge/`. Keep this file short; it is read every session.
 
 ## The loop
 
-```
-proposed → accepted → specifying → awaiting-approval → planning →
-implementing → reviewing → done
-```
+The states and the legal transitions between them live in the binary: run
+`forge workflow` to print them.
 
 - Anyone proposes: `forge new "<title>"`.
 - Anyone accepts (`forge accept`) and approves a contract (`forge

@@ -58,9 +58,10 @@ this; Forge has no list to check the handle against.
 
 Begins the work. Refuses if the spec is not `accepted`, has children, or has
 open dependencies, and prints what is ready instead. `--force` records the
-exception in the spec. Records the contract fingerprints of any
-`@contract` dependencies, creates the spec folder's `plan.md` and `tasks.md`,
-and prints the branch to create.
+exception in the spec. Creates the spec folder, records the orchestrator and
+the contract fingerprints of any `@contract` dependencies, and prints the
+branch to create. It does not create `plan.md` or `tasks.md`; those are
+written during planning, after `forge approve`.
 
 ### `forge approve <id> [--by <you>] [--note ...]`
 
