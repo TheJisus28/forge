@@ -1221,6 +1221,27 @@ func TestDocs_DoNotRestateTheStateMachine(t *testing.T) {
 	}
 }
 
+// No reader-facing page keeps a retired state name: the docs carry the name
+// the binary renders. CHANGELOG.md and .forge/ are release and history records
+// and are not scanned (SPEC-015, decision 1; AC1).
+func TestDocPages_UseContracting(t *testing.T) {
+	pages := []string{"../../AGENTS.md", "../../kit/AGENTS.md", "../../README.md"}
+	docs, err := filepath.Glob("../../docs/*.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pages = append(pages, docs...)
+
+	for _, page := range pages {
+		body := read(t, page)
+		for _, retired := range []string{"specifying", "awaiting-approval"} {
+			if strings.Contains(body, retired) {
+				t.Errorf("%s still names the retired state %q", page, retired)
+			}
+		}
+	}
+}
+
 // docs/ explains the process and points at the binary for the machine instead
 // of holding an ordered state list (AC5).
 func TestDocs_WorkflowPointsAtForgeWorkflow(t *testing.T) {

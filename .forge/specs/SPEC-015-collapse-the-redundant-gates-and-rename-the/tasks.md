@@ -120,9 +120,25 @@ what exists without reading the diff.
   section the phase removes; the planted `.claude/agents/` role copies were
   left as Phase 1 left them (the two disagreed already; `forge update`
   refreshes them).
-- [ ] Phase 5 — Docs hold the new name only. Where: the scanned pages and
-  `internal/cli/cli_test.go` (`TestDocPages_UseContracting`),
-  `internal/cli/machine_test.go`.
+- [x] Phase 5 — Docs hold the new name only. Where:
+  `internal/cli/cli_test.go` (`TestDocPages_UseContracting`);
+  `internal/cli/machine_test.go` was already complete.
+  Landed 2026-09-20: `TestDocPages_UseContracting` sits beside the SPEC-018
+  `TestDocs_DoNotRestateTheStateMachine` and reuses its page list and `read`
+  helper; it scans `AGENTS.md`, `kit/AGENTS.md`, `README.md` and `docs/*.md`
+  for `specifying` or `awaiting-approval` and is green because no scanned page
+  carries a retired name (`CHANGELOG.md` and `.forge/` hold them and are
+  excluded as release/history). `TestWorkflowCommand_RendersTheStatesFromGo`
+  already pinned ``| `contracting` |`` and rejected both retired names (Phase
+  1), so it needed no change. No scanned page says `intake`: decision 3's
+  `TestNew_DescribesOneGate` already covers `docs/teams.md`, `docs/cli.md`,
+  `kit/forge/specs/README.md` and `kit/claude/skills/forge-work/SKILL.md`,
+  and the broader cross-cutting scan finds none either, so no page was edited.
+  Verified: `go test ./...` (all packages ok), `gofmt -l .` (clean),
+  `go vet ./...` (clean), `go run . workflow` (nine states, `contracting`, no
+  retired name), and `go test ./internal/cli -run
+  'TestDocPages_UseContracting|TestNew_DescribesOneGate|TestWorkflowCommand_RendersTheStatesFromGo'
+  -v` (all pass).
 
 ## Proposed conventions
 
@@ -181,3 +197,8 @@ what exists without reading the diff.
   and `internal/validate` cannot reach that unexported helper without a
   shared one. Worth deciding whether the survey check strips comments, and
   where the one comment-stripper lives.
+- **Phase 5 proposed no convention.** `TestDocPages_UseContracting` extends
+  the existing SPEC-018 scan with its page list and `read` helper, and the
+  retired-name check is a literal `strings.Contains`; nothing new had to be
+  decided. The proposals above are from Phases 2–4 and were left in place for
+  the orchestrator rather than replaced with `None.`.
