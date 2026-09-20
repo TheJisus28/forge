@@ -37,10 +37,16 @@ not the role text.
 touching the rest. `forge guard --explain` tells you what it would do on the
 current branch, which is the fastest way to debug a surprise.
 
-Product code is anything outside `.forge/`, `.claude/`, `.github/` and the
-root pointers. If your repository keeps documentation somewhere the guard
-should ignore, the cleanest answer today is to work on a spec branch; a
-configurable allowlist is a reasonable feature request.
+A process file is always editable, with or without a spec: the process
+roots (`.forge/`, `.claude/`, `.github/`, `.opencode/`), the root pointers
+(`AGENTS.md`, `CLAUDE.md`, `README.md`, `.gitignore`, `opencode.json`,
+`opencode.jsonc`), and repository-root paperwork — a Markdown file at the
+root (`.md` or `.markdown`) or a licence/notice file (`LICENSE`/`NOTICE`,
+or any `LICENSE.*`/`NOTICE.*`). The rule is root-only: Markdown inside a
+directory, such as `docs/` or `internal/`, is product code and stays gated.
+If your repository keeps documentation somewhere the guard should ignore,
+the cleanest answer today is to work on a spec branch; a configurable
+allowlist is a feature request, not part of this change.
 
 ## Working language
 

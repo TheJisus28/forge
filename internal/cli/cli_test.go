@@ -485,6 +485,20 @@ func TestRepositoryPaperwork(t *testing.T) {
 	}
 }
 
+// The guard's definition of root paperwork is written down where the guard is
+// documented, so the code and the pages cannot drift apart.
+func TestDocs_DescribeProcessFiles(t *testing.T) {
+	doc, err := os.ReadFile("../../docs/customizing.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"Markdown", "LICENSE"} {
+		if !strings.Contains(string(doc), want) {
+			t.Errorf("docs/customizing.md should contain %q", want)
+		}
+	}
+}
+
 func TestUnknownCommandAndMissingProject(t *testing.T) {
 	dir := t.TempDir()
 	if out, code := run(t, dir, "frobnicate"); code == 0 || !strings.Contains(out, "unknown command") {
