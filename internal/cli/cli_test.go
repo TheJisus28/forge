@@ -486,6 +486,31 @@ func TestStatusShowsTaskProgress(t *testing.T) {
 	}
 }
 
+// Both the per-spec status and the session brief name the capability, so an
+// agent starts knowing which part of the system it is about.
+func TestStatusAndBriefShowCapability(t *testing.T) {
+	dir := newRepo(t)
+	mustRun(t, dir, "new", "Guest access", "--capability", "guard")
+
+	out := mustRun(t, dir, "status", "SPEC-001")
+	if !strings.Contains(out, "capability") || !strings.Contains(out, "guard") {
+		t.Errorf("status should show the capability:\n%s", out)
+	}
+
+	// The brief only names the current spec, which is the one on the branch.
+	runGit(t, dir, "init")
+	runGit(t, dir, "config", "user.email", "t@example.com")
+	runGit(t, dir, "config", "user.name", "tester")
+	runGit(t, dir, "add", "-A")
+	runGit(t, dir, "commit", "-m", "init")
+	runGit(t, dir, "checkout", "-b", "spec/001-guest-access")
+
+	out = mustRun(t, dir, "brief")
+	if !strings.Contains(out, "capability") || !strings.Contains(out, "guard") {
+		t.Errorf("the brief should show the current spec's capability:\n%s", out)
+	}
+}
+
 // Repository-root paperwork is process files, not product code: the unused
 // community boilerplate is gone and the contributor guide lives in AGENTS.md.
 // The removed names are assembled from fragments so no live file spells them
@@ -534,6 +559,17 @@ func TestDocs_DescribeProcessFiles(t *testing.T) {
 		if !strings.Contains(string(doc), want) {
 			t.Errorf("docs/customizing.md should contain %q", want)
 		}
+	}
+}
+
+// The CLI reference documents the flag that opens a spec.
+func TestDocs_DescribeCapability(t *testing.T) {
+	doc, err := os.ReadFile("../../docs/cli.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(doc), "--capability") {
+		t.Error("docs/cli.md should document --capability")
 	}
 }
 

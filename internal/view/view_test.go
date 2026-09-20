@@ -58,3 +58,26 @@ func TestBrief_CapsDeliveredAndPointsAtStatus(t *testing.T) {
 		t.Errorf("brief should count the hidden specs and point at status:\n%s", brief)
 	}
 }
+
+// The detail surfaces the capability right below the status, so an agent
+// reads which part of the system it touches before anything else.
+func TestDetail_ShowsCapability(t *testing.T) {
+	p := doneProject(t, 1)
+	p.Specs[0].Capability = "guard"
+
+	out := view.Detail(p, p.Specs[0])
+	if !strings.Contains(out, "capability  guard") {
+		t.Errorf("the detail should show the capability:\n%s", out)
+	}
+}
+
+// A spec from before the field existed still reads as a person would expect:
+// an explicit "(none)" rather than an empty label.
+func TestDetail_ShowsNone(t *testing.T) {
+	p := doneProject(t, 1)
+
+	out := view.Detail(p, p.Specs[0])
+	if !strings.Contains(out, "capability  (none)") {
+		t.Errorf("an empty capability should render as (none):\n%s", out)
+	}
+}

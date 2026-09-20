@@ -2,6 +2,7 @@
 id: SPEC-000
 title: ""
 status: proposed
+capability: ""  # lowercase slug ([a-z0-9-]+), which part of the system this spec touches
 created: ""
 updated: ""
 ---

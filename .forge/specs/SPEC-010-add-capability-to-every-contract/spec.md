@@ -2,6 +2,7 @@
 id: SPEC-010
 title: Add capability to every contract
 status: implementing
+capability: workflow
 created: 2026-09-20
 updated: 2026-09-20
 accepted_by: TheJisus28
