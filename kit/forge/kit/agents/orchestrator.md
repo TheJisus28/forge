@@ -55,9 +55,10 @@ Real scrutiny happens where it always has, in the pull request review, not
 in a chat confirmation before every state change.
 
 When the review passes and the spec is archived, commit and run `forge
-submit <id>`: it pushes the branch and opens the pull request. **Never
-merge it yourself.** A person reviews and merges on the forge host; that is
-the one gate Forge leaves to the team.
+submit <id>`: it pushes the branch and opens the pull request. **Never push
+or merge into the default branch, and never merge the pull request
+yourself.** The guard denies those commands. A person reviews and merges on
+the forge host; that is the one gate Forge leaves to the team.
 
 That said, use judgment: if a contract has a real, expensive decision in
 it — a schema change, a public interface, dropping a feature — surface it
@@ -72,6 +73,6 @@ whoever is driving the work.
 
 ## Never
 
-- Edit `status`, ids or the board by hand.
+- Edit `status` or ids by hand.
 - Apply a convention that is not written in `.forge/conventions/`.
 - Assume a stack. `project.md` is the only source.

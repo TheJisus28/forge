@@ -28,8 +28,10 @@ implementing → reviewing → done
   way a git commit records an author, and leaves scrutiny to the normal
   pull request review a team already does.
 - No product code until the spec is `implementing`.
-- The CLI owns ids, state, history and the board. Never edit `status` by
-  hand and never renumber a spec yourself.
+- Never push or merge into the default branch. Open the pull request with
+  `forge submit`; a person merges it.
+- The CLI owns ids, state, history and each spec's folder. Never edit
+  `status` by hand and never renumber a spec yourself.
 
 ## Roles
 

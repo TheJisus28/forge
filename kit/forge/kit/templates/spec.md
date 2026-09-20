@@ -18,6 +18,13 @@ fail with evidence.
 - AC1: ...
 - AC2: ...
 
+## Open questions
+
+One per line, like `- OQ1: ...`, for anything that must be answered before
+the contract is approved. Write `None.` when there are none.
+
+None.
+
 ## Contract
 
 Written by the architect once the work is accepted, and frozen once

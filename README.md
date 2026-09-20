@@ -116,7 +116,7 @@ repository fails if the binary ever imports `net/http`.
 | `forge new "<title>"` | propose work |
 | `forge accept` / `approve` | into the queue, contract is right |
 | `forge start` / `advance` / `archive` | move the work |
-| `forge status` / `brief` / `board` | what is happening |
+| `forge status` / `brief` | what is happening |
 | `forge validate` | the CI check |
 | `forge guard` / `sync` | hooks and GitHub integration |
 

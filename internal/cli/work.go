@@ -221,6 +221,10 @@ func cmdApprove(args []string, out io.Writer) error {
 	if contract == "" {
 		return fmt.Errorf("%s has an empty Contract section; there is nothing to approve", s.ID)
 	}
+	if s.HasOpenQuestions() {
+		return fmt.Errorf("%s still has open questions:\n  %s\n"+
+			"answer them in the spec, or write None.", s.ID, firstLine(s.OpenQuestions()))
+	}
 	s.ApprovedBy = actor
 	s.ContractHash = project.HashContract(contract)
 	s.SetStatus(workflow.Planning, actor, *note)

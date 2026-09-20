@@ -33,7 +33,8 @@ git checkout -b spec/00X-slug
 ```
 
 Launch `forge-architect` for the contract. When it comes back, summarise
-the decisions for the user, and once the contract is right:
+the decisions for the user, make sure `## Open questions` in
+`.forge/specs/<id>/spec.md` says `None`, and once the contract is right:
 `forge approve SPEC-00X`.
 
 ## Approved work
@@ -61,4 +62,6 @@ forge submit <id>
 `forge archive` keeps the spec folder in the tree as the record and refuses
 if there are unresolved convention proposals, which is the point: decide
 them first. `forge submit` pushes the branch and opens the pull request.
-**Never merge it yourself**; a person reviews and merges on the forge host.
+**Never push or merge into the default branch and never merge the pull
+request yourself**; the guard denies those commands, and a person reviews
+and merges on the forge host.

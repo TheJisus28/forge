@@ -49,6 +49,22 @@ catches what is objectively wrong regardless of who touched what: a
 missing contract, an uncovered promise, a dependency cycle, a contract
 that drifted after it was approved.
 
+## Open questions
+
+A contract may raise questions instead of answering them. They live in the
+spec's `## Open questions` section, one per line, or `None.` when there are
+none:
+
+```markdown
+## Open questions
+
+- OQ1: does the retry window close on the first success or on the last?
+```
+
+`forge approve` refuses while any question remains and `forge validate`
+warns, so a contract is never approved around an open decision. Settle each
+question, or write `None.`.
+
 ## Acceptance criteria
 
 Criteria live in the spec as a list:

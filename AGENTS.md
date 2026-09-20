@@ -27,8 +27,8 @@ implementing → reviewing → done
   approves a contract with `forge approve`. Forge has no authorization
   model; it records who did it, the way a git commit records an author.
 - No product code until the spec is `implementing`.
-- The CLI owns ids, state, history and the board. Never edit `status` by
-  hand and never renumber a spec yourself.
+- The CLI owns ids, state, history and each spec's folder. Never edit
+  `status` by hand and never renumber a spec yourself.
 - Read the role file before acting as one. They live in
   `.forge/kit/agents/`: `orchestrator.md`, `architect.md`,
   `implementer.md`, `reviewer.md`. You are the orchestrator unless you were
@@ -53,7 +53,7 @@ go run . init /tmp/scratch && go run . status
 - `internal/doc` — frontmatter parser and writer
 - `internal/workflow` — states and the legal transitions between them
 - `internal/project` — loading `.forge`, specs, ids, coverage, dependencies
-- `internal/view` — brief, status and board rendering
+- `internal/view` — brief, status and one spec's detail
 - `internal/validate` — the consistency rules CI enforces
 - `internal/cli` — command parsing and output
 - `main.go` — thin entry point
@@ -70,8 +70,8 @@ go run . init /tmp/scratch && go run . status
   something; it never checks whether they were allowed to. That decision
   belongs to the team and, if they want it enforced, to their own
   branch protection or `CODEOWNERS`, not to Forge.
-- **The CLI owns state.** Ids, `status`, history and the board are written
-  by commands, never by hand and never by an agent editing Markdown.
+- **The CLI owns state.** Ids, `status`, history and each spec's folder are
+  written by commands, never by hand and never by an agent editing Markdown.
 - Anything planted outside `.forge/kit/` belongs to the user and is written
   once, never overwritten.
 

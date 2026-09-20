@@ -189,6 +189,16 @@ func TestRun_PlanWithoutExistingStateWarns(t *testing.T) {
 	}
 }
 
+// An open question is a warning: it should be answered, not forgotten.
+func TestRun_WarnsOpenQuestions(t *testing.T) {
+	spec := "---\nid: SPEC-001\ntitle: A\nstatus: accepted\n---\n\n" +
+		"## Open questions\n\n- OQ1: which store?\n"
+	p := build(t, map[string]string{"SPEC-001-a.md": spec})
+	if !warns(t, p, "open questions") {
+		t.Fatal("an open question should warn")
+	}
+}
+
 // warns reports whether any finding is a warning whose message contains want.
 func warns(t *testing.T, p *project.Project, want string) bool {
 	t.Helper()

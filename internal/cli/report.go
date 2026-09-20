@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -76,31 +75,6 @@ func cmdBrief(args []string, out io.Writer) error {
 		return err
 	}
 	fmt.Fprintln(out, string(data))
-	return nil
-}
-
-func cmdBoard(args []string, out io.Writer) error {
-	fs := newFlagSet("board", "usage: forge board [--print]", out)
-	print := fs.Bool("print", false, "write to stdout instead of .forge/BOARD.md")
-	_, err := parseArgs(fs, args)
-	if err != nil {
-		return err
-	}
-	p, err := project.Load(cwd())
-	if err != nil {
-		return err
-	}
-	body := view.Board(p)
-	if *print {
-		fmt.Fprint(out, body)
-		return nil
-	}
-	path := filepath.Join(p.Root, project.Dir, "BOARD.md")
-	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
-		return err
-	}
-	fmt.Fprintf(out, "%s regenerated (it is gitignored on purpose)\n", filepath.ToSlash(
-		project.Dir+"/BOARD.md"))
 	return nil
 }
 

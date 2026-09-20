@@ -118,9 +118,6 @@ func plant(dir string, opt plantOptions, out io.Writer) error {
 	if err := writeClaudeSettings(root, opt.guard); err != nil {
 		return err
 	}
-	if err := ensureGitignore(root); err != nil {
-		return err
-	}
 	for _, dir := range []string{"specs", "decisions", "conventions"} {
 		if err := os.MkdirAll(filepath.Join(root, project.Dir, dir), 0o755); err != nil {
 			return err
@@ -178,24 +175,6 @@ func protected(dest string) bool {
 	return dest == project.Dir+"/project.md"
 }
 
-func ensureGitignore(root string) error {
-	path := filepath.Join(root, ".gitignore")
-	current, err := os.ReadFile(path)
-	if err != nil && !os.IsNotExist(err) {
-		return err
-	}
-	if strings.Contains(string(current), project.Dir+"/BOARD.md") {
-		return nil
-	}
-	body := string(current)
-	if body != "" && !strings.HasSuffix(body, "\n") {
-		body += "\n"
-	}
-	body += "\n# Forge: generated views, regenerate with `forge board`\n" +
-		project.Dir + "/BOARD.md\n"
-	return os.WriteFile(path, []byte(body), 0o644)
-}
-
 // writeClaudeSettings adds the session hooks to .claude/settings.json without
 // discarding anything the team already configured there.
 func writeClaudeSettings(root string, guard bool) error {
@@ -216,7 +195,7 @@ func writeClaudeSettings(root string, guard bool) error {
 	hooks["SessionStart"] = mergeHook(hooks["SessionStart"], "startup|resume|clear|compact",
 		"forge brief --json")
 	if guard {
-		hooks["PreToolUse"] = mergeHook(hooks["PreToolUse"], "Write|Edit", "forge guard")
+		hooks["PreToolUse"] = mergeHook(hooks["PreToolUse"], "Write|Edit|Bash", "forge guard")
 	}
 	settings["hooks"] = hooks
 
@@ -230,14 +209,19 @@ func writeClaudeSettings(root string, guard bool) error {
 	return os.WriteFile(path, append(data, '\n'), 0o644)
 }
 
-// mergeHook appends our command to a hook list, leaving other entries alone
-// and never adding the same command twice.
+// mergeHook appends our command to a hook list, leaving other entries alone,
+// never adding the same command twice, and keeping an existing entry's
+// matcher current.
 func mergeHook(existing any, matcher, command string) []any {
 	list, _ := existing.([]any)
 	for _, entry := range list {
-		if strings.Contains(fmt.Sprint(entry), command) {
-			return list
+		if !strings.Contains(fmt.Sprint(entry), command) {
+			continue
 		}
+		if m, ok := entry.(map[string]any); ok {
+			m["matcher"] = matcher
+		}
+		return list
 	}
 	return append(list, map[string]any{
 		"matcher": matcher,

@@ -6,6 +6,3 @@
 # Go
 *.test
 *.out
-
-# Forge: generated views, regenerate with `forge board`
-.forge/BOARD.md

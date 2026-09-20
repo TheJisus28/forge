@@ -8,7 +8,6 @@ Everything this project agreed on, in files you can read and review.
 | `specs/` | One folder per spec: spec, plan, tasks and review, in any state from proposed to done |
 | `decisions/` | Why the system is the way it is. One file per decision |
 | `conventions/` | How code is written here. One file per domain |
-| `BOARD.md` | A generated view. Gitignored; run `forge board` |
 | `kit/` | The machinery: the workflow and the agent roles |
 
 ## The one rule
@@ -19,8 +18,7 @@ it. `kit/` belongs to Forge and `forge update` rewrites it whole.**
 ## Where state lives
 
 The state of a spec is the `status` field in its frontmatter, and only
-`forge` writes it. The board is a projection; if they disagree, the spec
-wins and the board should be regenerated.
+`forge` writes it. `forge status` reads it; the spec is the only source.
 
 ## Day to day
 
