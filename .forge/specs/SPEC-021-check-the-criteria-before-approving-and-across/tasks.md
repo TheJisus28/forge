@@ -88,9 +88,42 @@ later spec knows what exists without reading the diff.
   clean; `go test ./internal/cli/ -run TestCheck_ -v` — all three PASS;
   `go run . check` reports SPEC-015's five task gaps (warnings, evidence
   present) and exits 0.
-- [ ] Phase 4 — `forge validate` includes the coverage. Moves: AC4. Where:
+- [x] Phase 4 — `forge validate` includes the coverage. Moves: AC4. Where:
   `internal/validate/validate.go` (`checkCriteriaCoverage`); tests in
   `internal/validate/validate_test.go`.
+  Landed: `Run` calls `checkCriteriaCoverage(p, s, add)` right after
+  `checkArtifacts`, beside the parent-to-child `checkCoverage` it leaves
+  untouched. The new rule walks `s.CriterionGaps()` and turns each gap into a
+  finding with the `forge check` messages — `<AC> has no task in <rel>` /
+  `<AC> has no evidence in <rel>`, the path relative to `p.Root` with forward
+  slashes. Severity per decision 5: a task gap is always a `Warning` (in
+  flight and at `done`), an evidence gap is a `Warning` in flight and an
+  `Error` at `done`. The contract's signature
+  `checkCriteriaCoverage(p *project.Project, s *project.Spec, add func(...))`
+  is what shipped; the implementer prompt's `(p *project.Project) []string`
+  and its "evidence gap on `reviewing` is an error" both contradict contract
+  decision 5 / AC4 (`review.md` is a warning until `done`), so the contract
+  and plan won.
+  Test added: `TestRun_CriterionCoverageWarnsAndErrors` (an `implementing`
+  spec missing a task warns with `AC1 has no task in` and produces no error;
+  a `done` spec whose review's `## Acceptance criteria` omits `AC1` errors
+  with `AC1 has no evidence in`; a `done` spec missing only the task warns
+  and produces no error). Each spec carries `## Existing state` so
+  `CriterionGaps` judges it.
+  Regression check: `go run . validate` prints five warnings and exits 0 —
+  `warning SPEC-015: AC1..AC5 has no task in
+  .forge/specs/SPEC-015-.../tasks.md`. SPEC-015 is the only delivered spec
+  with `## Existing state`, its review's `## Acceptance criteria` covers all
+  five criteria, and its `tasks.md` predates criterion naming, so the gaps
+  are task warnings at `done`, exactly decision 5's forward-only outcome. No
+  delivered spec fails, the rule was not weakened, and `Spec.CriterionGaps`
+  needed no change: the `## Existing state` gate Phase 2 already added is the
+  forward-only exception. SPEC-021 itself is clean (its tasks name
+  AC1..AC5 and evidence does not apply while `implementing`).
+  Verified: `go test ./...` all `ok`; `gofmt -l .` empty; `go vet ./...`
+  clean; `go test ./internal/validate/ -run
+  TestRun_CriterionCoverageWarnsAndErrors -v` PASS; `go run . validate` as
+  above (exit 0).
 - [ ] Phase 5 — Templates, roles and docs. Moves: AC5. Where:
   `kit/machine/templates/review.md`, `tasks.md`, `spec.md`, `docs/cli.md`,
   `docs/workflow.md`, `kit/machine/roles/reviewer.md`; tests in
@@ -111,3 +144,10 @@ later spec knows what exists without reading the diff.
   working — `Main`'s `stderr` argument is what a test replaces — rather than
   writing to `os.Stderr` directly. A later `int`-returning command should
   take `(args []string, out, errOut io.Writer) int`.
+- **A `validate` rule that judges a spec's artifacts delegates the
+  derivation and only assigns severity.** `checkCriteriaCoverage` does not
+  re-read `tasks.md` or `review.md`: it calls `project.Spec.CriterionGaps()`
+  and maps each gap to a `Finding`, so the token matcher and the state table
+  live in one place (the same single-source rule SPEC-018 enforced for the
+  workflow). A later rule over the same artifacts should reuse the
+  `internal/project` derivation rather than grow a second reader.

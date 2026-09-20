@@ -324,6 +324,59 @@ func TestRun_WarnsOpenQuestions(t *testing.T) {
 	}
 }
 
+// Criterion coverage is a warning while the work is in flight and an error
+// only for a missing evidence line at done: review.md is the durable proof,
+// while a delivered tasks.md that never named the criterion stays history
+// (SPEC-021, decision 5).
+func TestRun_CriterionCoverageWarnsAndErrors(t *testing.T) {
+	spec := func(status string) string {
+		return "---\nid: SPEC-001\ntitle: A\nstatus: " + status + "\ncapability: workflow\n" +
+			"approved_by: ana\n---\n\n## Contract\n\nx\n\n" +
+			"## Acceptance criteria\n\n- AC1: `forge check` returns one\n\n" +
+			"## Existing state\n\n- reuses `check.go`.\n"
+	}
+	load := func(spec, tasks, review string) *project.Project {
+		t.Helper()
+		p := build(t, map[string]string{"SPEC-001-a.md": spec})
+		s, _ := p.Spec("SPEC-001")
+		write(t, filepath.Join(s.Dir(), "plan.md"), "# Plan\n")
+		write(t, filepath.Join(s.Dir(), "tasks.md"), tasks)
+		if review != "" {
+			write(t, filepath.Join(s.Dir(), "review.md"), review)
+		}
+		p, err := project.Load(p.Root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+
+	// Implementing, task missing: a warning, not a build failure.
+	p := load(spec("implementing"), "# Tasks\n\n- [ ] Phase 1\n", "")
+	if !warns(t, p, "AC1 has no task in") {
+		t.Fatal("an implementing spec missing a task should warn")
+	}
+	if got := findings(t, p); len(got) != 0 {
+		t.Fatalf("a task gap in flight must not fail the build: %v", got)
+	}
+
+	// Done, evidence missing: the one gap that is an error.
+	review := "# Review\n\n## Acceptance criteria\n\n| Criterion | Result | Evidence |\n|---|---|---|\n"
+	p = load(spec("done"), "# Tasks\n\n- [x] Phase 1: moves AC1\n", review)
+	expectError(t, findings(t, p), "AC1 has no evidence in")
+
+	// Done, only the task missing: the review settles it, so it stays a
+	// warning.
+	review = "# Review\n\n## Acceptance criteria\n\n| AC1 | pass | `forge check` |\n"
+	p = load(spec("done"), "# Tasks\n\n- [x] Phase 1\n", review)
+	if !warns(t, p, "AC1 has no task in") {
+		t.Fatal("a done spec missing only a task should warn")
+	}
+	if got := findings(t, p); len(got) != 0 {
+		t.Fatalf("a task gap at done with evidence must not fail the build: %v", got)
+	}
+}
+
 // warns reports whether any finding is a warning whose message contains want.
 func warns(t *testing.T, p *project.Project, want string) bool {
 	t.Helper()
