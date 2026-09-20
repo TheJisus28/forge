@@ -71,11 +71,39 @@ func expectError(t *testing.T, got []string, want string) {
 
 func TestRun_CleanProject(t *testing.T) {
 	p := build(t, map[string]string{
-		"SPEC-001-a.md": "---\nid: SPEC-001\ntitle: A\nstatus: proposed\n---\n\n## Problem\n",
+		"SPEC-001-a.md": "---\nid: SPEC-001\ntitle: A\nstatus: proposed\ncapability: a\n---\n\n## Problem\n",
 	})
 	if got := findings(t, p); len(got) != 0 {
 		t.Fatalf("unexpected errors: %v", got)
 	}
+}
+
+// The specs delivered before `capability` existed must stay visible without
+// failing the build: it is a warning, not an error.
+func TestRun_WarnsMissingCapability(t *testing.T) {
+	p := build(t, map[string]string{
+		"SPEC-001-a.md": "---\nid: SPEC-001\ntitle: A\nstatus: proposed\n---\n\n## Problem\n",
+	})
+	if !warns(t, p, "has no capability") {
+		t.Fatal("a spec with no capability should warn")
+	}
+	if got := findings(t, p); len(got) != 0 {
+		t.Fatalf("a missing capability must not fail the build: %v", got)
+	}
+}
+
+// A present key that is not a lowercase slug is an error, and an empty value
+// counts: the key exists, so it is not the missing-field warning.
+func TestRun_RejectsInvalidCapability(t *testing.T) {
+	p := build(t, map[string]string{
+		"SPEC-001-a.md": "---\nid: SPEC-001\ntitle: A\nstatus: proposed\ncapability: Guard\n---\n",
+	})
+	expectError(t, findings(t, p), `capability "Guard" is not a lowercase slug`)
+
+	p = build(t, map[string]string{
+		"SPEC-001-a.md": "---\nid: SPEC-001\ntitle: A\nstatus: proposed\ncapability: \"\"\n---\n",
+	})
+	expectError(t, findings(t, p), `capability "" is not a lowercase slug`)
 }
 
 func TestRun_BrokenReferences(t *testing.T) {

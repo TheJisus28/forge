@@ -64,6 +64,7 @@ func Run(p *project.Project) []Finding {
 		if strings.TrimSpace(s.Title) == "" {
 			add(Error, s.ID, "missing title")
 		}
+		checkCapability(s, add)
 		if !workflow.Valid(s.Status) {
 			add(Error, s.ID, "unknown status %q", s.Status)
 			continue
@@ -88,6 +89,20 @@ func Run(p *project.Project) []Finding {
 
 	sortFindings(out)
 	return out
+}
+
+// checkCapability reports a spec with no `capability` key as a warning, so
+// the specs delivered before the field existed stay visible without failing
+// the build, and a malformed one as an error. The typed field cannot tell
+// "absent" from "present but empty", so the raw document does.
+func checkCapability(s *project.Spec, add func(Severity, string, string, ...any)) {
+	if !s.Doc().Has("capability") {
+		add(Warning, s.ID, "has no capability; a new spec sets one with forge new --capability <name>")
+		return
+	}
+	if !project.ValidCapability(s.Capability) {
+		add(Error, s.ID, "capability %q is not a lowercase slug ([a-z0-9-]+)", s.Capability)
+	}
 }
 
 func checkRelations(p *project.Project, s *project.Spec, add func(Severity, string, string, ...any)) {
