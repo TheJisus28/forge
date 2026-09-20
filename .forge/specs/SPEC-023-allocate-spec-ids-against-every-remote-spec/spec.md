@@ -1,12 +1,14 @@
 ---
 id: SPEC-023
 title: Allocate spec ids against every remote spec branch, not just main
-status: contracting
+status: implementing
 capability: specs
 created: 2026-09-20
 updated: 2026-09-20
 accepted_by: TheJisus28
 orchestrator: TheJisus28
+approved_by: TheJisus28
+contract_hash: bc039edb2034
 ---
 
 ## Problem
@@ -49,14 +51,13 @@ none of those, so write it before approval.
   `TestNew_SkipsIdsOnOtherBranches` mints a fresh number when a local bare
   `origin` carries that number on both a `spec/*` branch and an `intake/*`
   branch.
-- AC2: The wider read uses only refs already present and never fetches, even
-  when `.forge/project.md` sets `fetch: on`; with no remote-tracking refs it
-  falls back to the local `main` ref and never fails, proven by a before/after
-  snapshot test (`TestNew_NoRemoteBranchesStaysOffline`).
-- AC3: The wider read covers every remote-tracking ref that carries
-  `.forge/specs/` — `spec/*`, `intake/*` and any other branch name — and
-  touches no network; `TestRemoteSpecIDs_ScansEveryBranch` settles it over a
-  local bare remote.
+- AC2: `TestNew_NoRemoteBranchesStaysOffline` proves the wider read uses only
+  refs already present and never fetches, even when `.forge/project.md` sets
+  `fetch: on`; with no remote-tracking refs it falls back to the local `main`
+  ref and never fails, with a before/after snapshot of the repository.
+- AC3: `TestRemoteSpecIDs_ScansEveryBranch` proves the wider read covers every
+  remote-tracking ref that carries `.forge/specs/` — `spec/*`, `intake/*` and
+  any other branch name — and touches no network, over a local bare remote.
 - AC4: `forge renumber` can still resolve a duplicate that the wider read
   did not prevent, and `forge validate` keeps failing on a real duplicate, so
   the change reduces the window without removing the backstop; the existing
@@ -73,9 +74,9 @@ none of those, so write it before approval.
   `forge new` so the read sees the latest branches.
 - AC6: `go test ./...` passes, and `gofmt -l .` and `go vet ./...` report
   nothing.
-- AC7: The same id on the same folder is the same spec, never a collision:
-  `forge accept` keeps the id when the only reference to it is the spec's own
-  published branch; `TestAccept_KeepsIdForItsOwnPublishedBranch` settles it.
+- AC7: `TestAccept_KeepsIdForItsOwnPublishedBranch` proves the same id on the
+  same folder is the same spec, never a collision: `forge accept` keeps the id
+  when the only reference to it is the spec's own published branch.
 
 ## Open questions
 
@@ -290,3 +291,5 @@ out of scope.
 Written by `forge`. Do not edit by hand.
 - 2026-09-20  accepted  by TheJisus28
 - 2026-09-20  contracting  by TheJisus28
+- 2026-09-20  planning  by TheJisus28
+- 2026-09-20  implementing  by orchestrator
