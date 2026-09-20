@@ -1,14 +1,14 @@
 ---
 id: SPEC-018
 title: Keep one source of truth for the workflow and roles
-status: implementing
+status: reviewing
 capability: workflow
 created: 2026-09-20
 updated: 2026-09-20
 accepted_by: TheJisus28
-conductor: TheJisus28
 approved_by: TheJisus28
 contract_hash: ec06b4bfa420
+orchestrator: TheJisus28
 ---
 
 ## Problem
@@ -208,3 +208,4 @@ Written by `forge`. Do not edit by hand.
 - 2026-09-20  awaiting-approval  by orchestrator
 - 2026-09-20  planning  by TheJisus28
 - 2026-09-20  implementing  by orchestrator
+- 2026-09-20  reviewing  by orchestrator
