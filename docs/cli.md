@@ -1,8 +1,10 @@
 # CLI reference
 
-Every command reads and writes files under `.forge/`. None of them reach
-the network; `forge status --fetch` and `forge sync` run `git` and `gh`,
-which are the user's tools with the user's credentials.
+Most commands read and write files under `.forge/`; `forge upgrade` works
+outside a project and does not touch the kit. The binary itself never
+reaches the network: the only network comes from the user's own tools —
+`git`/`gh` for `forge status --fetch` and `forge sync`, and the Go
+toolchain for `forge upgrade`.
 
 ## Setting up
 

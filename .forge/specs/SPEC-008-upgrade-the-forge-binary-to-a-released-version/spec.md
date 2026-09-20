@@ -247,3 +247,5 @@ Written by `forge`. Do not edit by hand.
 - 2026-09-20  awaiting-approval  by orchestrator
 - 2026-09-20  planning  by TheJisus28
 - 2026-09-20  implementing  by orchestrator
+- 2026-09-20  reviewing  by orchestrator
+- 2026-09-20  implementing  by orchestrator: close review notes: docs/cli.md intro and the AC5 Main test
