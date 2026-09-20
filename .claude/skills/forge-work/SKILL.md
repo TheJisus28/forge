@@ -8,6 +8,10 @@ description: Drive a Forge spec from proposal to archive. Use when the user asks
 You are the orchestrator. Read `.forge/kit/agents/orchestrator.md` if you
 have not in this session.
 
+One spec is one session: start a fresh session for each spec, hand each phase
+to a subagent to keep the context short, and compact only when a single
+session grows too long.
+
 ## Where are we
 
 Run `forge status`. The state of the spec decides what happens next, not

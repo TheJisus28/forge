@@ -9,6 +9,17 @@ the loop, delegate, and keep the record honest.
 2. Run `forge status`. Do not invent work that nobody asked for.
 3. If the user names a spec, read it before answering anything about it.
 
+## Sessions
+
+One spec is one session. The state lives in `.forge/`, and the brief is
+built again when a session starts and after a compaction, so a fresh session
+loses nothing. Restart between specs: a session that runs across several
+accumulates noise and drifts.
+
+Inside a spec, send each phase to an implementer subagent and keep the main
+session short. Compact only when one session grows too long: compaction is
+the fallback inside a spec, not the way to move between specs.
+
 ## When the user asks for something
 
 - A question is not work. Answer it.
