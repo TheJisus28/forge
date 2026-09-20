@@ -65,6 +65,7 @@ func Run(p *project.Project) []Finding {
 			add(Error, s.ID, "missing title")
 		}
 		checkCapability(s, add)
+		checkSupersedes(p, s, add)
 		if !workflow.Valid(s.Status) {
 			add(Error, s.ID, "unknown status %q", s.Status)
 			continue
@@ -102,6 +103,44 @@ func checkCapability(s *project.Spec, add func(Severity, string, string, ...any)
 	}
 	if !project.ValidCapability(s.Capability) {
 		add(Error, s.ID, "capability %q is not a lowercase slug ([a-z0-9-]+)", s.Capability)
+	}
+}
+
+// checkSupersedes enforces the supersede link: it must point at a delivered
+// contract, it must not loop, and only one live spec may claim the same
+// replacement. It is an intrinsic check, so it runs before the state gate:
+// the shape of the list does not depend on the state the spec claims.
+func checkSupersedes(p *project.Project, s *project.Spec, add func(Severity, string, string, ...any)) {
+	if len(s.Supersedes) == 0 {
+		return
+	}
+	for _, target := range s.Supersedes {
+		other, ok := p.Spec(target)
+		if !ok {
+			add(Error, s.ID, "supersedes %s, which does not exist", target)
+			continue
+		}
+		if other.Status != workflow.Done {
+			add(Error, s.ID, "supersedes %s, which is not done", target)
+		}
+	}
+	if cycle := supersedeCycle(p, s); cycle != "" {
+		add(Error, s.ID, "supersedes cycle: %s", cycle)
+	}
+	if workflow.Terminal(s.Status) {
+		return
+	}
+	// Only a live spec can claim a replacement: history may hold several
+	// successors over time, so terminal specs are not counted here.
+	for _, target := range s.Supersedes {
+		for _, other := range p.Specs {
+			if other.ID == s.ID || workflow.Terminal(other.Status) {
+				continue
+			}
+			if hasID(other.Supersedes, target) {
+				add(Error, s.ID, "supersedes %s, which %s also supersedes", target, other.ID)
+			}
+		}
 	}
 }
 
@@ -298,6 +337,47 @@ func depCycle(p *project.Project, start *project.Spec) string {
 		return strings.Join(path, " -> ")
 	}
 	return ""
+}
+
+// supersedeCycle walks the supersede links from start and returns the chain
+// when it reaches a spec already on the path, mirroring depCycle.
+func supersedeCycle(p *project.Project, start *project.Spec) string {
+	var path []string
+	visiting := map[string]bool{}
+	var walk func(*project.Spec) bool
+	walk = func(s *project.Spec) bool {
+		if visiting[s.ID] {
+			path = append(path, s.ID)
+			return true
+		}
+		visiting[s.ID] = true
+		path = append(path, s.ID)
+		for _, target := range s.Supersedes {
+			next, ok := p.Spec(target)
+			if !ok {
+				continue
+			}
+			if walk(next) {
+				return true
+			}
+		}
+		visiting[s.ID] = false
+		path = path[:len(path)-1]
+		return false
+	}
+	if walk(start) {
+		return strings.Join(path, " -> ")
+	}
+	return ""
+}
+
+func hasID(ids []string, id string) bool {
+	for _, v := range ids {
+		if v == id {
+			return true
+		}
+	}
+	return false
 }
 
 // HasErrors reports whether any finding blocks the build.

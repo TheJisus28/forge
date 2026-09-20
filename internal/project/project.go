@@ -55,6 +55,7 @@ type Spec struct {
 	Status     workflow.State
 	Parent     string
 	Covers     []string
+	Supersedes []string
 	Deps       []Dep
 	Needs      []string
 	External   []map[string]string
@@ -381,6 +382,7 @@ func (s *Spec) Save() error {
 	setOrDelete(s.doc, "capability", s.Capability)
 	setOrDelete(s.doc, "parent", s.Parent)
 	setListOrDelete(s.doc, "covers", s.Covers)
+	setListOrDelete(s.doc, "supersedes", s.Supersedes)
 	deps := make([]string, 0, len(s.Deps))
 	for _, d := range s.Deps {
 		deps = append(deps, d.String())
@@ -433,6 +435,7 @@ func FromDoc(path string, d *doc.Doc) (*Spec, error) {
 		Status:       workflow.State(d.Str("status")),
 		Parent:       NormalizeID(d.Str("parent")),
 		Covers:       upperAll(d.List("covers")),
+		Supersedes:   normalizeIDs(d.List("supersedes")),
 		Needs:        d.List("needs"),
 		External:     d.MapList("blocked_by_external"),
 		Path:         path,
@@ -532,6 +535,16 @@ func upperAll(in []string) []string {
 	out := make([]string, 0, len(in))
 	for _, s := range in {
 		out = append(out, strings.ToUpper(strings.TrimSpace(s)))
+	}
+	return out
+}
+
+// normalizeIDs reads a list of spec ids the way `parent` is read: forgiving
+// input, canonical `SPEC-NNN` stored.
+func normalizeIDs(in []string) []string {
+	out := make([]string, 0, len(in))
+	for _, s := range in {
+		out = append(out, NormalizeID(s))
 	}
 	return out
 }

@@ -228,6 +228,12 @@ func Detail(p *project.Project, s *project.Spec) string {
 	fmt.Fprintf(&b, "%s  %s\n%s\n\n", s.ID, s.Title, strings.Repeat("-", 60))
 	fmt.Fprintf(&b, "status      %s\n", s.Status)
 	fmt.Fprintf(&b, "capability  %s\n", capabilityOrNone(s.Capability))
+	if len(s.Supersedes) > 0 {
+		fmt.Fprintf(&b, "supersedes     %s\n", strings.Join(s.Supersedes, ", "))
+	}
+	if by := supersededBy(p, s); len(by) > 0 {
+		fmt.Fprintf(&b, "superseded by  %s\n", strings.Join(by, ", "))
+	}
 	fmt.Fprintf(&b, "waiting on  %s\n", workflow.WaitingFor(s.Status))
 	if done, total := s.TaskProgress(); total > 0 {
 		fmt.Fprintf(&b, "tasks       %d/%d\n", done, total)
@@ -288,6 +294,24 @@ func Detail(p *project.Project, s *project.Spec) string {
 		fmt.Fprintf(&b, "\nnext states  %s\n", strings.Join(names, ", "))
 	}
 	return b.String()
+}
+
+// supersededBy lists, in ID order, the specs that declare they supersede s.
+// Specs are loaded in ID order, so the walk needs no sort of its own.
+func supersededBy(p *project.Project, s *project.Spec) []string {
+	var out []string
+	for _, other := range p.Specs {
+		if other.ID == s.ID {
+			continue
+		}
+		for _, target := range other.Supersedes {
+			if target == s.ID {
+				out = append(out, other.ID)
+				break
+			}
+		}
+	}
+	return out
 }
 
 // capabilityOrNone renders a spec's capability, or "(none)" when it does not
