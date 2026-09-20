@@ -20,20 +20,21 @@ func cmdPush(args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if project.OnDefaultBranch(p.Root) {
-		return fmt.Errorf("refusing to push the default branch; a spec ends as a pull request, run forge submit")
-	}
-	if branch := project.Branch(p.Root); branch == "" {
-		return fmt.Errorf("not on a git branch; forge push publishes a spec branch")
-	}
 	return checkpoint(p, s, out)
 }
 
-// checkpoint commits the pending work and pushes the spec's branch. It reports
-// one line: what it pushed, or that there was nothing to publish (SPEC-020,
-// decisions 2, 3 and 5).
+// checkpoint commits the pending work and pushes the spec's branch. It refuses
+// the default branch and a detached HEAD first, so no caller can publish main.
+// It reports one line: what it pushed, or that there was nothing to publish
+// (SPEC-020, decisions 2, 3, 4 and 5).
 func checkpoint(p *project.Project, s *project.Spec, out io.Writer) error {
+	if project.OnDefaultBranch(p.Root) {
+		return fmt.Errorf("refusing to push the default branch; a spec ends as a pull request, run forge submit")
+	}
 	branch := project.Branch(p.Root)
+	if branch == "" {
+		return fmt.Errorf("not on a git branch; a checkpoint needs a spec branch")
+	}
 	committed, err := project.CommitAll(p.Root, checkpointMessage(s))
 	if err != nil {
 		return err

@@ -1684,3 +1684,72 @@ func TestPush_NothingToPush(t *testing.T) {
 		t.Errorf("a second push should report nothing to do:\n%s", out)
 	}
 }
+
+// advanceRepo is checkpointRepo with the spec moved to planning, so
+// `forge advance --to implementing` is legal. optIn adds `push: on`.
+func advanceRepo(t *testing.T, optIn bool) string {
+	t.Helper()
+	dir := checkpointRepo(t, "spec/001-something")
+	if optIn {
+		write(t, filepath.Join(dir, ".forge", "project.md"),
+			strings.Replace(projectConfig, "guard: on", "guard: on\npush: on", 1))
+	}
+	path := filepath.Join(dir, ".forge", "specs", "SPEC-001-something", "spec.md")
+	write(t, path, strings.Replace(read(t, path), "status: proposed", "status: planning", 1))
+	return dir
+}
+
+// With the opt-in, advance commits and pushes the state boundary (SPEC-020,
+// AC4).
+func TestAdvance_CheckpointsWhenOptedIn(t *testing.T) {
+	dir := advanceRepo(t, true)
+	before := gitOut(t, dir, "rev-parse", "HEAD")
+
+	out := mustRun(t, dir, "advance", "SPEC-001", "--to", "implementing")
+	if !strings.Contains(out, "pushed spec/001-something") {
+		t.Errorf("advance should report the checkpoint:\n%s", out)
+	}
+	if got := gitOut(t, dir, "rev-parse", "HEAD"); got == before {
+		t.Error("advance with push: on should commit")
+	}
+	if got := gitOut(t, dir, "status", "--porcelain"); got != "" {
+		t.Errorf("the checkpoint should leave a clean tree: %q", got)
+	}
+	if got := gitOut(t, dir, "ls-remote", "--heads", "origin", "spec/001-something"); got == "" {
+		t.Error("the branch should be on origin")
+	}
+}
+
+// Without the opt-in, advance never runs git: the state moves and the remote
+// is untouched (SPEC-020, AC4).
+func TestAdvance_OfflineWithoutOptIn(t *testing.T) {
+	dir := advanceRepo(t, false)
+	before := gitOut(t, dir, "rev-parse", "HEAD")
+
+	mustRun(t, dir, "advance", "SPEC-001", "--to", "implementing")
+	if got := gitOut(t, dir, "rev-parse", "HEAD"); got != before {
+		t.Error("without push: on advance must not commit")
+	}
+	if got := gitOut(t, dir, "ls-remote", "--heads", "origin", "spec/001-something"); got != "" {
+		t.Errorf("without push: on advance must not push, got %q", got)
+	}
+}
+
+// A failed checkpoint is a warning and the state move stands (SPEC-020,
+// decision 7).
+func TestAdvance_PushFailureIsAWarning(t *testing.T) {
+	dir := advanceRepo(t, true)
+	runGit(t, dir, "remote", "set-url", "origin", filepath.Join(dir, "missing.git"))
+
+	out, code := run(t, dir, "advance", "SPEC-001", "--to", "implementing")
+	if code != 0 {
+		t.Fatalf("a failed checkpoint should still exit 0:\n%s", out)
+	}
+	if !strings.Contains(out, "warning:") {
+		t.Errorf("the failed push should warn:\n%s", out)
+	}
+	body := read(t, filepath.Join(dir, ".forge", "specs", "SPEC-001-something", "spec.md"))
+	if !strings.Contains(body, "status: implementing") {
+		t.Error("the state move should stand after a failed push")
+	}
+}

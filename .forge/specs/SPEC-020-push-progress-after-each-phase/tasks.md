@@ -44,9 +44,21 @@ later spec knows what exists without reading the diff.
   fixture.
   Verified: `go test ./...` all `ok`; `gofmt -l .` empty; `go vet ./...`
   clean; the four tests pass with `-v`.
-- [ ] Phase 3 — `forge advance` checkpoints when opted in. Moves: AC4.
+- [x] Phase 3 — `forge advance` checkpoints when opted in. Moves: AC4.
   Where: `internal/cli/work.go` (`cmdAdvance`); tests in
   `internal/cli/cli_test.go`.
+  Landed: `cmdAdvance` now keeps `p` from `specArg` and, after `s.Save()`,
+  calls `checkpoint` only when `p.PushEnabled()`; a returned error becomes a
+  `warning: ...` line on `out` and the command still exits 0 (decision 7).
+  `checkpoint` absorbed the default-branch and detached-HEAD refusals, so no
+  caller — `forge push` or the opt-in advance — can publish `main`. The
+  `--to accepted`/`--to planning` routes keep their early return and do not
+  checkpoint.
+  Tests: `TestAdvance_CheckpointsWhenOptedIn` (commit, clean tree, branch on
+  the remote), `TestAdvance_OfflineWithoutOptIn` (HEAD and remote untouched),
+  `TestAdvance_PushFailureIsAWarning` (exit 0, `warning:`, state stands).
+  Verified: `go test ./...` all `ok`; `gofmt -l .` empty; `go vet ./...`
+  clean; the three tests pass with `-v`.
 - [ ] Phase 4 — `forge submit` commits before it pushes. Moves: AC1.
   Where: `internal/cli/report.go` (`cmdSubmit`); tests in
   `internal/cli/cli_test.go`.
