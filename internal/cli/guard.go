@@ -124,9 +124,10 @@ func denial(p *project.Project, file string) string {
 		return fmt.Sprintf("Forge: %s has a contract but it is not approved yet. "+
 			"Nothing is built until: forge approve %s", cur.ID, cur.ID)
 	case workflow.Planning:
-		return fmt.Sprintf("Forge: %s is approved but has no plan yet. Write the phases in "+
-			".forge/wip/%s/plan.md, then: forge advance %s --to implementing",
-			cur.ID, cur.ID, cur.ID)
+		plan, _ := filepath.Rel(p.Root, cur.PlanPath())
+		return fmt.Sprintf("Forge: %s is approved but has no plan yet. Write %s, "+
+			"then: forge advance %s --to implementing",
+			cur.ID, filepath.ToSlash(plan), cur.ID)
 	case workflow.Reviewing:
 		return fmt.Sprintf("Forge: %s is under review. If the review found failures, run "+
 			"forge advance %s --to implementing and say why.", cur.ID, cur.ID)

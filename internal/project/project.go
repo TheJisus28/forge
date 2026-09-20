@@ -72,6 +72,14 @@ type Spec struct {
 // Doc exposes the underlying document for commands that edit the body.
 func (s *Spec) Doc() *doc.Doc { return s.doc }
 
+// Dir is the folder that holds the spec and its plan, tasks and review.
+func (s *Spec) Dir() string { return filepath.Dir(s.Path) }
+
+// PlanPath, TasksPath and ReviewPath are the spec's working artifacts.
+func (s *Spec) PlanPath() string   { return filepath.Join(s.Dir(), "plan.md") }
+func (s *Spec) TasksPath() string  { return filepath.Join(s.Dir(), "tasks.md") }
+func (s *Spec) ReviewPath() string { return filepath.Join(s.Dir(), "review.md") }
+
 // Project is a loaded .forge directory.
 type Project struct {
 	Root   string // repository root
@@ -118,11 +126,14 @@ func Load(dir string) (*Project, error) {
 		return nil, err
 	}
 	for _, e := range entries {
-		name := e.Name()
-		if e.IsDir() || !strings.HasSuffix(name, ".md") || strings.EqualFold(name, "README.md") {
+		if !e.IsDir() {
 			continue
 		}
-		s, err := loadSpec(filepath.Join(p.SpecsDir(), name))
+		path := filepath.Join(p.SpecsDir(), e.Name(), "spec.md")
+		if _, err := os.Stat(path); err != nil {
+			continue
+		}
+		s, err := loadSpec(path)
 		if err != nil {
 			return nil, err
 		}
@@ -132,14 +143,16 @@ func Load(dir string) (*Project, error) {
 	return p, nil
 }
 
-// SpecsDir is where spec files live.
+// SpecsDir is where one folder per spec lives.
 func (p *Project) SpecsDir() string { return filepath.Join(p.Root, Dir, "specs") }
 
-// WipDir is where the scaffolding of in-flight specs lives.
-func (p *Project) WipDir() string { return filepath.Join(p.Root, Dir, "wip") }
+// SpecDir is the folder of one spec: specs/<id>-<slug>/.
+func (p *Project) SpecDir(id, title string) string {
+	return filepath.Join(p.SpecsDir(), SpecDirName(id, title))
+}
 
-// WipDirFor is the scaffolding directory of one spec.
-func (p *Project) WipDirFor(id string) string { return filepath.Join(p.WipDir(), id) }
+// SpecDirName is the folder name of a spec.
+func SpecDirName(id, title string) string { return id + "-" + Slug(title) }
 
 // GuardEnabled reports whether the PreToolUse guard should deny edits.
 func (p *Project) GuardEnabled() bool {
@@ -442,9 +455,6 @@ func Slug(title string) string {
 	}
 	return s
 }
-
-// FileName is the spec file name for an ID and title.
-func FileName(id, title string) string { return id + "-" + Slug(title) + ".md" }
 
 func setOrDelete(d *doc.Doc, key, val string) {
 	if val == "" {

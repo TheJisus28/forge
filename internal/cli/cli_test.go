@@ -177,7 +177,7 @@ func TestActor_UsesTheFlag(t *testing.T) {
 	dir := newRepo(t)
 	mustRun(t, dir, "new", "Thing")
 	mustRun(t, dir, "accept", "SPEC-001", "--by", "octocat")
-	body := read(t, filepath.Join(dir, ".forge", "specs", "SPEC-001-thing.md"))
+	body := read(t, filepath.Join(dir, ".forge", "specs", "SPEC-001-thing", "spec.md"))
 	if !strings.Contains(body, "accepted_by: octocat") {
 		t.Errorf("accepted_by should be the flag value:\n%s", body)
 	}
@@ -214,7 +214,7 @@ func TestLifecycle(t *testing.T) {
 	specs := filepath.Join(dir, ".forge", "specs")
 
 	mustRun(t, dir, "new", "Saved card payments")
-	path := filepath.Join(specs, "SPEC-001-saved-card-payments.md")
+	path := filepath.Join(specs, "SPEC-001-saved-card-payments", "spec.md")
 	body := read(t, path)
 	if !strings.Contains(body, "status: proposed") {
 		t.Fatalf("a new spec starts proposed:\n%s", body)
@@ -242,28 +242,30 @@ func TestLifecycle(t *testing.T) {
 		t.Error("approving should fingerprint the contract")
 	}
 
-	write(t, filepath.Join(dir, ".forge", "wip", "SPEC-001", "plan.md"), "# Plan\n")
+	specDir := filepath.Join(specs, "SPEC-001-saved-card-payments")
+	write(t, filepath.Join(specDir, "plan.md"), "# Plan\n\n## Existing state\n\nNone yet.\n")
+	write(t, filepath.Join(specDir, "tasks.md"), "# Tasks\n\n- [ ] Phase 1\n")
 	mustRun(t, dir, "advance", "SPEC-001", "--to", "implementing")
 	if out, code := run(t, dir, "archive", "SPEC-001"); code == 0 {
 		t.Fatalf("archiving before the review should fail: %s", out)
 	}
 	mustRun(t, dir, "advance", "SPEC-001", "--to", "reviewing")
 
-	write(t, filepath.Join(dir, ".forge", "wip", "SPEC-001", "changes.md"),
-		"# Changes\n\n## Proposed conventions\n\nErrors use an envelope.\n")
-	write(t, filepath.Join(dir, ".forge", "wip", "SPEC-001", "review.md"), "Verdict: pass\n")
+	write(t, filepath.Join(specDir, "tasks.md"),
+		"# Tasks\n\n- [x] Phase 1\n\n## Proposed conventions\n\nErrors use an envelope.\n")
+	write(t, filepath.Join(specDir, "review.md"), "Verdict: pass\n")
 	if out, code := run(t, dir, "archive", "SPEC-001"); code == 0 {
 		t.Fatalf("an undecided convention should block archiving: %s", out)
 	}
-	write(t, filepath.Join(dir, ".forge", "wip", "SPEC-001", "changes.md"),
-		"# Changes\n\n## Proposed conventions\n\nNone.\n")
+	write(t, filepath.Join(specDir, "tasks.md"),
+		"# Tasks\n\n- [x] Phase 1\n\n## Proposed conventions\n\nNone.\n")
 	mustRun(t, dir, "archive", "SPEC-001")
 
 	if !strings.Contains(read(t, path), "status: done") {
 		t.Error("the spec should be done")
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".forge", "wip", "SPEC-001")); !os.IsNotExist(err) {
-		t.Error("archiving should remove the scaffolding")
+	if _, err := os.Stat(filepath.Join(specDir, "review.md")); err != nil {
+		t.Error("archiving should keep the spec folder and its review")
 	}
 	if out, code := run(t, dir, "validate"); code != 0 {
 		t.Fatalf("the finished project should validate:\n%s", out)
@@ -280,7 +282,7 @@ func TestHierarchyAndDependencies(t *testing.T) {
 	specs := filepath.Join(dir, ".forge", "specs")
 
 	mustRun(t, dir, "new", "Notifications")
-	parent := filepath.Join(specs, "SPEC-001-notifications.md")
+	parent := filepath.Join(specs, "SPEC-001-notifications", "spec.md")
 	write(t, parent, strings.Replace(read(t, parent), "- AC1: ...\n- AC2: ...",
 		"- AC1: delivery\n- AC2: history", 1))
 
@@ -290,7 +292,7 @@ func TestHierarchyAndDependencies(t *testing.T) {
 	mustRun(t, dir, "new", "API", "--parent", "SPEC-001", "--covers", "AC1")
 	mustRun(t, dir, "new", "UI", "--parent", "SPEC-001", "--covers", "AC2")
 
-	ui := filepath.Join(specs, "SPEC-003-ui.md")
+	ui := filepath.Join(specs, "SPEC-003-ui", "spec.md")
 	write(t, ui, strings.Replace(read(t, ui), "status: proposed",
 		"status: proposed\ndepends_on: [SPEC-002@contract]", 1))
 
@@ -317,7 +319,7 @@ func TestHierarchyAndDependencies(t *testing.T) {
 
 	// Approving the API contract unblocks the UI without waiting for code.
 	mustRun(t, dir, "start", "SPEC-002", "--by", "ana")
-	api := filepath.Join(specs, "SPEC-002-api.md")
+	api := filepath.Join(specs, "SPEC-002-api", "spec.md")
 	write(t, api, strings.Replace(read(t, api), "## Contract\n", "## Contract\n\nGET /n\n", 1))
 	mustRun(t, dir, "advance", "SPEC-002", "--to", "awaiting-approval")
 	mustRun(t, dir, "approve", "SPEC-002", "--by", "jesus")

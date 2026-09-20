@@ -28,7 +28,7 @@ func build(t *testing.T, specs map[string]string) *project.Project {
 	write(t, filepath.Join(base, "README.md"), "# .forge\n")
 	write(t, filepath.Join(base, "project.md"), config)
 	for name, body := range specs {
-		write(t, filepath.Join(base, "specs", name), body)
+		write(t, filepath.Join(base, "specs", strings.TrimSuffix(name, ".md"), "spec.md"), body)
 	}
 	p, err := project.Load(root)
 	if err != nil {
@@ -167,8 +167,10 @@ func TestRun_PlanWithoutExistingStateWarns(t *testing.T) {
 	spec := "---\nid: SPEC-001\ntitle: A\nstatus: implementing\n---\n\n## Contract\n\nx\n"
 
 	p := build(t, map[string]string{"SPEC-001-a.md": spec})
-	plan := filepath.Join(p.WipDirFor("SPEC-001"), "plan.md")
+	s, _ := p.Spec("SPEC-001")
+	plan := filepath.Join(s.Dir(), "plan.md")
 	write(t, plan, "# Plan\n\n## Phase 1\n\n- Scope: x.\n")
+	write(t, filepath.Join(s.Dir(), "tasks.md"), "# Tasks\n\n- [ ] Phase 1\n")
 	p, err := project.Load(p.Root)
 	if err != nil {
 		t.Fatal(err)
@@ -198,17 +200,23 @@ func warns(t *testing.T, p *project.Project, want string) bool {
 	return false
 }
 
-func TestRun_DoneWithoutArchiving(t *testing.T) {
-	p := build(t, map[string]string{
-		"SPEC-001-a.md": "---\nid: SPEC-001\ntitle: A\nstatus: done\napproved_by: ana\n" +
-			"---\n\n## Contract\n\nx\n",
-	})
-	write(t, filepath.Join(p.WipDirFor("SPEC-001"), "review.md"), "pass\n")
+// The spec folder is the durable record: a done spec keeps its review.
+func TestRun_DoneRequiresReview(t *testing.T) {
+	spec := "---\nid: SPEC-001\ntitle: A\nstatus: done\napproved_by: ana\n" +
+		"---\n\n## Contract\n\nx\n"
+
+	p := build(t, map[string]string{"SPEC-001-a.md": spec})
+	s, _ := p.Spec("SPEC-001")
+	expectError(t, findings(t, p), "is done without")
+
+	write(t, filepath.Join(s.Dir(), "review.md"), "Verdict: pass\n")
 	p, err := project.Load(p.Root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	expectError(t, findings(t, p), "run forge archive")
+	if got := findings(t, p); len(got) != 0 {
+		t.Fatalf("a done spec with a review should be clean: %v", got)
+	}
 }
 
 // Anyone can accept or approve; nothing in Forge checks who they are. The

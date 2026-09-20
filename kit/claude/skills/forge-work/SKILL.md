@@ -40,8 +40,9 @@ the decisions for the user, and once the contract is right:
 
 First survey what already exists: `forge status`, the contracts of the
 delivered specs, and the code that already does part of the job. Fill
-`## Existing state` in `.forge/wip/<id>/plan.md` with what you will reuse
-and what is genuinely new, then write the phases and run
+`## Existing state` in `.forge/specs/<id>/plan.md` with what you will reuse
+and what is genuinely new, write the phases in `.forge/specs/<id>/plan.md`
+and the same phases as checkboxes in `.forge/specs/<id>/tasks.md`, then run
 `forge advance <id> --to implementing`. Launch `forge-implementer` once per
 phase, and report back between phases.
 
@@ -57,7 +58,7 @@ git add -A && git commit -m "spec(spec-00X): archive"
 forge submit <id>
 ```
 
-`forge archive` refuses if there are unresolved convention proposals, which
-is the point: decide them first. `forge submit` pushes the branch and opens
-the pull request. **Never merge it yourself**; a person reviews and merges
-on the forge host.
+`forge archive` keeps the spec folder in the tree as the record and refuses
+if there are unresolved convention proposals, which is the point: decide
+them first. `forge submit` pushes the branch and opens the pull request.
+**Never merge it yourself**; a person reviews and merges on the forge host.

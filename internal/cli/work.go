@@ -74,7 +74,7 @@ func cmdNew(args []string, out io.Writer) error {
 	d.SetStr("created", time.Now().Format("2006-01-02"))
 	d.SetStr("updated", time.Now().Format("2006-01-02"))
 
-	path := filepath.Join(p.SpecsDir(), project.FileName(s.ID, s.Title))
+	path := filepath.Join(p.SpecDir(s.ID, s.Title), "spec.md")
 	built, err := project.FromDoc(path, d)
 	if err != nil {
 		return err
@@ -177,7 +177,7 @@ func cmdStart(args []string, out io.Writer) error {
 		note = "forced despite: " + strings.Join(blockers, "; ")
 	}
 	s.SetStatus(workflow.Specifying, conductor, note)
-	if err := os.MkdirAll(p.WipDirFor(s.ID), 0o755); err != nil {
+	if err := os.MkdirAll(s.Dir(), 0o755); err != nil {
 		return err
 	}
 	if err := s.Save(); err != nil {
@@ -231,8 +231,10 @@ func cmdApprove(args []string, out io.Writer) error {
 	if waiting := waitingOnContract(p, s.ID); len(waiting) > 0 {
 		fmt.Fprintf(out, "unblocked: %s\n", strings.Join(waiting, ", "))
 	}
-	fmt.Fprintf(out, "Next: split it into phases in .forge/wip/%s/plan.md, then\n"+
-		"  forge advance %s --to implementing\n", s.ID, s.ID)
+	plan, _ := filepath.Rel(p.Root, s.PlanPath())
+	fmt.Fprintf(out, "Next: write %s and tick the phases in %s, then\n"+
+		"  forge advance %s --to implementing\n",
+		filepath.ToSlash(plan), filepath.Base(s.TasksPath()), s.ID)
 	return nil
 }
 
@@ -294,27 +296,24 @@ func cmdArchive(args []string, out io.Writer) error {
 	if s.Status != workflow.Reviewing {
 		return fmt.Errorf("%s is %s; archive closes a spec that passed review", s.ID, s.Status)
 	}
-	wip := p.WipDirFor(s.ID)
-	if _, err := os.Stat(filepath.Join(wip, "review.md")); err != nil {
-		return fmt.Errorf("%s has no review: .forge/wip/%s/review.md is missing", s.ID, s.ID)
+	review, _ := filepath.Rel(p.Root, s.ReviewPath())
+	if _, err := os.Stat(s.ReviewPath()); err != nil {
+		return fmt.Errorf("%s has no review: %s is missing", s.ID, filepath.ToSlash(review))
 	}
-	if pending := pendingConventions(wip); len(pending) > 0 {
+	if pending := pendingConventions(s.Dir()); len(pending) > 0 {
 		return fmt.Errorf("%s still proposes conventions that nobody decided:\n  %s\n"+
 			"record them in .forge/conventions/ or remove the section", s.ID,
 			strings.Join(pending, "\n  "))
-	}
-	if err := os.RemoveAll(wip); err != nil {
-		return err
 	}
 	s.SetStatus(workflow.Done, "orchestrator", "archived")
 	if err := s.Save(); err != nil {
 		return err
 	}
-	fmt.Fprintf(out, `%s archived. The scaffolding is gone from the tree and stays in git history.
+	fmt.Fprintf(out, `%s archived. The record stays in the tree: spec, plan, tasks and review.
 
   git add -A && git commit -m "spec(%s): archive"
 
-What remains in main: the contract, the decisions and the conventions.
+A future spec reads that folder to know what exists and how it was verified.
 `, s.ID, strings.ToLower(s.ID))
 	if parent, ok := p.Spec(s.Parent); ok {
 		reportParent(out, p, parent)
@@ -346,15 +345,15 @@ func cmdRenumber(args []string, out io.Writer) error {
 		return fmt.Errorf("%s is referenced by %s; renumber is only safe before anything points "+
 			"at a spec", old, strings.Join(references, ", "))
 	}
-	newPath := filepath.Join(p.SpecsDir(), project.FileName(newID, s.Title))
+	oldDir := s.Dir()
+	newDir := p.SpecDir(newID, s.Title)
+	if err := os.Rename(oldDir, newDir); err != nil {
+		return fmt.Errorf("move %s to %s: %w", filepath.Base(oldDir), filepath.Base(newDir), err)
+	}
 	s.ID = newID
 	s.Doc().SetStr("id", newID)
-	s.Path = newPath
+	s.Path = filepath.Join(newDir, "spec.md")
 	if err := s.Save(); err != nil {
-		return err
-	}
-	if err := os.Remove(filepath.Join(p.SpecsDir(), project.FileName(old, s.Title))); err != nil &&
-		!os.IsNotExist(err) {
 		return err
 	}
 	fmt.Fprintf(out, "%s is now %s\n", old, newID)

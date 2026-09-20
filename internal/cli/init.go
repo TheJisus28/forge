@@ -121,7 +121,7 @@ func plant(dir string, opt plantOptions, out io.Writer) error {
 	if err := ensureGitignore(root); err != nil {
 		return err
 	}
-	for _, dir := range []string{"specs", "wip", "decisions", "conventions"} {
+	for _, dir := range []string{"specs", "decisions", "conventions"} {
 		if err := os.MkdirAll(filepath.Join(root, project.Dir, dir), 0o755); err != nil {
 			return err
 		}

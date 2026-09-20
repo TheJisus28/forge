@@ -58,8 +58,7 @@ your-project/
 ├── AGENTS.md  CLAUDE.md          pointers, three lines each
 ├── .forge/
 │   ├── project.md                stack and commands
-│   ├── specs/                    one file per unit of work, any state
-│   ├── wip/                      plan, changes, review: deleted when archived
+│   ├── specs/                    one folder per spec: spec, plan, tasks, review
 │   ├── decisions/                why the system is like this
 │   ├── conventions/              how code is written here
 │   └── kit/                      the workflow and the agent roles
@@ -93,8 +92,9 @@ read `AGENTS.md`, which is the single source the wrappers point at.
 
 - The number of a spec is reserved by a one-file intake pull request.
 - Work in flight lives in its own branch, so two people never touch the
-  same file; `forge archive` distils it in the last commit, and the main
-  branch only accumulates contracts, decisions and conventions.
+  same file; `forge archive` marks the spec done and keeps its folder, and
+  the main branch accumulates contracts, plans, tasks, reviews, decisions
+  and conventions.
 - `depends_on: [SPEC-011@contract]` unblocks a front end as soon as the back
   end's contract is approved, without waiting for its code. If that contract
   later changes, `forge validate` fails and names who was building against

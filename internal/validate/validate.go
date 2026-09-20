@@ -120,10 +120,16 @@ func checkRelations(p *project.Project, s *project.Spec, add func(Severity, stri
 }
 
 func checkArtifacts(p *project.Project, s *project.Spec, add func(Severity, string, string, ...any)) {
-	wip := p.WipDirFor(s.ID)
+	dir := s.Dir()
 	exists := func(name string) bool {
-		_, err := os.Stat(filepath.Join(wip, name))
+		_, err := os.Stat(filepath.Join(dir, name))
 		return err == nil
+	}
+	rel := func(path string) string {
+		if r, err := filepath.Rel(p.Root, path); err == nil {
+			return filepath.ToSlash(r)
+		}
+		return filepath.ToSlash(path)
 	}
 	switch s.Status {
 	case workflow.AwaitingApproval, workflow.Planning, workflow.Implementing, workflow.Reviewing:
@@ -134,18 +140,21 @@ func checkArtifacts(p *project.Project, s *project.Spec, add func(Severity, stri
 	switch s.Status {
 	case workflow.Implementing:
 		if !exists("plan.md") {
-			add(Error, s.ID, "is implementing without .forge/wip/%s/plan.md", s.ID)
-		} else if !planSurveysExisting(wip) {
+			add(Error, s.ID, "is implementing without %s", rel(s.PlanPath()))
+		} else if !planSurveysExisting(dir) {
 			add(Warning, s.ID, "plan.md has no Existing state section; name what to "+
 				"reuse before building")
 		}
+		if !exists("tasks.md") {
+			add(Error, s.ID, "is implementing without %s", rel(s.TasksPath()))
+		}
 	case workflow.Reviewing:
 		if !exists("review.md") {
-			add(Error, s.ID, "is reviewing without .forge/wip/%s/review.md", s.ID)
+			add(Error, s.ID, "is reviewing without %s", rel(s.ReviewPath()))
 		}
 	case workflow.Done:
-		if _, err := os.Stat(wip); err == nil {
-			add(Error, s.ID, "is done but .forge/wip/%s still exists; run forge archive", s.ID)
+		if !exists("review.md") {
+			add(Error, s.ID, "is done without %s", rel(s.ReviewPath()))
 		}
 		if s.ApprovedBy == "" {
 			add(Error, s.ID, "is done without an approved contract")
@@ -155,8 +164,8 @@ func checkArtifacts(p *project.Project, s *project.Spec, add func(Severity, stri
 
 // planSurveysExisting reports whether the plan recorded what already exists
 // and can be reused. Only a warning: guidance, not a gate.
-func planSurveysExisting(wip string) bool {
-	d, err := doc.Load(filepath.Join(wip, "plan.md"))
+func planSurveysExisting(dir string) bool {
+	d, err := doc.Load(filepath.Join(dir, "plan.md"))
 	if err != nil {
 		return true
 	}

@@ -5,8 +5,7 @@ Everything this project agreed on, in files you can read and review.
 | Path | What it is |
 |---|---|
 | `project.md` | What this project is: stack, commands, language |
-| `specs/` | One file per unit of work, in any state from proposed to done |
-| `wip/` | Scaffolding of work in flight: plan, changes, review. Deleted when the spec is archived |
+| `specs/` | One folder per spec: spec, plan, tasks and review, in any state from proposed to done |
 | `decisions/` | Why the system is the way it is. One file per decision |
 | `conventions/` | How code is written here. One file per domain |
 | `BOARD.md` | A generated view. Gitignored; run `forge board` |

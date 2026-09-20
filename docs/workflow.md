@@ -68,7 +68,7 @@ test, a request and its response. The reviewer marks each one with evidence.
 A spec does not start from an empty repository. Before splitting it into
 phases, the orchestrator surveys the delivered work: `forge status`, the
 contracts of specs already `done`, and the code that already does part of
-the job. `## Existing state` in `.forge/wip/<id>/plan.md` records what this
+the job. `## Existing state` in `.forge/specs/<id>/plan.md` records what this
 builds on, what it reuses, the conventions that apply, and the duplication
 it avoids. The architect names the modules it builds on in the contract, so
 the reuse is written where it survives archiving. `forge validate` warns
@@ -140,22 +140,25 @@ instead of in staging.
 ## Files
 
 ```
-.forge/specs/SPEC-004-saved-cards.md    the spec, in every state
-.forge/wip/SPEC-004/plan.md             phases
-.forge/wip/SPEC-004/changes.md          what each phase did
-.forge/wip/SPEC-004/review.md           evidence per criterion
+.forge/specs/SPEC-004-saved-cards/
+├── spec.md     the spec, in every state
+├── plan.md     existing state and phases
+├── tasks.md    the phases as checkboxes, ticked as they land
+└── review.md   verdict and evidence per criterion
 ```
 
-`forge archive` deletes `wip/` in the last commit of the pull request. The
-scaffolding stays in the branch history; the main branch keeps the contract,
-the decisions and the conventions.
+Every spec owns a folder. The plan, tasks and review are written as the work
+moves and stay in the tree when the spec is `done`; `forge archive` no longer
+deletes anything, because the folder is the durable record. The spec's
+`spec.md` holds the contract, the history and the state.
 
 That is the durable record a later spec reads to know what exists: the
 contract of every `done` spec (with the interfaces and the modules it
 builds on), the decisions that outlive a spec, and the conventions. The
-plan, changes and review of a closed spec are not lost, but they live in
-git history, not in the tree; the contract is what a future task is
-expected to read first.
+plan, tasks and review of a closed spec stay beside its contract, so a
+future task can read what was surveyed, what each phase did and what the
+review found; the contract is still what a future task is expected to read
+first.
 
 A spec ends as a pull request. `forge submit <id>` pushes the branch and
 opens it through `gh`, recording the number and URL on the spec; when `gh`

@@ -13,7 +13,7 @@ agreement lives in `.forge/`. Keep this file short; it is read every session.
 4. Before planning, survey what already exists: `forge status`, the
    delivered specs and the code. Reuse it instead of rebuilding it, and
    record what you reuse under `## Existing state` in
-   `.forge/wip/<id>/plan.md`.
+   `.forge/specs/<id>/plan.md`.
 
 ## The loop
 

@@ -8,11 +8,11 @@ Read `.forge/kit/agents/implementer.md` and follow it.
 
 Mandatory context before touching code: `.forge/project.md` (stack and test
 command), `.forge/conventions/`, the spec's Contract section, and the phase
-you were assigned in `.forge/wip/<id>/plan.md`.
+you were assigned in `.forge/specs/<id>/plan.md`.
 
-Build that phase and nothing else. Run the project's test command. Write
-`.forge/wip/<id>/changes.md`, including any convention you had to decide
-because nothing was written. Never change `status`.
+Build that phase and nothing else. Run the project's test command. Mark
+the phase in `.forge/specs/<id>/tasks.md`, including any convention you had
+to decide because nothing was written. Never change `status`.
 
 If the contract is wrong or a decision is missing, stop and say so.
 
