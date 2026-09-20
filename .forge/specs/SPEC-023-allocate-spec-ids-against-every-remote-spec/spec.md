@@ -128,8 +128,7 @@ whose remote refs are absent locally (created after the last fetch) and two
 branches created before either pushes; and, because a shared folder reads as
 the same spec (decision 1), two specs with the same title that mint the same
 number share a folder, are not flagged as a collision, and surface only as a
-git conflict on that folder plus a `duplicate id` at merge. The docs say
-exactly that, and no more.
+git conflict on that folder at merge. The docs say exactly that, and no more.
 
 **_5. Every matching ref is scanned, regardless of age, and merged branches
 are not filtered out._** A merged branch's ids are already on the default
