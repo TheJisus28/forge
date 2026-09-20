@@ -142,8 +142,12 @@ func (d *Doc) Section(heading string) string {
 	want := strings.ToLower(strings.TrimSpace(heading))
 	var out []string
 	in := false
+	fenced := false
 	for _, line := range strings.Split(d.Body, "\n") {
-		if strings.HasPrefix(line, "## ") {
+		if strings.HasPrefix(strings.TrimSpace(line), "```") {
+			fenced = !fenced
+		}
+		if !fenced && strings.HasPrefix(line, "## ") {
 			if in {
 				break
 			}

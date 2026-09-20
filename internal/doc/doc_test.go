@@ -94,6 +94,22 @@ func TestSection(t *testing.T) {
 	}
 }
 
+// A heading quoted inside a fenced code block is example text, not the
+// section itself (SPEC-019: a contract may show the `Proposed conventions`
+// shape without proposing anything).
+func TestSection_IgnoresHeadingsInCodeFences(t *testing.T) {
+	d, _ := doc.Parse([]byte("## Contract\n\n```markdown\n## Proposed conventions\n\nNone.\n```\n\ntext\n\n## Out of scope\n\nNone.\n"))
+	if got := d.Section("Proposed conventions"); got != "" {
+		t.Errorf("a fenced heading was read as a section: %q", got)
+	}
+	if got := d.Section("Contract"); !strings.Contains(got, "## Proposed conventions") {
+		t.Errorf("the fenced block should stay in Contract: %q", got)
+	}
+	if got := d.Section("Out of scope"); got != "None." {
+		t.Errorf("Out of scope = %q", got)
+	}
+}
+
 func TestAppendToSection(t *testing.T) {
 	d, _ := doc.Parse([]byte(sample))
 	d.AppendToSection("Problem", "- one more line")

@@ -13,6 +13,14 @@
   comment); with the template default the spec archives.
   Verified: `go test ./...` all `ok`; `gofmt -l .` empty; `go vet ./...`
   clean.
+- [x] Phase 1, second pass (sent back from reviewing). The review found that
+  this spec's own `spec.md` blocked its archive: the contract's example
+  quotes the `## Proposed conventions` heading inside a fenced code block and
+  `doc.Section` treated it as the real section. Landed: `internal/doc/doc.go`
+  `Section` now tracks fenced code blocks and does not read a `## ` heading
+  inside one, with `TestSection_IgnoresHeadingsInCodeFences`. This keeps the
+  approved contract frozen and fixes the false positive generally.
+  Verified: `go test ./...` all `ok`; `go run . archive SPEC-019` succeeds.
 
 ## Proposed conventions
 
