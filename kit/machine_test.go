@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/TheJisus28/forge/internal/workflow"
 	"github.com/TheJisus28/forge/kit"
 )
 
@@ -40,5 +41,44 @@ func TestMachine_ServesWorkflowRolesAndTemplates(t *testing.T) {
 	}
 	if _, err := kit.Template("nope"); err == nil {
 		t.Error("Template(nope) should fail")
+	}
+}
+
+// The embedded workflow carries the marker, not a second states table, and
+// every "who acts next" line names a role kit.Roles() lists.
+func TestWorkflow_StatesAreRenderedFromTheWorkflowPackage(t *testing.T) {
+	raw, err := kit.Workflow()
+	if err != nil {
+		t.Fatalf("Workflow: %v", err)
+	}
+	body := string(raw)
+	if !strings.Contains(body, "<!-- forge:states -->") {
+		t.Errorf("Workflow() lost the forge:states marker:\n%s", body)
+	}
+	if strings.Contains(body, "| `proposed`") {
+		t.Errorf("Workflow() still carries a hand-written states table:\n%s", body)
+	}
+
+	roles := kit.Roles()
+	for _, s := range workflow.All() {
+		line := workflow.WaitingFor(s)
+		token, _, ok := strings.Cut(line, ":")
+		if !ok {
+			t.Errorf("WaitingFor(%s) has no role token: %q", s, line)
+			continue
+		}
+		if token == "anyone" || token == "nobody" {
+			continue
+		}
+		found := false
+		for _, r := range roles {
+			if r == token {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("WaitingFor(%s) names %q, which is not in kit.Roles()", s, token)
+		}
 	}
 }

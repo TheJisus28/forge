@@ -72,8 +72,8 @@ func Brief(p *project.Project) string {
 		return "forge approve"
 	})
 	section(&b, "in flight", inFlight, func(s *project.Spec) string {
-		if s.Conductor != "" {
-			return string(s.Status) + ", " + s.Conductor
+		if s.Orchestrator != "" {
+			return string(s.Status) + ", " + s.Orchestrator
 		}
 		return string(s.Status)
 	})
@@ -267,8 +267,8 @@ func Detail(p *project.Project, s *project.Spec) string {
 	if done, total := s.TaskProgress(); total > 0 {
 		fmt.Fprintf(&b, "tasks       %d/%d\n", done, total)
 	}
-	if s.Conductor != "" {
-		fmt.Fprintf(&b, "conductor   %s\n", s.Conductor)
+	if s.Orchestrator != "" {
+		fmt.Fprintf(&b, "orchestrator   %s\n", s.Orchestrator)
 	}
 	if s.ApprovedBy != "" {
 		fmt.Fprintf(&b, "approved    %s, contract %s\n", s.ApprovedBy, s.ContractHash)

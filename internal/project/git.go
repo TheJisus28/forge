@@ -77,7 +77,7 @@ func Fetch(root string) error {
 	return cmd.Run()
 }
 
-// UserName returns the configured git user, used as a default conductor.
+// UserName returns the configured git user, used as a default orchestrator.
 func UserName(root string) string {
 	name, err := run(root, "git", "config", "user.name")
 	if err != nil {

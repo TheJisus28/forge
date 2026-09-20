@@ -50,10 +50,11 @@ allowlist is a feature request, not part of this change.
 
 ## Working language
 
-`working_language` in `.forge/project.md` applies to specs, decisions and
-product copy. The process files stay English so the same kit works across
-teams; the parser accepts both `## Acceptance criteria` and
-`## Criterios de aceptación` for the sections it needs to read.
+`working_language` in `.forge/project.md` applies to the prose inside a
+spec, a decision or a convention. The process files and the section headings
+stay English so the same kit works across teams: the CLI reads `Acceptance
+criteria`, `Contract`, `Open questions`, `Proposed conventions` and
+`Existing state`, and a translated heading is not a heading it knows.
 
 ## Other agents
 

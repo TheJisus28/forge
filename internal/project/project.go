@@ -61,7 +61,7 @@ type Spec struct {
 	External   []map[string]string
 	Path       string
 
-	Conductor    string
+	Orchestrator string
 	AcceptedBy   string
 	ApprovedBy   string
 	ContractHash string
@@ -353,12 +353,11 @@ func (p *Project) Capabilities() []CapabilityGroup {
 // Criteria parses the acceptance criteria out of the body.
 var criterionRe = regexp.MustCompile(`^-\s*(?:\[[ xX]\]\s*)?(AC\d+)\s*[:.-]\s*(.+)$`)
 
-// Criteria returns the acceptance criteria declared by the spec.
+// Criteria returns the acceptance criteria declared by the spec. Headings are
+// fixed English: `working_language` governs the prose, never the heading the
+// CLI reads.
 func (s *Spec) Criteria() []Criterion {
 	body := s.doc.Section("Acceptance criteria")
-	if body == "" {
-		body = s.doc.Section("Criterios de aceptación")
-	}
 	var out []Criterion
 	for _, line := range strings.Split(body, "\n") {
 		if m := criterionRe.FindStringSubmatch(strings.TrimSpace(line)); m != nil {
@@ -368,21 +367,17 @@ func (s *Spec) Criteria() []Criterion {
 	return out
 }
 
-// Contract returns the contract section, empty while it is not written.
+// Contract returns the contract section, empty while it is not written. The
+// heading is fixed English, never translated.
 func (s *Spec) Contract() string {
-	if c := s.doc.Section("Contract"); c != "" {
-		return c
-	}
-	return s.doc.Section("Contrato")
+	return s.doc.Section("Contract")
 }
 
 // OpenQuestions returns the section that must be settled before the contract
-// is approved, empty when it is not written.
+// is approved, empty when it is not written. The heading is fixed English,
+// never translated.
 func (s *Spec) OpenQuestions() string {
-	if q := s.doc.Section("Open questions"); q != "" {
-		return q
-	}
-	return s.doc.Section("Preguntas abiertas")
+	return s.doc.Section("Open questions")
 }
 
 // HasOpenQuestions reports whether the spec still lists an unanswered
@@ -457,7 +452,8 @@ func (s *Spec) Save() error {
 	} else {
 		s.doc.SetMapList("blocked_by_external", s.External)
 	}
-	setOrDelete(s.doc, "conductor", s.Conductor)
+	setOrDelete(s.doc, "orchestrator", s.Orchestrator)
+	s.doc.Delete("conductor")
 	setOrDelete(s.doc, "accepted_by", s.AcceptedBy)
 	setOrDelete(s.doc, "approved_by", s.ApprovedBy)
 	setOrDelete(s.doc, "contract_hash", s.ContractHash)
@@ -502,7 +498,7 @@ func FromDoc(path string, d *doc.Doc) (*Spec, error) {
 		Needs:        d.List("needs"),
 		External:     d.MapList("blocked_by_external"),
 		Path:         path,
-		Conductor:    d.Str("conductor"),
+		Orchestrator: orchestratorFrom(d),
 		AcceptedBy:   d.Str("accepted_by"),
 		ApprovedBy:   d.Str("approved_by"),
 		ContractHash: d.Str("contract_hash"),
@@ -521,6 +517,15 @@ func FromDoc(path string, d *doc.Doc) (*Spec, error) {
 		}
 	}
 	return s, nil
+}
+
+// orchestratorFrom reads the driver of a spec. Specs written before the key was
+// renamed still carry `conductor`; it is read here and never written again.
+func orchestratorFrom(d *doc.Doc) string {
+	if o := d.Str("orchestrator"); o != "" {
+		return o
+	}
+	return d.Str("conductor")
 }
 
 var idRe = regexp.MustCompile(`^SPEC-(\d+)$`)

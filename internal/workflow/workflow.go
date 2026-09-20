@@ -32,6 +32,34 @@ func All() []State {
 		Implementing, Blocked, Reviewing, Done, Dropped}
 }
 
+// Meaning returns the one-line explanation of a state, the normative copy
+// `forge workflow` renders into its table.
+func Meaning(s State) string {
+	switch s {
+	case Proposed:
+		return "Written, not in the queue"
+	case Accepted:
+		return "In the queue"
+	case Specifying:
+		return "The contract is being written"
+	case AwaitingApproval:
+		return "Contract ready"
+	case Planning:
+		return "Splitting into phases"
+	case Implementing:
+		return "Product code, phase by phase"
+	case Blocked:
+		return "Cannot continue"
+	case Reviewing:
+		return "Verifying acceptance criteria"
+	case Done:
+		return "Archived and closed"
+	case Dropped:
+		return "Will not be done"
+	}
+	return ""
+}
+
 // Valid reports whether s is a known state.
 func Valid(s State) bool {
 	for _, k := range All() {
@@ -140,7 +168,7 @@ func WaitingFor(s State) string {
 	case Implementing:
 		return "implementer: next phase"
 	case Blocked:
-		return "conductor: clear the blocker"
+		return "orchestrator: clear the blocker"
 	case Reviewing:
 		return "reviewer: verify acceptance criteria"
 	case Done:

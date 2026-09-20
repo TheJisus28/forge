@@ -327,7 +327,7 @@ func TestRun_AnyHandleCanAcceptOrApprove(t *testing.T) {
 	p := build(t, map[string]string{
 		"SPEC-001-a.md": "---\nid: SPEC-001\ntitle: A\nstatus: accepted\n" +
 			"accepted_by: pedro\n---\n",
-		"SPEC-002-b.md": "---\nid: SPEC-002\ntitle: B\nstatus: planning\nconductor: ana\n" +
+		"SPEC-002-b.md": "---\nid: SPEC-002\ntitle: B\nstatus: planning\norchestrator: ana\n" +
 			"approved_by: ana\ncontract_hash: " + hash + "\n---\n\n## Contract\n\nx\n",
 	})
 	if got := findings(t, p); len(got) != 0 {

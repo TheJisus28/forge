@@ -7,18 +7,7 @@ item and no separate epic: the backlog is the specs in `proposed` or
 
 ## States
 
-| State | Meaning | Who acts next |
-|---|---|---|
-| `proposed` | Written, not in the queue | anyone: `forge accept` or drop |
-| `accepted` | In the queue | anyone: `forge start` |
-| `specifying` | The contract is being written | architect |
-| `awaiting-approval` | Contract ready | anyone: `forge approve` |
-| `planning` | Splitting into phases | orchestrator |
-| `implementing` | Product code, phase by phase | implementer |
-| `blocked` | Cannot continue | conductor |
-| `reviewing` | Verifying acceptance criteria | reviewer |
-| `done` | Archived and closed | nobody |
-| `dropped` | Will not be done | nobody |
+<!-- forge:states -->
 
 Forge has no authorization model. Anyone can accept work into the queue
 and anyone can approve a contract, the same way anyone with push access can

@@ -60,6 +60,26 @@ func TestCheck_SameState(t *testing.T) {
 	}
 }
 
+// The table in `forge workflow` has one source, so every state must carry a
+// meaning and the blocked line must name a role `forge roles` lists.
+func TestMeaning_EveryStateHasALine(t *testing.T) {
+	for _, s := range workflow.All() {
+		if strings.TrimSpace(workflow.Meaning(s)) == "" {
+			t.Errorf("Meaning(%s) is empty", s)
+		}
+	}
+}
+
+func TestWaitingFor_BlockedNamesTheOrchestrator(t *testing.T) {
+	got := workflow.WaitingFor(workflow.Blocked)
+	if !strings.HasPrefix(got, "orchestrator:") {
+		t.Errorf("WaitingFor(blocked) = %q, want an orchestrator action", got)
+	}
+	if strings.Contains(got, "conductor") {
+		t.Errorf("WaitingFor(blocked) still says conductor: %q", got)
+	}
+}
+
 func TestInFlightAndTerminal(t *testing.T) {
 	if workflow.InFlight(workflow.Proposed) || workflow.InFlight(workflow.Done) {
 		t.Error("proposed and done are not in flight")

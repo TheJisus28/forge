@@ -150,7 +150,7 @@ func cmdAccept(args []string, out io.Writer) error {
 
 func cmdStart(args []string, out io.Writer) error {
 	fs := newFlagSet("start", "usage: forge start <id> [--by <you>] [--force]", out)
-	by := fs.String("by", "", "who conducts this spec (defaults to git user.name)")
+	by := fs.String("by", "", "who orchestrates this spec (defaults to git user.name)")
 	force := fs.Bool("force", false, "start despite open dependencies, recording the exception")
 	rest, err := parseArgs(fs, args)
 	if err != nil {
@@ -176,11 +176,11 @@ func cmdStart(args []string, out io.Writer) error {
 		return fmt.Errorf("%s", msg)
 	}
 
-	conductor, err := resolveActor(p, *by)
+	orchestrator, err := resolveActor(p, *by)
 	if err != nil {
 		return err
 	}
-	s.Conductor = conductor
+	s.Orchestrator = orchestrator
 	for _, d := range s.Deps {
 		if d.Level != "contract" {
 			continue
@@ -193,7 +193,7 @@ func cmdStart(args []string, out io.Writer) error {
 	if len(blockers) > 0 {
 		note = "forced despite: " + strings.Join(blockers, "; ")
 	}
-	s.SetStatus(workflow.Specifying, conductor, note)
+	s.SetStatus(workflow.Specifying, orchestrator, note)
 	if err := os.MkdirAll(s.Dir(), 0o755); err != nil {
 		return err
 	}
@@ -487,10 +487,10 @@ func pendingConventions(dir string) []string {
 		if err != nil {
 			continue
 		}
-		for _, heading := range []string{"Proposed conventions", "Convenciones propuestas"} {
-			if body := stripComments(d.Section(heading)); strings.TrimSpace(body) != "" && !isNone(body) {
-				out = append(out, e.Name()+": "+firstLine(body))
-			}
+		// Headings are fixed English: `working_language` governs the prose,
+		// never the heading the CLI reads.
+		if body := stripComments(d.Section("Proposed conventions")); strings.TrimSpace(body) != "" && !isNone(body) {
+			out = append(out, e.Name()+": "+firstLine(body))
 		}
 	}
 	return out
