@@ -12,6 +12,14 @@ import (
 	"github.com/TheJisus28/forge/internal/view"
 )
 
+// Seams a test replaces: the network belongs to git and gh, so a unit test
+// stubs them rather than reaching either (SPEC-020, decision 8).
+var (
+	hasGH      = project.HasGH
+	pushBranch = project.Push
+	ghRun      = project.GH
+)
+
 func cmdStatus(args []string, out io.Writer) error {
 	fs := newFlagSet("status", "usage: forge status [id] [--fetch]", out)
 	fetch := fs.Bool("fetch", false, "run git fetch first, so the picture includes the remote")
@@ -223,7 +231,7 @@ func cmdSubmit(args []string, out io.Writer) error {
 	}
 	title, body := submitMessage(p, s)
 
-	if *dryRun || !project.HasGH() {
+	if *dryRun || !hasGH() {
 		if !*dryRun {
 			fmt.Fprintln(out, "gh is not installed; open the pull request yourself:")
 		}
@@ -233,10 +241,15 @@ func cmdSubmit(args []string, out io.Writer) error {
 		return nil
 	}
 
-	if err := project.Push(p.Root, branch); err != nil {
+	// The final step never leaves uncommitted work out of the pull request
+	// (SPEC-020, decision 8).
+	if _, err := project.CommitAll(p.Root, checkpointMessage(s)); err != nil {
+		return fmt.Errorf("git commit: %w", err)
+	}
+	if err := pushBranch(p.Root, branch); err != nil {
 		return fmt.Errorf("git push: %w", err)
 	}
-	url, err := project.GH(p.Root, "pr", "create",
+	url, err := ghRun(p.Root, "pr", "create",
 		"--base", *base, "--head", branch, "--title", title, "--body", body)
 	if err != nil {
 		return fmt.Errorf("gh pr create: %w", err)

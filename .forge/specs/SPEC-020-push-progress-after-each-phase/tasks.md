@@ -59,9 +59,20 @@ later spec knows what exists without reading the diff.
   `TestAdvance_PushFailureIsAWarning` (exit 0, `warning:`, state stands).
   Verified: `go test ./...` all `ok`; `gofmt -l .` empty; `go vet ./...`
   clean; the three tests pass with `-v`.
-- [ ] Phase 4 — `forge submit` commits before it pushes. Moves: AC1.
+- [x] Phase 4 — `forge submit` commits before it pushes. Moves: AC1.
   Where: `internal/cli/report.go` (`cmdSubmit`); tests in
-  `internal/cli/cli_test.go`.
+  `internal/cli/submit_internal_test.go` (new).
+  Landed: `cmdSubmit` commits the pending work with `project.CommitAll` and
+  `checkpointMessage(s)` after the `--dry-run`/no-gh early return and before
+  its existing push and `gh pr create` (decision 8). To keep the unit test
+  off the network, `report.go` gains the seams `hasGH`, `pushBranch` and
+  `ghRun` (the `upgrade.go` pattern); `cmdSync` still calls `project`
+  directly.
+  Test: `TestSubmit_CommitsBeforePush` stubs the three seams, runs
+  `cmdSubmit` on a spec branch with a pending file, and asserts the commit
+  subject, a clean tree at push time, and the pushed branch.
+  Verified: `go test ./...` all `ok`; `gofmt -l .` empty; `go vet ./...`
+  clean; `TestSubmit_CommitsBeforePush` passes with `-v`.
 - [ ] Phase 5 — Docs, roles and changelog. Moves: AC5. Where:
   `docs/cli.md`, `docs/workflow.md`, `kit/machine/roles/implementer.md`,
   `kit/machine/roles/orchestrator.md`, `CHANGELOG.md`; tests in
