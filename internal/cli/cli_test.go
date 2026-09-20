@@ -1580,3 +1580,107 @@ func TestUnknownCommandAndMissingProject(t *testing.T) {
 		t.Fatalf("outside a project the error should point at init: %q", out)
 	}
 }
+
+// gitOut runs a git command in dir and returns its trimmed stdout.
+func gitOut(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("git %s: %v", strings.Join(args, " "), err)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// checkpointRepo returns a repository with a local bare origin, an initialized
+// forge project and one proposed spec, checked out on branch. The remote is a
+// directory, so no test touches the network (SPEC-020, the Risks note).
+func checkpointRepo(t *testing.T, branch string) string {
+	t.Helper()
+	remote := filepath.Join(t.TempDir(), "origin.git")
+	runGit(t, filepath.Dir(remote), "init", "--bare", remote)
+
+	dir := t.TempDir()
+	runGit(t, dir, "init")
+	runGit(t, dir, "config", "user.email", "t@example.com")
+	runGit(t, dir, "config", "user.name", "tester")
+	write(t, filepath.Join(dir, "README.md"), "root\n")
+	runGit(t, dir, "add", "-A")
+	runGit(t, dir, "commit", "-m", "root")
+	runGit(t, dir, "branch", "-M", "main")
+
+	mustRun(t, dir, "init")
+	write(t, filepath.Join(dir, ".forge", "project.md"), projectConfig)
+	mustRun(t, dir, "new", "Something", "--capability", "workflow")
+	if branch != "main" {
+		runGit(t, dir, "checkout", "-b", branch)
+	}
+	runGit(t, dir, "remote", "add", "origin", remote)
+	return dir
+}
+
+// forge push commits the pending work with a spec-and-phase subject and
+// publishes the branch with its upstream set (SPEC-020, AC1).
+func TestPush_CommitsAndPushes(t *testing.T) {
+	dir := checkpointRepo(t, "spec/001-something")
+	write(t, filepath.Join(dir, ".forge", "note.md"), "work\n")
+
+	out := mustRun(t, dir, "push", "SPEC-001")
+	if !strings.Contains(out, "pushed spec/001-something") {
+		t.Errorf("push should report the branch:\n%s", out)
+	}
+	if got := gitOut(t, dir, "log", "-1", "--pretty=%s"); got != "chore(SPEC-001): checkpoint proposed" {
+		t.Errorf("commit subject = %q", got)
+	}
+	if got := gitOut(t, dir, "status", "--porcelain"); got != "" {
+		t.Errorf("the tree should be clean after a push: %q", got)
+	}
+	if got := gitOut(t, dir, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"); got != "origin/spec/001-something" {
+		t.Errorf("upstream = %q", got)
+	}
+	if got, want := gitOut(t, dir, "rev-parse", "origin/spec/001-something"), gitOut(t, dir, "rev-parse", "HEAD"); got != want {
+		t.Errorf("origin should hold the pushed commit, got %s want %s", got, want)
+	}
+}
+
+// The subject names the spec and the phase the CLI can name (SPEC-020, AC1).
+func TestCommitMessage_NamesSpecAndState(t *testing.T) {
+	dir := checkpointRepo(t, "spec/001-something")
+	path := filepath.Join(dir, ".forge", "specs", "SPEC-001-something", "spec.md")
+	write(t, path, strings.Replace(read(t, path), "status: proposed", "status: implementing", 1))
+
+	mustRun(t, dir, "push", "SPEC-001")
+	if got := gitOut(t, dir, "log", "-1", "--pretty=%s"); got != "chore(SPEC-001): checkpoint implementing" {
+		t.Errorf("commit subject = %q", got)
+	}
+}
+
+// On the default branch the command refuses before it commits or pushes
+// (SPEC-020, AC2).
+func TestPush_RefusesDefaultBranch(t *testing.T) {
+	dir := checkpointRepo(t, "main")
+	before := gitOut(t, dir, "rev-parse", "HEAD")
+
+	out, code := run(t, dir, "push", "SPEC-001")
+	if code == 0 {
+		t.Fatalf("push on main should fail:\n%s", out)
+	}
+	if !strings.Contains(out, "default branch") {
+		t.Errorf("the refusal should name the default branch:\n%s", out)
+	}
+	if got := gitOut(t, dir, "rev-parse", "HEAD"); got != before {
+		t.Errorf("a refused push must not commit")
+	}
+}
+
+// A clean, in-sync branch succeeds and says so (SPEC-020, AC3).
+func TestPush_NothingToPush(t *testing.T) {
+	dir := checkpointRepo(t, "spec/001-something")
+	mustRun(t, dir, "push", "SPEC-001")
+
+	out := mustRun(t, dir, "push", "SPEC-001")
+	if !strings.Contains(out, "nothing to push") {
+		t.Errorf("a second push should report nothing to do:\n%s", out)
+	}
+}

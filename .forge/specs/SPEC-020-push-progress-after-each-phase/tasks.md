@@ -27,9 +27,23 @@ later spec knows what exists without reading the diff.
   Verified: `go test ./...` all `ok`; `gofmt -l .` empty; `go vet ./...`
   clean; `TestCommitAll|TestHasUnpushed|TestOnDefaultBranch|TestPushEnabled`
   pass with `-v`.
-- [ ] Phase 2 — `forge push` and the checkpoint. Moves: AC1, AC2, AC3.
+- [x] Phase 2 — `forge push` and the checkpoint. Moves: AC1, AC2, AC3.
   Where: `internal/cli/push.go` (new), `internal/cli/cli.go`; tests in
   `internal/cli/cli_test.go`.
+  Landed: `cmdPush(args, out) error` loads through `specArg`, refuses
+  `project.OnDefaultBranch` first (decision 4) and a detached HEAD, then runs
+  `checkpoint`. `checkpoint` builds `chore(<ID>): checkpoint <state>` through
+  `checkpointMessage`, commits with `project.CommitAll`, and pushes with
+  `project.Push` unless `!committed && !HasUnpushed`, when it prints
+  `nothing to push: <branch> is up to date` (decision 5). Dispatched as
+  `case "push"` and added to the usage text.
+  Tests: `TestPush_CommitsAndPushes` (subject, clean tree, upstream set,
+  remote holds HEAD), `TestCommitMessage_NamesSpecAndState`,
+  `TestPush_RefusesDefaultBranch` (no commit on `main`),
+  `TestPush_NothingToPush`, over the `checkpointRepo` local-bare-remote
+  fixture.
+  Verified: `go test ./...` all `ok`; `gofmt -l .` empty; `go vet ./...`
+  clean; the four tests pass with `-v`.
 - [ ] Phase 3 — `forge advance` checkpoints when opted in. Moves: AC4.
   Where: `internal/cli/work.go` (`cmdAdvance`); tests in
   `internal/cli/cli_test.go`.
