@@ -53,7 +53,11 @@ saying why.
 
 ```bash
 forge archive <id>
+git add -A && git commit -m "spec(spec-00X): archive"
+forge submit <id>
 ```
 
-It refuses if there are unresolved convention proposals, which is the
-point: decide them first. Then commit and mark the pull request ready.
+`forge archive` refuses if there are unresolved convention proposals, which
+is the point: decide them first. `forge submit` pushes the branch and opens
+the pull request. **Never merge it yourself**; a person reviews and merges
+on the forge host.

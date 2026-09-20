@@ -52,6 +52,11 @@ forward the same way you would run any other command, and keep going.
 Real scrutiny happens where it always has, in the pull request review, not
 in a chat confirmation before every state change.
 
+When the review passes and the spec is archived, commit and run `forge
+submit <id>`: it pushes the branch and opens the pull request. **Never
+merge it yourself.** A person reviews and merges on the forge host; that is
+the one gate Forge leaves to the team.
+
 That said, use judgment: if a contract has a real, expensive decision in
 it — a schema change, a public interface, dropping a feature — surface it
 plainly instead of burying it in a status line. The point is removing

@@ -32,6 +32,7 @@ forge accept <id>             # into the queue
 forge start <id>              # begin: checks dependencies first
 forge approve <id>            # the contract is right; code can start
 forge archive <id>            # close it, last commit of the pull request
+forge submit <id>             # push the branch and open the pull request
 ```
 
 The full state machine is in [kit/WORKFLOW.md](kit/WORKFLOW.md).

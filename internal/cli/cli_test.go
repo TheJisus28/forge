@@ -3,12 +3,23 @@ package cli_test
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/TheJisus28/forge/internal/cli"
 )
+
+// runGit runs a git command in dir and fails the test when it fails.
+func runGit(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, out)
+	}
+}
 
 // run executes a command inside dir and returns its output and exit code.
 func run(t *testing.T, dir string, args ...string) (string, int) {
@@ -158,6 +169,42 @@ func TestInit_NoGuardAndCI(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, ".github/workflows/forge-validate.yml")); err != nil {
 		t.Error("--ci github should plant the workflows")
+	}
+}
+
+// --by wins, so a teammate can name themselves without a gh account.
+func TestActor_UsesTheFlag(t *testing.T) {
+	dir := newRepo(t)
+	mustRun(t, dir, "new", "Thing")
+	mustRun(t, dir, "accept", "SPEC-001", "--by", "octocat")
+	body := read(t, filepath.Join(dir, ".forge", "specs", "SPEC-001-thing.md"))
+	if !strings.Contains(body, "accepted_by: octocat") {
+		t.Errorf("accepted_by should be the flag value:\n%s", body)
+	}
+}
+
+// Without gh, or with --dry-run, submit prints the commands instead of
+// touching the network.
+func TestSubmit_DryRunPrintsCommands(t *testing.T) {
+	dir := t.TempDir()
+	runGit(t, dir, "init")
+	runGit(t, dir, "config", "user.email", "t@example.com")
+	runGit(t, dir, "config", "user.name", "tester")
+	write(t, filepath.Join(dir, "README.md"), "hi\n")
+	runGit(t, dir, "add", "-A")
+	runGit(t, dir, "commit", "-m", "init")
+
+	mustRun(t, dir, "init")
+	write(t, filepath.Join(dir, ".forge", "project.md"), projectConfig)
+	mustRun(t, dir, "new", "Something")
+	runGit(t, dir, "checkout", "-b", "spec/001-something")
+
+	out := mustRun(t, dir, "submit", "--dry-run")
+	if !strings.Contains(out, "git push -u origin spec/001-something") {
+		t.Errorf("missing git push hint:\n%s", out)
+	}
+	if !strings.Contains(out, "gh pr create --base main") {
+		t.Errorf("missing gh pr create hint:\n%s", out)
 	}
 }
 

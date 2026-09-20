@@ -172,3 +172,83 @@ func cmdSync(args []string, out io.Writer) error {
 	fmt.Fprintf(out, "%s linked to pull request #%d (%s)\n", s.ID, pr.Number, strings.ToLower(pr.State))
 	return nil
 }
+
+// cmdSubmit closes a spec as a pull request. It pushes the branch and opens
+// the PR through gh; it never merges. Without gh, or with --dry-run, it
+// prints the commands instead of running them.
+func cmdSubmit(args []string, out io.Writer) error {
+	fs := newFlagSet("submit", "usage: forge submit [id] [--base <branch>] [--dry-run]", out)
+	base := fs.String("base", "main", "the branch the pull request targets")
+	dryRun := fs.Bool("dry-run", false, "print the git and gh commands instead of running them")
+	rest, err := parseArgs(fs, args)
+	if err != nil {
+		return err
+	}
+	p, s, err := specArg(rest)
+	if err != nil {
+		return err
+	}
+	branch := project.Branch(p.Root)
+	if branch == "" {
+		branch = project.BranchName(s.ID, s.Title)
+	}
+	title, body := submitMessage(p, s)
+
+	if *dryRun || !project.HasGH() {
+		if !*dryRun {
+			fmt.Fprintln(out, "gh is not installed; open the pull request yourself:")
+		}
+		fmt.Fprintf(out, "  git push -u origin %s\n", branch)
+		fmt.Fprintf(out, "  gh pr create --base %s --head %s --title %q --fill\n",
+			*base, branch, title)
+		return nil
+	}
+
+	if err := project.Push(p.Root, branch); err != nil {
+		return fmt.Errorf("git push: %w", err)
+	}
+	url, err := project.GH(p.Root, "pr", "create",
+		"--base", *base, "--head", branch, "--title", title, "--body", body)
+	if err != nil {
+		return fmt.Errorf("gh pr create: %w", err)
+	}
+	s.PR = prNumber(url)
+	s.Doc().SetStr("pr_url", url)
+	s.Doc().SetStr("pr_state", "open")
+	if err := s.Save(); err != nil {
+		return err
+	}
+	fmt.Fprintf(out, "pull request opened: %s\n", url)
+	return nil
+}
+
+// submitMessage builds the pull request title and body from the spec, so a
+// reviewer reads the agreement and not only the diff.
+func submitMessage(p *project.Project, s *project.Spec) (title, body string) {
+	title = fmt.Sprintf("%s: %s", s.ID, s.Title)
+	var b strings.Builder
+	rel, err := filepath.Rel(p.Root, s.Path)
+	if err != nil {
+		rel = s.Path
+	}
+	fmt.Fprintf(&b, "Spec: %s\n\n", filepath.ToSlash(rel))
+	if problem := s.Doc().Section("Problem"); problem != "" {
+		fmt.Fprintf(&b, "## Problem\n\n%s\n\n", problem)
+	}
+	if ac := s.Doc().Section("Acceptance criteria"); ac != "" {
+		fmt.Fprintf(&b, "## Acceptance criteria\n\n%s\n\n", ac)
+	}
+	if contract := s.Contract(); contract != "" {
+		fmt.Fprintf(&b, "## Contract\n\n%s\n\n", contract)
+	}
+	return title, strings.TrimSpace(b.String())
+}
+
+// prNumber reads the number out of the URL gh prints.
+func prNumber(url string) string {
+	url = strings.TrimRight(strings.TrimSpace(url), "/")
+	if i := strings.LastIndex(url, "/"); i >= 0 {
+		return url[i+1:]
+	}
+	return url
+}

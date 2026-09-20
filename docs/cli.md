@@ -108,6 +108,16 @@ path, prints the reason and exits 1 when the edit must be denied, so any
 agent can call it. This is what the opencode plugin uses. `--explain` never
 exits 1: it prints `would deny` or `would allow` for a human.
 
+### `forge submit [id] [--base <branch>] [--dry-run]`
+
+Closes a spec as a pull request. Pushes the current branch with `git` and
+opens the PR with `gh pr create`, then records its number and URL on the
+spec. It never merges: a person reviews and merges.
+
+Without `gh`, or with `--dry-run`, it prints the exact `git push` and
+`gh pr create` commands instead of running them and succeeds. `--base`
+chooses the target branch (default `main`).
+
 ### `forge sync [id]`
 
 Reads the pull request for the current branch through `gh` and records its

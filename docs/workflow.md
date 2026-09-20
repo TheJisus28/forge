@@ -156,3 +156,8 @@ builds on), the decisions that outlive a spec, and the conventions. The
 plan, changes and review of a closed spec are not lost, but they live in
 git history, not in the tree; the contract is what a future task is
 expected to read first.
+
+A spec ends as a pull request. `forge submit <id>` pushes the branch and
+opens it through `gh`, recording the number and URL on the spec; when `gh`
+is missing it prints the `git push` and `gh pr create` commands. Nothing in
+Forge merges a pull request: a person reviews and merges on the forge host.
