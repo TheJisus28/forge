@@ -9,6 +9,9 @@ accepted_by: TheJisus28
 approved_by: TheJisus28
 contract_hash: ec06b4bfa420
 orchestrator: TheJisus28
+pr_url: "https://github.com/TheJisus28/forge/pull/21"
+pr_state: open
+pr: 21
 ---
 
 ## Problem
