@@ -1,7 +1,7 @@
 ---
 id: SPEC-019
 title: Archive must not read the template placeholder as a pending convention
-status: implementing
+status: done
 capability: workflow
 created: 2026-09-20
 updated: 2026-09-20
@@ -107,3 +107,5 @@ Written by `forge`. Do not edit by hand.
 - 2026-09-20  implementing  by orchestrator
 - 2026-09-20  reviewing  by orchestrator
 - 2026-09-20  implementing  by orchestrator: review found doc.Section reads a ## heading inside a fenced code block, so the contract's own example blocked archive
+- 2026-09-20  reviewing  by orchestrator: fixed doc.Section reading headings inside code fences
+- 2026-09-20  done  by orchestrator: archived

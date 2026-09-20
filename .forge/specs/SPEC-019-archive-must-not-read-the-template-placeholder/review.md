@@ -16,6 +16,15 @@ against contract `57f52814717d`. Product code not touched by the review.
 
 Suite: `go test ./...` all `ok`; `gofmt -l .` empty; `go vet ./...` clean.
 
+After the first pass the spec was sent back to `implementing`: its own
+`spec.md` blocked `forge archive`, because the frozen contract quotes the
+`## Proposed conventions` heading inside a fenced code block and
+`doc.Section` read that example as the real section. The fix tracks fenced
+code blocks in `doc.Section`
+(`TestSection_IgnoresHeadingsInCodeFences`), leaves the contract untouched,
+and makes `forge archive SPEC-019` succeed. All criteria were re-verified on
+the fixed tree.
+
 ## Contract integrity
 
 The recorded `contract_hash` matches and `forge brief` reports no drift. The
