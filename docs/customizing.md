@@ -1,33 +1,35 @@
 # Customizing
 
-Forge is Markdown plus a small binary. Almost everything you might want to
-change is a file in your own repository.
+Forge's machinery — the workflow, the roles and the templates — ships in
+the binary. What you change lives in your own repository: the conventions,
+the decisions and the project facts.
 
 ## Templates
 
-`forge new` reads `.forge/kit/templates/spec.md` from **your** project
-before falling back to the embedded copy. Add sections your team always
-wants — threat model, rollout plan, metrics — and every new spec will have
-them.
+The file templates are a standard: they ship in the binary and `forge new`
+always uses that copy. Forge does not read a template from your repository,
+so a project cannot override the shape of a spec, a plan, a decision or a
+convention. To read one:
 
-The same folder holds the templates for plans, tasks, reviews, decisions
-and conventions. Those are copied by hand or by the agent, so editing them
-is enough.
+```bash
+forge template spec
+```
 
-Note that `forge update` rewrites `.forge/kit/`. If you customize templates,
-either re-apply your changes after upgrading or keep them in a file the kit
-does not own.
+If your team needs a section every spec must carry — a threat model, a
+rollout plan, metrics — that is a change to Forge itself, not a local edit.
 
 ## Agent roles
 
-`.forge/kit/agents/*.md` are the instructions for the orchestrator,
-architect, implementer and reviewer. They are deliberately short and free of
-technology opinions. Anything you add there applies to every session.
+The orchestrator, architect, implementer and reviewer roles ship in the
+binary. `forge roles <name>` prints one; `forge roles` lists them. They are
+deliberately short and free of technology opinions, and a project cannot
+edit them.
 
-The Claude Code wrappers in `.claude/agents/` are five lines each: a
-`description` that decides when Claude delegates, a `model`, and a pointer
-to the role. Change the model there if you want the architect on a different
-one, or add `tools` to narrow what a role can do.
+`forge init` writes each role in full into its host adapter
+(`.claude/agents/forge-*.md`, `.opencode/agents/forge-*.md`), so a generated
+agent is self-contained; `forge update` rewrites it from the binary. Change
+the host frontmatter there — the `model`, the `tools`, the `permission` —
+not the role text.
 
 ## The guard
 
@@ -62,7 +64,9 @@ wrapper at all.
 - GitHub Copilot: `.github/copilot-instructions.md`
 
 You can write those by hand now; first-class support is next, and
-contributions are welcome.
+contributions are welcome. For any host, `forge workflow` prints the process
+and `forge roles <name>` prints the role to follow, so nothing has to be
+copied out of the binary.
 
 For a tool that runs a command before file edits, wire it to
 `forge guard --file <path>`: it exits 1 and prints the reason when the edit

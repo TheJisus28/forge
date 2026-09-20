@@ -35,10 +35,9 @@ implementing → reviewing → done
 
 ## Roles
 
-Read the role file before acting as one. They live in `.forge/kit/agents/`:
-`orchestrator.md`, `architect.md`, `implementer.md`, `reviewer.md`.
-
-You are the orchestrator unless you were launched as another role.
+Read the role before acting as one: `forge roles <orchestrator|architect|
+implementer|reviewer>`. You are the orchestrator unless you were launched
+as another role.
 
 ## Language
 

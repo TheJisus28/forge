@@ -92,14 +92,15 @@ your-project/
 │   ├── project.md                stack and commands
 │   ├── specs/                    one folder per spec: spec, plan, tasks, review
 │   ├── decisions/                why the system is like this
-│   ├── conventions/              how code is written here
-│   └── kit/                      the workflow and the agent roles
+│   └── conventions/              how code is written here
 ├── .claude/                      subagents, skills and session hooks
 ├── .opencode/                    subagents and plugins
 └── .github/workflows/            with --ci github
 ```
 
-Everything outside `.forge/kit/` is yours; Forge never overwrites it.
+Everything in `.forge/` is yours; Forge never overwrites it. The workflow,
+the roles and the templates ship in the binary instead — read them with
+`forge workflow`, `forge roles` and `forge template`.
 
 ## Works with your agent
 

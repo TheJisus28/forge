@@ -8,12 +8,13 @@ Everything this project agreed on, in files you can read and review.
 | `specs/` | One folder per spec: spec, plan, tasks and review, in any state from proposed to done |
 | `decisions/` | Why the system is the way it is. One file per decision |
 | `conventions/` | How code is written here. One file per domain |
-| `kit/` | The machinery: the workflow and the agent roles |
 
 ## The one rule
 
-**Everything outside `kit/` belongs to the team and Forge never overwrites
-it. `kit/` belongs to Forge and `forge update` rewrites it whole.**
+**Everything in `.forge/` belongs to the team and Forge never overwrites
+it, except this explanatory `README.md`, which Forge refreshes. The
+machinery — the workflow, the roles and the templates — ships in the
+binary, not in your repository.**
 
 ## Where state lives
 
@@ -32,4 +33,4 @@ forge archive <id>            # close it, last commit of the pull request
 forge submit <id>             # push the branch and open the pull request
 ```
 
-The full state machine is in [kit/WORKFLOW.md](kit/WORKFLOW.md).
+The full state machine is in `forge workflow`.

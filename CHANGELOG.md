@@ -36,6 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and never merges; without `gh` it prints the `git push` and `gh pr create`
   commands. The actor recorded by `accept`, `start` and `approve` now
   defaults to the authenticated `gh` login, falling back to git user.name.
+- `forge workflow`, `forge roles [name]` and `forge template <name>`: the
+  workflow, the four roles and the file templates are read from the binary,
+  so any agent follows the process without a planted file. See
+  [docs/cli.md](docs/cli.md).
 
 ### Fixed
 
@@ -47,6 +51,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The machinery no longer lives in `.forge/`. The workflow, the roles and
+  the file templates ship in the binary, so `.forge/` holds only project
+  content. File templates are a standard and can no longer be overridden per
+  project, and the host adapters (`.claude/agents/`, `.opencode/agents/`)
+  carry the role text inlined instead of pointing at a file. `forge update`
+  deletes a stale `.forge/kit/` from an older version.
 - Removed `forge board` and `.forge/BOARD.md`; `forge init` no longer touches
   `.gitignore`, and everything the board showed is in `forge status`.
 - `forge guard` now guards shell commands too: it denies `gh pr merge` and any

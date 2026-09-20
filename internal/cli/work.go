@@ -64,7 +64,7 @@ func cmdNew(args []string, out io.Writer) error {
 		}
 	}
 
-	d, err := loadTemplate(p, "spec.md")
+	d, err := loadTemplate("spec.md")
 	if err != nil {
 		return err
 	}
@@ -364,14 +364,13 @@ func cmdRenumber(args []string, out io.Writer) error {
 	return nil
 }
 
-func loadTemplate(p *project.Project, name string) (*doc.Doc, error) {
-	path := filepath.Join(p.Root, project.Dir, "kit", "templates", name)
-	if data, err := os.ReadFile(path); err == nil {
-		return doc.Parse(data)
-	}
-	data, err := kit.FS.ReadFile("forge/kit/templates/" + name)
+// loadTemplate reads a file template from the binary. It has no project
+// override on purpose: the templates are a standard, not a project file
+// (decision 0001, SPEC-007).
+func loadTemplate(name string) (*doc.Doc, error) {
+	data, err := kit.Template(name)
 	if err != nil {
-		return nil, fmt.Errorf("template %s is missing", name)
+		return nil, err
 	}
 	return doc.Parse(data)
 }

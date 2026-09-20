@@ -31,7 +31,7 @@ go build -o /tmp/forge . && cd /tmp/scratch && /tmp/forge init && /tmp/forge sta
 
 | Path | What |
 |---|---|
-| `kit/` | The Markdown planted in other repositories, embedded via `go:embed` |
+| `kit/` | The Markdown embedded via `go:embed`; `kit/machine/` is served by the binary, not planted |
 | `internal/doc` | Frontmatter parsing and writing |
 | `internal/workflow` | States and the legal transitions between them |
 | `internal/project` | `.forge` loading, specs, coverage, dependencies |
@@ -39,10 +39,12 @@ go build -o /tmp/forge . && cd /tmp/scratch && /tmp/forge init && /tmp/forge sta
 | `internal/validate` | The CI rules |
 | `internal/cli` | Commands |
 
-Most contributions are Markdown under `kit/`. Anything you add there is
-planted by the next `forge init`; `kit/forge/` lands as `.forge/`,
-`kit/claude/` as `.claude/` and `kit/github/` as `.github/`. A test fails if
-you add a file that the `go:embed` line does not cover.
+Most contributions are Markdown under `kit/`. Anything under `kit/forge/`,
+`kit/claude/`, `kit/opencode/` or `kit/github/` is planted by the next
+`forge init`; they land as `.forge/`, `.claude/`, `.opencode/` and
+`.github/`. `kit/machine/` is embedded but never planted: the binary serves
+it through `forge workflow`, `forge roles` and `forge template`. A test
+fails if you add a file the `go:embed` line does not cover.
 
 ## Adding a command
 
@@ -56,9 +58,11 @@ you add a file that the `go:embed` line does not cover.
 ## Supporting another agent
 
 `AGENTS.md` is the single source of truth and the roles live in
-`kit/forge/kit/agents/`. Support for a new tool is a thin wrapper that
-points at them, plus the mapping in `internal/cli/init.go`. Keep the
-wrapper short: duplicating a role is how the two copies start disagreeing.
+`kit/machine/roles/`. Support for a new tool is a thin wrapper with the
+host frontmatter and a `{{forge-role:<name>}}` marker that `forge init`
+fills in from the role, plus the mapping in `internal/cli/init.go`. Keep
+the wrapper to that: duplicating a role is how two copies start
+disagreeing.
 
 ## Releasing
 

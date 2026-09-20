@@ -44,3 +44,7 @@ Do not change `status`. The orchestrator moves the spec.
 
 Stopping with a clear question is cheaper than building the wrong thing
 well.
+
+## Return
+
+Say what changed, how you verified it, and anything you had to decide.

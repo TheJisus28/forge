@@ -26,7 +26,7 @@ If you are running as implementer or reviewer, put this in the
 
 Only after someone actually agrees, and only then:
 
-- Copy `.forge/kit/templates/convention.md` to
+- Start from `forge template convention` and write it to
   `.forge/conventions/<domain>.md`, or add the rule to the existing file.
 - Fill `approved_by` with their handle and the date.
 

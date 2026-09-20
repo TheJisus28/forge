@@ -34,3 +34,7 @@ Write `.forge/specs/<id>/review.md`:
 
 Do not change `status` and do not fix the code yourself. Whether the
 contract is approved happens on the pull request, not in your report.
+
+## Return
+
+Say the verdict and which criteria failed.

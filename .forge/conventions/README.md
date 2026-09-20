@@ -1,7 +1,7 @@
 # conventions
 
 How code is written in **this** project. One file per domain:
-`api.md`, `database.md`, `naming.md`, from `kit/templates/convention.md`.
+`api.md`, `database.md`, `naming.md`, from `forge template convention`.
 
 This folder starts empty on purpose. Forge ships no opinions about your
 language or your frameworks: what belongs here is what your team decided,

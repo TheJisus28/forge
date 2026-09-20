@@ -93,8 +93,7 @@ func TestInit_PlantsTheKitAndKeepsYourContent(t *testing.T) {
 
 	for _, rel := range []string{
 		"AGENTS.md", "CLAUDE.md",
-		".forge/README.md", ".forge/project.md", ".forge/kit/WORKFLOW.md",
-		".forge/kit/agents/orchestrator.md", ".forge/kit/templates/spec.md",
+		".forge/README.md", ".forge/project.md",
 		".forge/specs/README.md", ".forge/conventions/README.md",
 		".claude/agents/forge-implementer.md", ".claude/skills/forge-onboard/SKILL.md",
 		".claude/settings.json",
@@ -103,6 +102,9 @@ func TestInit_PlantsTheKitAndKeepsYourContent(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(dir, rel)); err != nil {
 			t.Errorf("missing %s", rel)
 		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".forge", "kit")); err == nil {
+		t.Error(".forge/kit should not be planted: the machinery ships in the binary")
 	}
 	if _, err := os.Stat(filepath.Join(dir, ".github", "workflows")); err == nil {
 		t.Error("CI workflows should only be planted with --ci github")
