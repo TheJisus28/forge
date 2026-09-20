@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `forge guard --file <path>`: the hook-free mode other agents call. It exits
   1 and prints the reason when an edit must be denied, reusing the rule the
   Claude Code hook already enforces.
+- `forge submit [id] [--base <branch>]`: closes a spec as a pull request.
+  It pushes the branch and opens the PR with `gh`, records it on the spec,
+  and never merges; without `gh` it prints the `git push` and `gh pr create`
+  commands. The actor recorded by `accept`, `start` and `approve` now
+  defaults to the authenticated `gh` login, falling back to git user.name.
 
 ### Fixed
 

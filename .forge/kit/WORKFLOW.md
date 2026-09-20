@@ -74,6 +74,8 @@ scaffolding stays in git history.
 ## Rules
 
 - No product code without a spec in `implementing`.
+- A spec ends as a pull request: `forge submit <id>` pushes the branch and
+  opens it. Nothing in Forge merges it; a person merges on the forge host.
 - Subagents never change `status`; the orchestrator runs `forge advance`.
 - A conventions file is written only after the team agrees on it, not
   invented on the spot by whoever is implementing.

@@ -86,6 +86,29 @@ func UserName(root string) string {
 	return name
 }
 
+// GHUser returns the login of the authenticated gh user, or "" when gh is
+// missing or not authenticated. The network belongs to gh, never to Forge.
+func GHUser(root string) string {
+	if !HasGH() {
+		return ""
+	}
+	out, err := run(root, "gh", "api", "user", "--jq", ".login")
+	if err != nil {
+		return ""
+	}
+	return out
+}
+
+// Push publishes a branch to origin, setting its upstream. The network
+// belongs to git.
+func Push(root, branch string) error {
+	cmd := exec.Command("git", "push", "-u", "origin", branch)
+	cmd.Dir = root
+	cmd.Stdout = os.Stderr
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
 // HasGH reports whether the GitHub CLI is available for optional sync.
 func HasGH() bool {
 	_, err := exec.LookPath("gh")

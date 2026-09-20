@@ -159,9 +159,9 @@ func cmdStart(args []string, out io.Writer) error {
 		return fmt.Errorf("%s", msg)
 	}
 
-	conductor := *by
-	if conductor == "" {
-		conductor = project.UserName(p.Root)
+	conductor, err := resolveActor(p, *by)
+	if err != nil {
+		return err
 	}
 	s.Conductor = conductor
 	for _, d := range s.Deps {
@@ -394,17 +394,21 @@ func specArg(args []string) (*project.Project, *project.Spec, error) {
 
 // resolveActor names whoever is making a move. Anyone may: Forge has no
 // authorization model, the same way git has no authorization model for who
-// may commit. An empty --by falls back to git user.name, so nobody has to
-// type their own name to move their own work forward; the record still
-// says who did it, which is what a teammate reviewing the pull request
-// reads instead of asking Forge to referee anything.
+// may commit. An empty --by falls back to the authenticated gh user and
+// then to git user.name, so nobody has to type their own name to move their
+// own work forward; the record still says who did it, which is what a
+// teammate reviewing the pull request reads instead of asking Forge to
+// referee anything.
 func resolveActor(p *project.Project, by string) (string, error) {
 	by = strings.TrimSpace(by)
+	if by == "" {
+		by = project.GHUser(p.Root)
+	}
 	if by == "" {
 		by = project.UserName(p.Root)
 	}
 	if by == "" {
-		return "", fmt.Errorf("--by is required: git has no user.name configured either")
+		return "", fmt.Errorf("--by is required: no authenticated gh user and git has no user.name")
 	}
 	return by, nil
 }
