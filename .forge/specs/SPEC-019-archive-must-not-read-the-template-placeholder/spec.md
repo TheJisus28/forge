@@ -8,7 +8,7 @@ updated: 2026-09-20
 accepted_by: TheJisus28
 conductor: TheJisus28
 approved_by: TheJisus28
-contract_hash: 57f52814717d
+contract_hash: c32a9d7895fe
 ---
 
 ## Problem
@@ -109,3 +109,6 @@ Written by `forge`. Do not edit by hand.
 - 2026-09-20  implementing  by orchestrator: review found doc.Section reads a ## heading inside a fenced code block, so the contract's own example blocked archive
 - 2026-09-20  reviewing  by orchestrator: fixed doc.Section reading headings inside code fences
 - 2026-09-20  done  by orchestrator: archived
+- 2026-09-20  contract re-recorded  by orchestrator: the fence-aware Section no
+  longer truncates the Contract at the quoted `## Proposed conventions`, so the
+  stored hash was recomputed; the contract text is unchanged

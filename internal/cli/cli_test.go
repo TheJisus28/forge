@@ -510,12 +510,14 @@ func TestGuardFileMode(t *testing.T) {
 	}
 }
 
-// The guard also refuses what would land on the default branch.
+// The guard also refuses what would land on the default branch, reading the
+// command segment by segment so a later mention of main is not a push to it.
 func TestGuardCommand(t *testing.T) {
 	dir := newRepo(t)
 
 	for _, cmd := range []string{
 		"gh pr merge 3", "git push origin main", "git push origin HEAD:master",
+		"git push origin main:feature", "git -C . push origin master",
 	} {
 		if out, code := run(t, dir, "guard", "--command", cmd); code == 0 {
 			t.Errorf("%q should be denied: %s", cmd, out)
@@ -523,10 +525,42 @@ func TestGuardCommand(t *testing.T) {
 	}
 	for _, cmd := range []string{
 		"go test ./...", "git push -u origin spec/004-x", "git push origin feature/main", "git status",
+		"git push -u origin my-branch && gh pr create --base main",
+		"git push -u origin my-branch ; echo main",
+		"git push -u origin my-branch || gh pr create --base main",
+		"echo git push origin main",
 	} {
 		if out, code := run(t, dir, "guard", "--command", cmd); code != 0 {
 			t.Errorf("%q should be allowed: %s", cmd, out)
 		}
+	}
+
+	if out := mustRun(t, dir, "guard", "--command", "git push -u origin my-branch && gh pr create --base main", "--explain"); !strings.Contains(out, "would allow") {
+		t.Errorf("the compound push should explain as allowed: %s", out)
+	}
+	if out := mustRun(t, dir, "guard", "--command", "git push origin main", "--explain"); !strings.Contains(out, "would deny") {
+		t.Errorf("pushing main should explain as denied: %s", out)
+	}
+}
+
+// A bare `git push` follows the current branch: denied on the default branch,
+// allowed on a feature branch (SPEC-014 AC3).
+func TestGuardCommand_BarePushFollowsTheBranch(t *testing.T) {
+	dir := newRepo(t)
+	runGit(t, dir, "init")
+	runGit(t, dir, "config", "user.email", "t@example.com")
+	runGit(t, dir, "config", "user.name", "T")
+	runGit(t, dir, "checkout", "-b", "main")
+	write(t, filepath.Join(dir, "README.md"), "# x\n")
+	runGit(t, dir, "add", "README.md")
+	runGit(t, dir, "commit", "-m", "init")
+
+	if out, code := run(t, dir, "guard", "--command", "git push"); code == 0 {
+		t.Errorf("a bare push on main should be denied: %s", out)
+	}
+	runGit(t, dir, "checkout", "-b", "feature")
+	if out, code := run(t, dir, "guard", "--command", "git push"); code != 0 {
+		t.Errorf("a bare push on a feature branch should be allowed: %s", out)
 	}
 }
 
