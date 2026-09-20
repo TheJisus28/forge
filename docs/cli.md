@@ -71,8 +71,10 @@ written during planning, after `forge approve`.
 
 The contract is right; code can start. Requires a non-empty `## Contract`
 and refuses while `## Open questions` lists a question, so questions are
-settled before approval. Stores the contract fingerprint and reports which
-specs it unblocks.
+settled before approval. It also refuses while an acceptance criterion is not
+verifiable: each one must name the command, the test or the request and
+response that settles it, so a vague criterion cannot be approved. Stores the
+contract fingerprint and reports which specs it unblocks.
 
 ### `forge advance <id> --to <state> [--by ...] [--note ...]`
 
@@ -137,6 +139,20 @@ It lists the most recent five `done` specs, so a session knows what already
 exists without the context growing with every closed spec; `forge status`
 shows the whole list and is the place to drill down.
 
+### `forge check [id]`
+
+`forge check` reports every acceptance criterion no task in `tasks.md`
+delivers and no evidence line under `## Acceptance criteria` in `review.md`
+settles. Each gap prints as one `no task` or `no evidence` line naming the
+criterion and the file it is missing from, relative to the repository root.
+
+Without an id it checks every spec that is `implementing`, `blocked`,
+`reviewing` or `done`, in id order; with one it checks that spec whatever its
+state. It exits 1 when an evidence gap leaves a `reviewing` or `done` spec
+unsettled, because `review.md` is the durable proof; a task gap in flight is
+advice and exits 0. It reads and writes nothing: no `git`, no network and no
+file.
+
 ## Reading the process
 
 The workflow, the roles and the templates live in the binary, not in your
@@ -168,8 +184,10 @@ Exits 1 when the project is inconsistent: unknown or duplicate ids, illegal
 history, missing artifacts for a state, broken references, dependency
 cycles, uncovered promises once a child closes, and contract drift. A spec
 with no `capability` is a warning; a present value that is not a lowercase
-slug is an error. It does not check who accepted or approved anything:
-Forge has no authorization model to enforce.
+slug is an error. It also reports a criterion with no task in `tasks.md` or
+no evidence line in `review.md`: both are warnings in flight, and a missing
+evidence line is an error once the spec is `done`. It does not check who
+accepted or approved anything: Forge has no authorization model to enforce.
 
 ### `forge guard [--explain] [--file path] [--command <cmd>]`
 

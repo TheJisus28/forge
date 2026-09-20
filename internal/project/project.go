@@ -367,6 +367,122 @@ func (s *Spec) Criteria() []Criterion {
 	return out
 }
 
+// The anchor patterns are the three kinds of evidence a criterion can name: a
+// command in an inline code span, a test reference, or an observable outcome.
+// A criterion is verifiable when its text carries at least one.
+var (
+	codeSpanRe = regexp.MustCompile("`[^`]*\\S[^`]*`")
+	testWordRe = regexp.MustCompile(`(?i)\btests?\b`)
+	testNameRe = regexp.MustCompile(`\bTest[A-Za-z0-9_]*`)
+	outcomeRe  = regexp.MustCompile(`(?i)\b(?:returns|prints|outputs|exits|succeeds|fails|refuses|rejects|reports|lists|names|matches|emits|responds)\b`)
+)
+
+// Verifiable reports whether the criterion names the evidence that settles
+// it: a command in backticks, a test, or an observable outcome. It is the one
+// place the anchor rule lives; `forge approve` refuses a criterion whose text
+// names none of them.
+func (c Criterion) Verifiable() bool {
+	text := strings.TrimSpace(c.Text)
+	return codeSpanRe.MatchString(text) ||
+		testWordRe.MatchString(text) ||
+		testNameRe.MatchString(text) ||
+		outcomeRe.MatchString(text)
+}
+
+// CriterionGap is one criterion the spec's artifacts do not settle.
+type CriterionGap struct {
+	Criterion Criterion
+	File      string // absolute path of the artifact it is missing from
+	Kind      string // "task" or "evidence"
+}
+
+// tokenRe splits an artifact into the tokens a criterion id is compared
+// against. A token is a run of letters, digits, underscores and hyphens, so
+// AC1, AC10, AC1x and AC1- are four distinct tokens.
+var tokenRe = regexp.MustCompile(`[0-9A-Za-z_-]+`)
+
+// hasToken reports whether text contains id as a whole token, case
+// insensitively. It tokenizes rather than matching a consuming pattern so two
+// ids side by side are both read: in `AC1 AC2` and `AC1,AC2` the delimiter
+// between them is not eaten, while AC1 still does not equal AC10, AC1x or
+// AC1- (SPEC-021, decision 3).
+func hasToken(text, id string) bool {
+	for _, tok := range tokenRe.FindAllString(text, -1) {
+		if strings.EqualFold(tok, id) {
+			return true
+		}
+	}
+	return false
+}
+
+// taskGapApplies reports whether tasks.md is the record for the state: a task
+// gap is meaningful from implementing on.
+func taskGapApplies(s workflow.State) bool {
+	switch s {
+	case workflow.Implementing, workflow.Blocked, workflow.Reviewing, workflow.Done:
+		return true
+	}
+	return false
+}
+
+// evidenceGapApplies reports whether review.md is the record for the state: an
+// evidence gap is meaningful from reviewing on.
+func evidenceGapApplies(s workflow.State) bool {
+	switch s {
+	case workflow.Reviewing, workflow.Done:
+		return true
+	}
+	return false
+}
+
+// CriterionGaps lists every criterion no task in tasks.md delivers and no
+// evidence line in review.md settles, for the spec's current state. A task gap
+// is reported from implementing on; an evidence gap from reviewing on.
+// Criteria keep declaration order and a task gap precedes an evidence gap for
+// the same criterion. A missing or unreadable artifact names nothing, so every
+// applicable criterion is a gap. A spec with no Existing state section is
+// history under the workflow before SPEC-015 and is never judged (decision 5).
+func (s *Spec) CriterionGaps() []CriterionGap {
+	if s.ExistingState() == "" {
+		return nil
+	}
+	criteria := s.Criteria()
+	if len(criteria) == 0 {
+		return nil
+	}
+
+	taskRecord := taskGapApplies(s.Status)
+	evidenceRecord := evidenceGapApplies(s.Status)
+
+	// A missing or unreadable file leaves the record empty, which names
+	// nothing and so reads as a gap for every criterion. Comments are
+	// stripped first: a commented `AC1` is template guidance, not a task and
+	// not evidence (SPEC-021, the SPEC-019 principle one reader over).
+	var tasks string
+	if taskRecord {
+		if data, err := os.ReadFile(s.TasksPath()); err == nil {
+			tasks = doc.StripComments(string(data))
+		}
+	}
+	var evidence string
+	if evidenceRecord {
+		if d, err := doc.Load(s.ReviewPath()); err == nil {
+			evidence = doc.StripComments(d.Section("Acceptance criteria"))
+		}
+	}
+
+	var out []CriterionGap
+	for _, c := range criteria {
+		if taskRecord && !hasToken(tasks, c.ID) {
+			out = append(out, CriterionGap{Criterion: c, File: s.TasksPath(), Kind: "task"})
+		}
+		if evidenceRecord && !hasToken(evidence, c.ID) {
+			out = append(out, CriterionGap{Criterion: c, File: s.ReviewPath(), Kind: "evidence"})
+		}
+	}
+	return out
+}
+
 // Contract returns the contract section, empty while it is not written. The
 // heading is fixed English, never translated.
 func (s *Spec) Contract() string {

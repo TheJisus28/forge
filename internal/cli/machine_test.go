@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/TheJisus28/forge/internal/workflow"
+	"github.com/TheJisus28/forge/kit"
 )
 
 // The machinery is served from the binary, so it works in a directory with
@@ -96,6 +98,37 @@ func TestTemplate_SurveySection(t *testing.T) {
 	plan := mustRun(t, dir, "template", "plan")
 	if strings.Contains(plan, "## Existing state") {
 		t.Errorf("forge template plan should not carry the Existing state section:\n%s", plan)
+	}
+}
+
+// A shipped template must not carry a literal `AC<digit>`: a fresh file
+// copied from it would read as covered by `forge check`, the SPEC-019 trap
+// one artifact over. The tasks and review templates name the criteria only by
+// placeholder (`ACn`, `<criterion ids>`) and keep their example rows in a
+// comment, out of the section the check reads (SPEC-021, decision 4).
+func TestTemplates_CarryNoRealCriterionId(t *testing.T) {
+	digit := regexp.MustCompile(`\bAC\d+\b`)
+
+	tasks, err := kit.Template("tasks")
+	if err != nil {
+		t.Fatalf("Template(tasks): %v", err)
+	}
+	if m := digit.FindString(string(tasks)); m != "" {
+		t.Errorf("the tasks template carries a real criterion id %q; use a placeholder", m)
+	}
+	if !strings.Contains(string(tasks), "Moves:") {
+		t.Errorf("the tasks template should ask each phase to name the criteria it moves:\n%s", tasks)
+	}
+
+	review, err := kit.Template("review")
+	if err != nil {
+		t.Fatalf("Template(review): %v", err)
+	}
+	if m := digit.FindString(string(review)); m != "" {
+		t.Errorf("the review template carries a real criterion id %q; use a placeholder", m)
+	}
+	if !strings.Contains(string(review), "## Acceptance criteria") || !strings.Contains(string(review), "ACn") {
+		t.Errorf("the review template should keep its example under the Acceptance criteria heading as ACn:\n%s", review)
 	}
 }
 

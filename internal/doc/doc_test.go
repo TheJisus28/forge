@@ -110,6 +110,29 @@ func TestSection_IgnoresHeadingsInCodeFences(t *testing.T) {
 	}
 }
 
+// StripComments is the one rule the archive gate and the coverage derivation
+// share: a comment is guidance, never content. Text outside a comment is kept,
+// including text on the same line, and an unterminated comment is left alone
+// rather than swallowing what follows (SPEC-021).
+func TestStripComments(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"inline removed", "keep <!-- gone --> tail", "keep  tail"},
+		{"multiline removed", "before\n<!-- a\nb -->\nafter", "before\n\nafter"},
+		{"no comment kept", "- AC1: a real line", "- AC1: a real line"},
+		{"dash typo kept", "<-- not a comment", "<-- not a comment"},
+		{"unterminated kept", "before <!-- open\n- AC1: still here", "before <!-- open\n- AC1: still here"},
+	}
+	for _, tc := range cases {
+		if got := doc.StripComments(tc.in); got != tc.want {
+			t.Errorf("%s: StripComments(%q) = %q, want %q", tc.name, tc.in, got, tc.want)
+		}
+	}
+}
+
 func TestAppendToSection(t *testing.T) {
 	d, _ := doc.Parse([]byte(sample))
 	d.AppendToSection("Problem", "- one more line")

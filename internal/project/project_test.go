@@ -1,6 +1,7 @@
 package project_test
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -444,6 +445,261 @@ func TestFromDoc_CanonicalisesRetiredStatus(t *testing.T) {
 	if got := workflow.Canonical("done"); got != workflow.Done {
 		t.Errorf(`Canonical("done") = %q, want %q`, got, workflow.Done)
 	}
+}
+
+// A criterion is verifiable when its text names the evidence that settles it:
+// a command in backticks, a test, or an observable outcome; the criterion id
+// itself is not an anchor (SPEC-021, decision 1).
+func TestCriterion_Verifiable(t *testing.T) {
+	cases := []struct {
+		id   string
+		text string
+		want bool
+	}{
+		{"AC1", "`forge check` reports every gap", true},
+		{"AC2", "a test covers the saved card", true},
+		{"AC3", "TestSavedCard passes", true},
+		{"AC4", "the endpoint returns 200", true},
+		{"AC5", "the command refuses invalid input", true},
+		{"AC6", "Works well", false},
+		{"AC7", "The system is fast", false},
+		{"AC8", "Something happens eventually", false},
+		{"AC9", "` `", false},
+		{"AC1", "supersedes AC10", false},
+	}
+	for _, tc := range cases {
+		c := project.Criterion{ID: tc.id, Text: tc.text}
+		if got := c.Verifiable(); got != tc.want {
+			t.Errorf("%s Verifiable() = %v, want %v: %q", tc.id, got, tc.want, tc.text)
+		}
+	}
+}
+
+// criterionGapsBody builds a spec with two criteria, AC1 and AC2. When
+// existing is true it carries the `## Existing state` marker SPEC-015 uses;
+// without it the spec is history under the old workflow and never judged.
+func criterionGapsBody(id string, status workflow.State, existing bool) string {
+	body := fmt.Sprintf("---\nid: %s\ntitle: Coverage\nstatus: %s\n---\n\n", id, status) +
+		"## Acceptance criteria\n\n- AC1: one\n- AC2: two\n- AC3: three\n"
+	if existing {
+		body += "\n## Existing state\n\n- reuses `x`.\n"
+	}
+	return body
+}
+
+// criterionGaps writes the two artifacts of a reviewing spec that declares
+// AC1, AC2 and AC3, and returns the gaps the spec derives.
+func criterionGaps(t *testing.T, tasks, review string) (*project.Spec, []project.CriterionGap) {
+	t.Helper()
+	root := write(t, config, map[string]string{
+		"SPEC-001-a.md": criterionGapsBody("SPEC-001", workflow.Reviewing, true),
+	})
+	p, err := project.Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, ok := p.Spec("SPEC-001")
+	if !ok {
+		t.Fatal("SPEC-001 should load")
+	}
+	if err := os.WriteFile(s.TasksPath(), []byte(tasks), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(s.ReviewPath(), []byte(review), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return s, s.CriterionGaps()
+}
+
+// gapIDs lists the criteria each gap kind names, in declaration order.
+func gapIDs(gaps []project.CriterionGap) (tasks, evidence []string) {
+	for _, g := range gaps {
+		switch g.Kind {
+		case "task":
+			tasks = append(tasks, g.Criterion.ID)
+		case "evidence":
+			evidence = append(evidence, g.Criterion.ID)
+		}
+	}
+	return tasks, evidence
+}
+
+// The coverage derivation matches a bounded token: a task names the criteria
+// it moves, evidence lives only in review.md's Acceptance criteria section,
+// and neither AC10 nor AC1x counts as AC1 (SPEC-021, decision 3). A token is
+// matched whole, so two ids side by side are both read and no delimiter is
+// consumed between them.
+func TestCriterionGaps_MatchesBoundedTokens(t *testing.T) {
+	cases := []struct {
+		name      string
+		tasks     string
+		evidence  string
+		wantTasks []string
+		wantEvid  []string
+	}{
+		{
+			name:      "a delimited list",
+			tasks:     "- [x] Phase 1 — AC1, AC3, and not AC10 or AC1x.\n",
+			evidence:  "| AC1 | pass | `go test ./...` |\n| AC10 | pass | none |\n| AC1x | pass | none |\n",
+			wantTasks: []string{"AC2"},
+			wantEvid:  []string{"AC2", "AC3"},
+		},
+		{
+			name:      "two ids separated by a space",
+			tasks:     "- [x] Phase 1 — AC1 AC2\n",
+			evidence:  "| AC1 | pass | |\n| AC2 | pass | |\n",
+			wantTasks: []string{"AC3"},
+			wantEvid:  []string{"AC3"},
+		},
+		{
+			name:      "two ids separated by a comma",
+			tasks:     "- [x] Phase 1 — AC1,AC2\n",
+			evidence:  "| AC1 | pass | |\n| AC2 | pass | |\n",
+			wantTasks: []string{"AC3"},
+			wantEvid:  []string{"AC3"},
+		},
+		{
+			name:      "a hyphen and a longer id are different tokens",
+			tasks:     "- [x] Phase 1 — AC1- AC10\n",
+			evidence:  "| AC1- | pass | |\n| AC10 | pass | |\n",
+			wantTasks: []string{"AC1", "AC2", "AC3"},
+			wantEvid:  []string{"AC1", "AC2", "AC3"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s, gaps := criterionGaps(t, tc.tasks,
+				"# Review\n\n## Acceptance criteria\n\n"+tc.evidence+"\n\n"+
+					"## Notes\n\nAC2 is mentioned here but is not evidence.\n")
+			tasks, evidence := gapIDs(gaps)
+			if got, want := strings.Join(tasks, ","), strings.Join(tc.wantTasks, ","); got != want {
+				t.Errorf("task gaps = %q, want %q", got, want)
+			}
+			if got, want := strings.Join(evidence, ","), strings.Join(tc.wantEvid, ","); got != want {
+				t.Errorf("evidence gaps = %q, want %q", got, want)
+			}
+			for _, g := range gaps {
+				switch g.Kind {
+				case "task":
+					if g.File != s.TasksPath() {
+						t.Errorf("task gap %s file = %q, want %q", g.Criterion.ID, g.File, s.TasksPath())
+					}
+				case "evidence":
+					if g.File != s.ReviewPath() {
+						t.Errorf("evidence gap %s file = %q, want %q", g.Criterion.ID, g.File, s.ReviewPath())
+					}
+				}
+			}
+		})
+	}
+}
+
+// A comment is template guidance, not coverage: a commented `AC1` is neither a
+// task nor evidence, and a real line after a comment still counts (SPEC-021,
+// the SPEC-019 principle one reader over).
+func TestCriterionGaps_IgnoresCommentedTokens(t *testing.T) {
+	root := write(t, config, map[string]string{
+		"SPEC-001-a.md": criterionGapsBody("SPEC-001", workflow.Done, true),
+	})
+	p, err := project.Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, ok := p.Spec("SPEC-001")
+	if !ok {
+		t.Fatal("SPEC-001 should load")
+	}
+	if err := os.WriteFile(s.TasksPath(),
+		[]byte("<!-- - [x] Phase 1 — AC1 -->\n- [x] Phase 2 — AC3\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	review := "# Review\n\n## Acceptance criteria\n\n" +
+		"<!-- | AC1 | pass | `go test ./...` | -->\n" +
+		"| AC3 | pass | `go test ./...` |\n"
+	if err := os.WriteFile(s.ReviewPath(), []byte(review), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	gaps := s.CriterionGaps()
+	want := []struct {
+		id   string
+		kind string
+	}{
+		{"AC1", "task"},
+		{"AC1", "evidence"},
+		{"AC2", "task"},
+		{"AC2", "evidence"},
+	}
+	if len(gaps) != len(want) {
+		t.Fatalf("gaps = %+v, want %+v", gaps, want)
+	}
+	for i, w := range want {
+		if gaps[i].Criterion.ID != w.id || gaps[i].Kind != w.kind {
+			t.Errorf("gap %d = %s/%s, want %s/%s",
+				i, gaps[i].Criterion.ID, gaps[i].Kind, w.id, w.kind)
+		}
+	}
+}
+
+// A task gap is reported from implementing on and an evidence gap only from
+// reviewing on; earlier states yield nothing. A spec without an Existing state
+// section is history and is never judged, at any state (SPEC-021, decision 5).
+func TestCriterionGaps_AppliesByState(t *testing.T) {
+	for _, tc := range []struct {
+		status   workflow.State
+		tasks    int
+		evidence int
+	}{
+		{workflow.Proposed, 0, 0},
+		{workflow.Accepted, 0, 0},
+		{workflow.Contracting, 0, 0},
+		{workflow.Planning, 0, 0},
+		{workflow.Implementing, 3, 0},
+		{workflow.Blocked, 3, 0},
+		{workflow.Reviewing, 3, 3},
+		{workflow.Done, 3, 3},
+		{workflow.Dropped, 0, 0},
+	} {
+		root := write(t, config, map[string]string{
+			"SPEC-001-a.md": criterionGapsBody("SPEC-001", tc.status, true),
+		})
+		p, err := project.Load(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		s, _ := p.Spec("SPEC-001")
+		tasks, evidence := countGaps(s.CriterionGaps())
+		if tasks != tc.tasks || evidence != tc.evidence {
+			t.Errorf("%s: task gaps = %d, evidence gaps = %d; want %d and %d",
+				tc.status, tasks, evidence, tc.tasks, tc.evidence)
+		}
+	}
+
+	for _, st := range workflow.All() {
+		root := write(t, config, map[string]string{
+			"SPEC-001-a.md": criterionGapsBody("SPEC-001", st, false),
+		})
+		p, err := project.Load(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		s, _ := p.Spec("SPEC-001")
+		if gaps := s.CriterionGaps(); len(gaps) != 0 {
+			t.Errorf("%s without Existing state: gaps = %+v, want none", st, gaps)
+		}
+	}
+}
+
+func countGaps(gaps []project.CriterionGap) (tasks, evidence int) {
+	for _, g := range gaps {
+		switch g.Kind {
+		case "task":
+			tasks++
+		case "evidence":
+			evidence++
+		}
+	}
+	return tasks, evidence
 }
 
 func TestValidCapability(t *testing.T) {

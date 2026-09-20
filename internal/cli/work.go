@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -253,6 +252,17 @@ func cmdApprove(args []string, out io.Writer) error {
 	if s.HasOpenQuestions() {
 		return fmt.Errorf("%s still has open questions:\n  %s\n"+
 			"answer them in the spec, or write None.", s.ID, firstLine(s.OpenQuestions()))
+	}
+	var unverifiable []string
+	for _, c := range s.Criteria() {
+		if !c.Verifiable() {
+			unverifiable = append(unverifiable, c.ID)
+		}
+	}
+	if len(unverifiable) > 0 {
+		return fmt.Errorf("%s has criteria that name no command, test or response:\n  %s\n"+
+			"name the command, the test or the response that settles each one",
+			s.ID, strings.Join(unverifiable, ", "))
 	}
 	s.ApprovedBy = actor
 	s.ContractHash = project.HashContract(contract)
@@ -567,15 +577,11 @@ func pendingConventions(dir string) []string {
 	return out
 }
 
-// commentRe matches an HTML comment, the shape the templates use to ship
-// guidance inside a section without proposing anything. The dash form is
-// excluded so a `<--` typo is not eaten as a comment.
-var commentRe = regexp.MustCompile(`(?s)<!--.*?-->`)
-
 // stripComments removes HTML comments, so the guidance a template ships in a
-// `Proposed conventions` section is not read as a proposal.
+// `Proposed conventions` section is not read as a proposal. The rule lives in
+// internal/doc, shared with the criterion coverage derivation (SPEC-021).
 func stripComments(s string) string {
-	return commentRe.ReplaceAllString(s, "")
+	return doc.StripComments(s)
 }
 
 func isNone(body string) bool {

@@ -72,6 +72,7 @@ func Run(p *project.Project) []Finding {
 		}
 		checkRelations(p, s, add)
 		checkArtifacts(p, s, add)
+		checkCriteriaCoverage(p, s, add)
 		checkSurvey(s, add)
 		if s.HasOpenQuestions() {
 			q := s.OpenQuestions()
@@ -280,6 +281,26 @@ func checkCoverage(p *project.Project, s *project.Spec, add func(Severity, strin
 				}
 			}
 		}
+	}
+}
+
+// checkCriteriaCoverage turns the criteria no task in tasks.md delivers and no
+// evidence line in review.md settles into findings. While the work is in
+// flight both are warnings; at done a missing evidence line is an error,
+// because review.md is the durable proof, while a delivered tasks.md that
+// never named the criterion stays history (SPEC-021, decision 5). The
+// derivation lives once, in project.Spec.CriterionGaps.
+func checkCriteriaCoverage(p *project.Project, s *project.Spec, add func(Severity, string, string, ...any)) {
+	for _, g := range s.CriterionGaps() {
+		sev := Warning
+		if g.Kind == "evidence" && s.Status == workflow.Done {
+			sev = Error
+		}
+		rel := g.File
+		if r, err := filepath.Rel(p.Root, g.File); err == nil {
+			rel = r
+		}
+		add(sev, s.ID, "%s has no %s in %s", g.Criterion.ID, g.Kind, filepath.ToSlash(rel))
 	}
 }
 

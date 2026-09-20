@@ -475,7 +475,7 @@ func TestLifecycle(t *testing.T) {
 		t.Fatalf("a new spec starts proposed:\n%s", body)
 	}
 	write(t, path, strings.Replace(body, "- AC1: ...\n- AC2: ...",
-		"- AC1: a saved card can be reused", 1))
+		"- AC1: `GET /cards` reuses a saved card", 1))
 
 	if out, code := run(t, dir, "start", "SPEC-001"); code == 0 {
 		t.Fatalf("starting work nobody accepted should fail: %s", out)
@@ -650,7 +650,9 @@ func TestHierarchyAndDependencies(t *testing.T) {
 	// Approving the API contract unblocks the UI without waiting for code.
 	mustRun(t, dir, "start", "SPEC-002", "--by", "ana")
 	api := filepath.Join(specs, "SPEC-002-api", "spec.md")
-	write(t, api, strings.Replace(read(t, api), "## Contract\n", "## Contract\n\nGET /n\n", 1))
+	apiBody := strings.Replace(read(t, api), "- AC1: ...\n- AC2: ...",
+		"- AC1: `GET /n` returns the list", 1)
+	write(t, api, strings.Replace(apiBody, "## Contract\n", "## Contract\n\nGET /n\n", 1))
 	mustRun(t, dir, "approve", "SPEC-002", "--by", "jesus")
 	mustRun(t, dir, "start", "SPEC-003", "--by", "jose")
 
@@ -930,6 +932,7 @@ func TestApprove_StraightFromContracting(t *testing.T) {
 
 	spec := filepath.Join(dir, ".forge", "specs", "SPEC-001-thing", "spec.md")
 	body := read(t, spec)
+	body = strings.Replace(body, "- AC1: ...\n- AC2: ...", "- AC1: `GET /things` returns them", 1)
 	write(t, spec, strings.Replace(body, "## Contract\n", "## Contract\n\nGET /things\n", 1))
 
 	mustRun(t, dir, "approve", "SPEC-001", "--by", "jesus")
@@ -943,6 +946,181 @@ func TestApprove_StraightFromContracting(t *testing.T) {
 	}
 	if strings.Contains(got, "awaiting-approval") {
 		t.Errorf("history should not name the retired state:\n%s", got)
+	}
+}
+
+// A vague criterion is not approvable: approval is the gate that must name the
+// command, the test or the response that settles each one, so rewriting it
+// with an anchor lets the same spec through (SPEC-021, decision 1).
+func TestApprove_RefusesUnverifiableCriterion(t *testing.T) {
+	dir := newRepo(t)
+	mustRun(t, dir, "new", "Thing", "--capability", "workflow")
+	mustRun(t, dir, "accept", "SPEC-001", "--by", "ana")
+	mustRun(t, dir, "start", "SPEC-001", "--by", "ana")
+
+	spec := filepath.Join(dir, ".forge", "specs", "SPEC-001-thing", "spec.md")
+	body := read(t, spec)
+	body = strings.Replace(body, "- AC1: ...\n- AC2: ...", "- AC1: The UI is fast", 1)
+	write(t, spec, strings.Replace(body, "## Contract\n", "## Contract\n\nGET /things\n", 1))
+
+	out, code := run(t, dir, "approve", "SPEC-001", "--by", "ana")
+	if code == 0 {
+		t.Fatalf("approve should refuse a criterion with no anchor:\n%s", out)
+	}
+	if !strings.Contains(out, "AC1") {
+		t.Errorf("the refusal should name the criterion:\n%s", out)
+	}
+	if after := read(t, spec); strings.Contains(after, "contract_hash:") {
+		t.Errorf("a refused approval must not fingerprint the contract:\n%s", after)
+	}
+
+	rewritten := strings.Replace(read(t, spec), "- AC1: The UI is fast",
+		"- AC1: `GET /things` returns them", 1)
+	write(t, spec, rewritten)
+	mustRun(t, dir, "approve", "SPEC-001", "--by", "ana")
+	approved := read(t, spec)
+	for _, want := range []string{"status: planning", "approved_by: ana", "contract_hash:"} {
+		if !strings.Contains(approved, want) {
+			t.Errorf("approval should record %q:\n%s", want, approved)
+		}
+	}
+}
+
+// checkSpec writes a spec with one criterion and the `## Existing state`
+// marker the coverage derivation reads, so a test can write tasks.md and
+// review.md beside it and choose the state the gaps apply at. It returns the
+// spec folder.
+func checkSpec(t *testing.T, dir, id string, status workflow.State) string {
+	t.Helper()
+	specDir := filepath.Join(dir, ".forge", "specs", id+"-a-change")
+	write(t, filepath.Join(specDir, "spec.md"),
+		"---\nid: "+id+"\ntitle: A change\nstatus: "+string(status)+"\ncapability: workflow\n---\n\n"+
+			"## Acceptance criteria\n\n- AC1: `forge check` reports it\n\n"+
+			"## Existing state\n\n- reuses `x`.\n")
+	return specDir
+}
+
+// A criterion with no task and no evidence at done is the review that passed
+// on nothing: the two gaps are named with the file they are missing from and
+// the command fails so the reviewer cannot archive (SPEC-021, decision 2/5).
+func TestCheck_ReportsUncoveredCriteria(t *testing.T) {
+	dir := newRepo(t)
+	specDir := checkSpec(t, dir, "SPEC-001", workflow.Done)
+	write(t, filepath.Join(specDir, "tasks.md"), "# Tasks\n\n- [x] Phase 1\n")
+	write(t, filepath.Join(specDir, "review.md"),
+		"# Review\n\nVerdict: pass\n\n## Acceptance criteria\n\n"+
+			"| Criterion | Result | Evidence |\n|---|---|---|\n")
+
+	out, code := run(t, dir, "check", "SPEC-001")
+	if code != 1 {
+		t.Fatalf("an uncovered criterion at done should fail:\n%s", out)
+	}
+	tasks := filepath.ToSlash(filepath.Join(".forge", "specs", "SPEC-001-a-change", "tasks.md"))
+	review := filepath.ToSlash(filepath.Join(".forge", "specs", "SPEC-001-a-change", "review.md"))
+	for _, want := range []string{
+		"SPEC-001: AC1 has no task in " + tasks,
+		"SPEC-001: AC1 has no evidence in " + review,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("forge check should print %q:\n%s", want, out)
+		}
+	}
+}
+
+// A comment is guidance, not coverage: a done spec whose only evidence sits
+// inside an HTML comment still reports the criterion and exits 1, so a
+// commented example cannot fake a settled criterion (SPEC-021, decision 3/5).
+func TestCheck_CommentedEvidenceIsNotCoverage(t *testing.T) {
+	dir := newRepo(t)
+	specDir := checkSpec(t, dir, "SPEC-001", workflow.Done)
+	// A real task, so only the evidence is in question.
+	write(t, filepath.Join(specDir, "tasks.md"), "# Tasks\n\n- [x] Phase 1 — moves AC1\n")
+	write(t, filepath.Join(specDir, "review.md"),
+		"# Review\n\nVerdict: pass\n\n## Acceptance criteria\n\n"+
+			"<!-- | AC1 | pass | `go test ./...` | -->\n")
+
+	out, code := run(t, dir, "check", "SPEC-001")
+	if code != 1 {
+		t.Fatalf("a commented evidence line at done should fail:\n%s", out)
+	}
+	review := filepath.ToSlash(filepath.Join(".forge", "specs", "SPEC-001-a-change", "review.md"))
+	if want := "SPEC-001: AC1 has no evidence in " + review; !strings.Contains(out, want) {
+		t.Errorf("forge check should print %q:\n%s", want, out)
+	}
+}
+
+// Feeding the real `forge template review` output to a done spec still reports
+// the criterion uncovered: the shipped example rows are commented and written
+// as `ACn`, so copying the template cannot read as evidence (SPEC-021,
+// decision 4).
+func TestCheck_TemplateReviewLeavesCriterionUncovered(t *testing.T) {
+	dir := newRepo(t)
+	specDir := checkSpec(t, dir, "SPEC-001", workflow.Done)
+	write(t, filepath.Join(specDir, "tasks.md"), "# Tasks\n\n- [x] Phase 1 — moves AC1\n")
+	write(t, filepath.Join(specDir, "review.md"), mustRun(t, dir, "template", "review"))
+
+	out, code := run(t, dir, "check", "SPEC-001")
+	if code != 1 {
+		t.Fatalf("the review template is not evidence:\n%s", out)
+	}
+	if want := "SPEC-001: AC1 has no evidence in "; !strings.Contains(out, want) {
+		t.Errorf("forge check should print %q:\n%s", want, out)
+	}
+}
+
+// In flight the review does not exist yet, so a criterion with no task is
+// reported and the command still succeeds: it is advice to the implementer,
+// not a failure (SPEC-021, decision 2/5).
+func TestCheck_ImplementingGapExitsZero(t *testing.T) {
+	dir := newRepo(t)
+	specDir := checkSpec(t, dir, "SPEC-001", workflow.Implementing)
+	write(t, filepath.Join(specDir, "tasks.md"), "# Tasks\n\n- [x] Phase 1\n")
+
+	out, code := run(t, dir, "check", "SPEC-001")
+	if code != 0 {
+		t.Fatalf("a task gap in flight should not fail:\n%s", out)
+	}
+	tasks := filepath.ToSlash(filepath.Join(".forge", "specs", "SPEC-001-a-change", "tasks.md"))
+	if want := "SPEC-001: AC1 has no task in " + tasks; !strings.Contains(out, want) {
+		t.Errorf("forge check should print %q:\n%s", want, out)
+	}
+}
+
+// The report is derived and read-only: the same tree prints identical bytes,
+// and no file under .forge nor `git status` changes (SPEC-021, decision 2).
+func TestCheck_IsDeterministicAndWritesNothing(t *testing.T) {
+	dir := newRepo(t)
+	runGit(t, dir, "init")
+	runGit(t, dir, "config", "user.email", "t@example.com")
+	runGit(t, dir, "config", "user.name", "tester")
+	specDir := checkSpec(t, dir, "SPEC-001", workflow.Implementing)
+	write(t, filepath.Join(specDir, "tasks.md"), "# Tasks\n\n- [x] Phase 1 — moves AC1\n")
+	runGit(t, dir, "add", "-A")
+	runGit(t, dir, "commit", "-m", "init")
+
+	status := func() string {
+		t.Helper()
+		cmd := exec.Command("git", "status", "--porcelain")
+		cmd.Dir = dir
+		body, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git status: %v\n%s", err, body)
+		}
+		return string(body)
+	}
+
+	beforeStatus := status()
+	before := tree(t, filepath.Join(dir, ".forge"))
+	first := mustRun(t, dir, "check")
+	second := mustRun(t, dir, "check")
+	if first != second {
+		t.Errorf("the same tree should print identical bytes:\n%q\n%q", first, second)
+	}
+	if after := tree(t, filepath.Join(dir, ".forge")); after != before {
+		t.Errorf("forge check wrote to .forge:\nbefore:\n%s\nafter:\n%s", before, after)
+	}
+	if after := status(); after != beforeStatus {
+		t.Errorf("forge check changed git status:\nbefore:\n%s\nafter:\n%s", beforeStatus, after)
 	}
 }
 
@@ -997,7 +1175,8 @@ func TestStatusShowsSupersedes(t *testing.T) {
 	old := filepath.Join(specs, "SPEC-001-old-contract", "spec.md")
 	mustRun(t, dir, "accept", "SPEC-001", "--by", "ana")
 	mustRun(t, dir, "start", "SPEC-001", "--by", "ana")
-	write(t, old, strings.Replace(read(t, old), "## Contract\n", "## Contract\n\nGET /old\n", 1))
+	oldBody := strings.Replace(read(t, old), "- AC1: ...\n- AC2: ...", "- AC1: `GET /old` returns it", 1)
+	write(t, old, strings.Replace(oldBody, "## Contract\n", "## Contract\n\nGET /old\n", 1))
 	mustRun(t, dir, "approve", "SPEC-001", "--by", "ana")
 
 	oldDir := filepath.Dir(old)
@@ -1190,18 +1369,12 @@ func TestDocs_DescribeCapabilities(t *testing.T) {
 	}
 }
 
-// The pages an agent or a person reads must not keep a second copy of the
-// state machine: an arrow chain between two states, or a table row whose first
-// cell is a state. The names come from the binary, so a page cannot keep a
-// list that diverged from it (AC1, AC5).
-func TestDocs_DoNotRestateTheStateMachine(t *testing.T) {
-	pages := []string{"../../AGENTS.md", "../../kit/AGENTS.md", "../../README.md"}
-	docs, err := filepath.Glob("../../docs/*.md")
-	if err != nil {
-		t.Fatal(err)
-	}
-	pages = append(pages, docs...)
-
+// assertNoStateMachine fails when a page keeps a second copy of the state
+// machine: an arrow chain between two states, or a table row whose first cell
+// is a state. The names come from the binary, so a page cannot keep a list
+// that diverged from it (AC1, AC5).
+func assertNoStateMachine(t *testing.T, pages []string) {
+	t.Helper()
 	names := make([]string, 0, len(workflow.All()))
 	for _, s := range workflow.All() {
 		names = append(names, regexp.QuoteMeta(string(s)))
@@ -1219,6 +1392,18 @@ func TestDocs_DoNotRestateTheStateMachine(t *testing.T) {
 			t.Errorf("%s restates the state machine as a table row: %q", page, m)
 		}
 	}
+}
+
+// The pages an agent or a person reads must not keep a second copy of the
+// state machine (AC1, AC5).
+func TestDocs_DoNotRestateTheStateMachine(t *testing.T) {
+	pages := []string{"../../AGENTS.md", "../../kit/AGENTS.md", "../../README.md"}
+	docs, err := filepath.Glob("../../docs/*.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pages = append(pages, docs...)
+	assertNoStateMachine(t, pages)
 }
 
 // No reader-facing page keeps a retired state name: the docs carry the name
@@ -1248,6 +1433,47 @@ func TestDocs_WorkflowPointsAtForgeWorkflow(t *testing.T) {
 	if !strings.Contains(read(t, "../../docs/workflow.md"), "forge workflow") {
 		t.Error("docs/workflow.md should point at `forge workflow` for the states and transitions")
 	}
+}
+
+// `forge check` is a documented command and `forge approve` states the
+// criterion rule, so a reader knows a vague criterion cannot be approved and
+// an uncovered one is reported. The anchors are the command name, the two gap
+// words and `verifiable`, not whole sentences. The state-machine scan is
+// extended to the machine files this spec touches (SPEC-021, decision 4; AC5).
+func TestDocPages_DocumentTheCriterionRule(t *testing.T) {
+	cli := read(t, "../../docs/cli.md")
+
+	check := docsSection(cli, "### `forge check")
+	if check == "" {
+		t.Fatal("docs/cli.md should document `forge check`")
+	}
+	if !strings.Contains(check, "forge check") {
+		t.Errorf("the forge check section should name the command:\n%s", check)
+	}
+	for _, want := range []string{"no task", "no evidence"} {
+		if !strings.Contains(check, want) {
+			t.Errorf("the forge check section should name a %q gap:\n%s", want, check)
+		}
+	}
+
+	approve := docsSection(cli, "### `forge approve")
+	if approve == "" {
+		t.Fatal("docs/cli.md should document `forge approve`")
+	}
+	if !strings.Contains(approve, "verifiable") {
+		t.Errorf("the forge approve section should state the criterion rule:\n%s", approve)
+	}
+
+	if !strings.Contains(read(t, "../../docs/workflow.md"), "forge check") {
+		t.Error("docs/workflow.md should name `forge check` beside the acceptance-criteria rule")
+	}
+
+	assertNoStateMachine(t, []string{
+		"../../kit/machine/templates/review.md",
+		"../../kit/machine/templates/tasks.md",
+		"../../kit/machine/templates/spec.md",
+		"../../kit/machine/roles/reviewer.md",
+	})
 }
 
 // `forge start` creates the spec folder and records fingerprints; planning

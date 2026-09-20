@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `forge approve` refuses a contract whose criteria name no command, test or
+  observable response, and `forge check [id]` reports every criterion that no
+  task or evidence settles, read-only, exiting 1 only for a missing evidence
+  line on a `reviewing` or `done` spec. `forge validate` reports the same
+  coverage as a warning, or an error at `done`. Coverage is read from
+  comment-stripped `tasks.md` and the review's `## Acceptance criteria`,
+  matching ids as whole tokens so `AC1` never counts `AC10`, `AC1x` or `AC1-`;
+  the templates and the reviewer role teach the rule.
+
 ### Changed
 
 - The state after `accepted` is `contracting` and `awaiting-approval` is gone:
