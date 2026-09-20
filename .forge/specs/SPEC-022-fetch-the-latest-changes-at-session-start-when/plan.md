@@ -57,7 +57,7 @@ wrote it). Phases below reuse what it names instead of rebuilding it.
   is a fetch only; `CHANGELOG.md` gains the `[Unreleased]` entry. Tests in
   `internal/cli/cli_test.go` (the docs assertions) and
   `internal/cli/machine_test.go` (the role printouts) scope to the sections
-  and assert stable anchors. Moves AC6.
+  and assert stable anchors. Moves AC6, AC7.
 - Done when: the docs, roles and `project.md` agree, `go run . brief` matches
   the documented behaviour, and the changelog describes the change.
 - Verify with: `go test ./...`, `gofmt -l .`, `go vet ./...`.

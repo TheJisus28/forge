@@ -3,8 +3,9 @@
 Most commands read and write files under `.forge/`; `forge upgrade` works
 outside a project and does not touch the kit. The binary itself never
 reaches the network: the only network comes from the user's own tools —
-`git`/`gh` for `forge status --fetch`, `forge sync`, `forge push` and
-`forge submit`, and the Go toolchain for `forge upgrade`.
+`git`/`gh` for `forge status --fetch`, `forge brief` (only with `fetch: on`),
+`forge sync`, `forge push` and `forge submit`, and the Go toolchain for
+`forge upgrade`.
 
 ## Setting up
 
@@ -150,6 +151,17 @@ current shape with one line per capability and the count of current
 contracts, using the same view as `forge capabilities`. `--json` emits the
 Claude Code `SessionStart` payload. In a repository without Forge it prints
 nothing and succeeds, so the hook is harmless everywhere.
+
+The fetch is opt-in. With `fetch: on` in `.forge/project.md` — and only
+then — `forge brief` runs `git fetch` first, so the session starts from
+current remote refs instead of a stale clone. It fetches only: it never runs
+`git pull`, `merge` or `rebase`, and the working tree, the index and the
+branch are untouched. Fetching needs a GitHub remote and an authenticated
+`gh`; when the project opted in but cannot fetch, the brief warns on one
+`warning: ` line, renders from local refs and still exits 0:
+`no GitHub remote configured`, `gh is not authenticated`, or `git fetch failed:
+<err>`. Without `fetch: on` the command makes no `gh` call and no fetch, and
+stays offline.
 
 It lists the most recent five `done` specs, so a session knows what already
 exists without the context growing with every closed spec; `forge status`

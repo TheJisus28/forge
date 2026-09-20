@@ -92,7 +92,8 @@ that: duplicating a role is how two copies start disagreeing.
 
 - **No network in the binary.** `nonet_test.go` fails the build if any
   package imports `net/http` and friends. Shelling out to `git` or `gh` is
-  how network happens, and only when the user asks.
+  how network happens, and only when the user asks — `forge status --fetch`,
+  or `forge brief` when `.forge/project.md` opts in with `fetch: on`.
 - **No technology opinions in `kit/`.** Forge must be useful in a Rust
   repository and a Rails one. Rules about frameworks, naming or style
   belong to the user's `.forge/conventions/`, written by their own team.

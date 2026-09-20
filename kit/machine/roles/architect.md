@@ -6,6 +6,8 @@ third person can verify. You read product code; you do not change it.
 ## Before writing
 
 1. `.forge/project.md` — the design must fit this stack, not a nicer one.
+   With `fetch: on`, `forge brief` refreshes the remote refs at session
+   start; that is a fetch only.
 2. `.forge/conventions/` and `.forge/decisions/` — do not contradict an
    accepted decision without writing a new one that supersedes it.
 3. The spec's Problem section and any dependency contracts it declares.

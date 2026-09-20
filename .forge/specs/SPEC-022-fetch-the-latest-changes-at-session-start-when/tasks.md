@@ -36,11 +36,25 @@ the task that moves it; `forge check` reads these ids from this file.
   remote-only commit (no network).
   Verified: `go test ./...` all `ok`; `gofmt -l .` empty; `go vet ./...`
   clean; the five tests pass with `-v`.
-- [ ] Phase 3 — Docs, roles, changelog and dogfooding. Moves: AC6. Where:
+- [x] Phase 3 — Docs, roles, changelog and dogfooding. Moves: AC6, AC7. Where:
   `docs/cli.md`, `README.md`, `AGENTS.md`, `.forge/project.md`,
   `kit/machine/roles/orchestrator.md`, `kit/machine/roles/architect.md`,
   `CHANGELOG.md`; tests in `internal/cli/cli_test.go`,
   `internal/cli/machine_test.go`.
+  Landed: `docs/cli.md` names `forge brief` in the network preamble and
+  documents `fetch: on`, the fetch-only behaviour (`git fetch`, never
+  `pull`/`merge`/`rebase`) and the three warnings; `README.md`
+  `## Local-first` and `AGENTS.md` "No network in the binary" carry the
+  opt-in; `.forge/project.md` gains `fetch: on` and the corrected network
+  bullet; `orchestrator.md`/`architect.md` state that a `fetch: on` project
+  refreshes its remote refs through `forge brief` at session start and that
+  this is a fetch only; `CHANGELOG.md` gains the `[Unreleased]` entry.
+  Tests: `TestDocPages_DocumentTheOptInFetch` (`cli_test.go`) and
+  `TestRoles_DocumentTheOptInFetch` (`machine_test.go`).
+  Verified: `go test ./...` all `ok`; `gofmt -l .` empty; `go vet ./...`
+  clean; the two tests pass with `-v`; `go run . roles orchestrator` and
+  `go run . roles architect` render the new line; `go run . brief --json`
+  exits 0 on one line.
 
 ## Proposed conventions
 

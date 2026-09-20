@@ -85,6 +85,21 @@ func TestRoles_DocumentTheCheckpoint(t *testing.T) {
 	}
 }
 
+// A project that opts in refreshes its remote refs at session start, and the
+// roles say it is a fetch only (SPEC-022, AC6).
+func TestRoles_DocumentTheOptInFetch(t *testing.T) {
+	dir := t.TempDir()
+	for _, role := range []string{"orchestrator", "architect"} {
+		out := mustRun(t, dir, "roles", role)
+		if !strings.Contains(out, "fetch: on") {
+			t.Errorf("the %s role should name the fetch: on opt-in:\n%s", role, out)
+		}
+		if !strings.Contains(out, "a fetch only") {
+			t.Errorf("the %s role should say the refresh is a fetch only:\n%s", role, out)
+		}
+	}
+}
+
 func TestTemplateCommand_PrintsAndRejects(t *testing.T) {
 	dir := t.TempDir()
 	out := mustRun(t, dir, "template", "decision")
