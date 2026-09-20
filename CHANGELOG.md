@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-19
+
 ### Removed
 
 - The maintainer list, `gates`, `allow_self_approval` and the `forge gate`
@@ -25,6 +27,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dependency cycles, contract drift.
 - Denial messages from `forge guard` point at the command to run instead of
   naming a maintainer role.
+
+## [0.1.1] - 2026-09-19
+
+### Fixed
+
+- `forge version` reported `dev` when installed with
+  `go install github.com/TheJisus28/forge@version`, because that path
+  compiles locally and never runs the `-ldflags` GoReleaser bakes into the
+  release binaries. It now falls back to the module version Go itself
+  records in the build info.
 
 ## [0.1.0]
 
@@ -50,5 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `archive`, `gate`, `status`, `brief`, `board`, `validate`, `sync`, `renumber`,
   `guard` and `version`.
 
-[Unreleased]: https://github.com/TheJisus28/forge/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/TheJisus28/forge/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/TheJisus28/forge/compare/v0.1.1...v0.2.0
+[0.1.1]: https://github.com/TheJisus28/forge/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/TheJisus28/forge/releases/tag/v0.1.0
