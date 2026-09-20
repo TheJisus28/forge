@@ -15,8 +15,9 @@ import (
 )
 
 func cmdNew(args []string, out io.Writer) error {
-	fs := newFlagSet("new", `usage: forge new "<title>" [--parent SPEC-002] [--covers AC1,AC3]`, out)
+	fs := newFlagSet("new", `usage: forge new "<title>" --capability <name> [--parent SPEC-002] [--covers AC1,AC3]`, out)
 	parent := fs.String("parent", "", "the spec this one is part of")
+	capability := fs.String("capability", "", "the part of the system this spec touches")
 	covers := fs.String("covers", "", "criteria of the parent this spec covers")
 	rest, err := parseArgs(fs, args)
 	if err != nil {
@@ -26,9 +27,23 @@ func cmdNew(args []string, out io.Writer) error {
 	if title == "" {
 		return fmt.Errorf(`a title is required: forge new "Pay with a saved card"`)
 	}
+	cap := strings.TrimSpace(*capability)
+	if cap == "" {
+		return fmt.Errorf(`a capability is required: pass --capability <name>, as in forge new "Pay with a saved card" --capability payments`)
+	}
 	p, err := project.Load(cwd())
 	if err != nil {
 		return err
+	}
+
+	known := map[string]bool{}
+	for _, existing := range p.Specs {
+		if existing.Capability != "" {
+			known[existing.Capability] = true
+		}
+	}
+	if !known[cap] {
+		fmt.Fprintf(out, "warning: no existing spec declares the capability %q; creating it as a new one\n", cap)
 	}
 
 	s := &project.Spec{
@@ -73,6 +88,7 @@ func cmdNew(args []string, out io.Writer) error {
 	d.SetStr("status", string(s.Status))
 	d.SetStr("created", time.Now().Format("2006-01-02"))
 	d.SetStr("updated", time.Now().Format("2006-01-02"))
+	d.SetStr("capability", cap)
 
 	path := filepath.Join(p.SpecDir(s.ID, s.Title), "spec.md")
 	built, err := project.FromDoc(path, d)

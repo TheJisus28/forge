@@ -175,11 +175,49 @@ func TestInit_NoGuardAndCI(t *testing.T) {
 // --by wins, so a teammate can name themselves without a gh account.
 func TestActor_UsesTheFlag(t *testing.T) {
 	dir := newRepo(t)
-	mustRun(t, dir, "new", "Thing")
+	mustRun(t, dir, "new", "Thing", "--capability", "workflow")
 	mustRun(t, dir, "accept", "SPEC-001", "--by", "octocat")
 	body := read(t, filepath.Join(dir, ".forge", "specs", "SPEC-001-thing", "spec.md"))
 	if !strings.Contains(body, "accepted_by: octocat") {
 		t.Errorf("accepted_by should be the flag value:\n%s", body)
+	}
+}
+
+// A spec has no capability unless --capability says which part of the
+// system it touches; failing must not leave a half-created folder behind.
+func TestNew_RequiresCapability(t *testing.T) {
+	dir := newRepo(t)
+
+	out, code := run(t, dir, "new", "Thing")
+	if code == 0 {
+		t.Fatalf("new without --capability should fail:\n%s", out)
+	}
+	if !strings.Contains(out, "--capability <name>") {
+		t.Errorf("the error should say how to pass a capability:\n%s", out)
+	}
+	specs, _ := filepath.Glob(filepath.Join(dir, ".forge", "specs", "*", "spec.md"))
+	if len(specs) != 0 {
+		t.Errorf("nothing should be created without a capability: %v", specs)
+	}
+}
+
+// The field reaches the file, and an undeclared capability is a warning to
+// fix a typo, never a reason to refuse a genuinely new one.
+func TestNew_WritesCapabilityAndWarnsOnANewName(t *testing.T) {
+	dir := newRepo(t)
+
+	out := mustRun(t, dir, "new", "Guest access", "--capability", "guard")
+	if !strings.Contains(out, "no existing spec declares") {
+		t.Errorf("an undeclared capability should warn:\n%s", out)
+	}
+	body := read(t, filepath.Join(dir, ".forge", "specs", "SPEC-001-guest-access", "spec.md"))
+	if !strings.Contains(body, "capability: guard") {
+		t.Errorf("the spec should carry the capability:\n%s", body)
+	}
+
+	out = mustRun(t, dir, "new", "More access", "--capability", "guard")
+	if strings.Contains(out, "no existing spec declares") {
+		t.Errorf("a declared capability should not warn:\n%s", out)
 	}
 }
 
@@ -196,7 +234,7 @@ func TestSubmit_DryRunPrintsCommands(t *testing.T) {
 
 	mustRun(t, dir, "init")
 	write(t, filepath.Join(dir, ".forge", "project.md"), projectConfig)
-	mustRun(t, dir, "new", "Something")
+	mustRun(t, dir, "new", "Something", "--capability", "workflow")
 	runGit(t, dir, "checkout", "-b", "spec/001-something")
 
 	out := mustRun(t, dir, "submit", "--dry-run")
@@ -213,7 +251,7 @@ func TestLifecycle(t *testing.T) {
 	dir := newRepo(t)
 	specs := filepath.Join(dir, ".forge", "specs")
 
-	mustRun(t, dir, "new", "Saved card payments")
+	mustRun(t, dir, "new", "Saved card payments", "--capability", "payments")
 	path := filepath.Join(specs, "SPEC-001-saved-card-payments", "spec.md")
 	body := read(t, path)
 	if !strings.Contains(body, "status: proposed") {
@@ -281,16 +319,16 @@ func TestHierarchyAndDependencies(t *testing.T) {
 	dir := newRepo(t)
 	specs := filepath.Join(dir, ".forge", "specs")
 
-	mustRun(t, dir, "new", "Notifications")
+	mustRun(t, dir, "new", "Notifications", "--capability", "notifications")
 	parent := filepath.Join(specs, "SPEC-001-notifications", "spec.md")
 	write(t, parent, strings.Replace(read(t, parent), "- AC1: ...\n- AC2: ...",
 		"- AC1: delivery\n- AC2: history", 1))
 
-	if out, code := run(t, dir, "new", "UI", "--parent", "SPEC-001", "--covers", "AC9"); code == 0 {
+	if out, code := run(t, dir, "new", "UI", "--capability", "notifications", "--parent", "SPEC-001", "--covers", "AC9"); code == 0 {
 		t.Fatalf("covering a criterion nobody promised should fail: %s", out)
 	}
-	mustRun(t, dir, "new", "API", "--parent", "SPEC-001", "--covers", "AC1")
-	mustRun(t, dir, "new", "UI", "--parent", "SPEC-001", "--covers", "AC2")
+	mustRun(t, dir, "new", "API", "--capability", "notifications", "--parent", "SPEC-001", "--covers", "AC1")
+	mustRun(t, dir, "new", "UI", "--capability", "notifications", "--parent", "SPEC-001", "--covers", "AC2")
 
 	ui := filepath.Join(specs, "SPEC-003-ui", "spec.md")
 	write(t, ui, strings.Replace(read(t, ui), "status: proposed",
@@ -417,7 +455,7 @@ func TestGuardCommand(t *testing.T) {
 // Open questions block the contract: a design built on them is the mistake.
 func TestApprove_RefusesOpenQuestions(t *testing.T) {
 	dir := newRepo(t)
-	mustRun(t, dir, "new", "Thing")
+	mustRun(t, dir, "new", "Thing", "--capability", "workflow")
 	mustRun(t, dir, "accept", "SPEC-001", "--by", "ana")
 	mustRun(t, dir, "start", "SPEC-001", "--by", "ana")
 
@@ -435,7 +473,7 @@ func TestApprove_RefusesOpenQuestions(t *testing.T) {
 // The detail shows how far the tasks have gone, straight from tasks.md.
 func TestStatusShowsTaskProgress(t *testing.T) {
 	dir := newRepo(t)
-	mustRun(t, dir, "new", "Thing")
+	mustRun(t, dir, "new", "Thing", "--capability", "workflow")
 	mustRun(t, dir, "accept", "SPEC-001", "--by", "ana")
 	mustRun(t, dir, "start", "SPEC-001", "--by", "ana")
 
@@ -445,6 +483,31 @@ func TestStatusShowsTaskProgress(t *testing.T) {
 	out := mustRun(t, dir, "status", "SPEC-001")
 	if !strings.Contains(out, "tasks") || !strings.Contains(out, "1/2") {
 		t.Errorf("status should show task progress:\n%s", out)
+	}
+}
+
+// Both the per-spec status and the session brief name the capability, so an
+// agent starts knowing which part of the system it is about.
+func TestStatusAndBriefShowCapability(t *testing.T) {
+	dir := newRepo(t)
+	mustRun(t, dir, "new", "Guest access", "--capability", "guard")
+
+	out := mustRun(t, dir, "status", "SPEC-001")
+	if !strings.Contains(out, "capability") || !strings.Contains(out, "guard") {
+		t.Errorf("status should show the capability:\n%s", out)
+	}
+
+	// The brief only names the current spec, which is the one on the branch.
+	runGit(t, dir, "init")
+	runGit(t, dir, "config", "user.email", "t@example.com")
+	runGit(t, dir, "config", "user.name", "tester")
+	runGit(t, dir, "add", "-A")
+	runGit(t, dir, "commit", "-m", "init")
+	runGit(t, dir, "checkout", "-b", "spec/001-guest-access")
+
+	out = mustRun(t, dir, "brief")
+	if !strings.Contains(out, "capability") || !strings.Contains(out, "guard") {
+		t.Errorf("the brief should show the current spec's capability:\n%s", out)
 	}
 }
 
@@ -496,6 +559,17 @@ func TestDocs_DescribeProcessFiles(t *testing.T) {
 		if !strings.Contains(string(doc), want) {
 			t.Errorf("docs/customizing.md should contain %q", want)
 		}
+	}
+}
+
+// The CLI reference documents the flag that opens a spec.
+func TestDocs_DescribeCapability(t *testing.T) {
+	doc, err := os.ReadFile("../../docs/cli.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(doc), "--capability") {
+		t.Error("docs/cli.md should document --capability")
 	}
 }
 

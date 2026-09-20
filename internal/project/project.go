@@ -48,16 +48,17 @@ type Criterion struct {
 
 // Spec is one unit of work, in any state from proposed to done.
 type Spec struct {
-	ID       string
-	Num      int
-	Title    string
-	Status   workflow.State
-	Parent   string
-	Covers   []string
-	Deps     []Dep
-	Needs    []string
-	External []map[string]string
-	Path     string
+	ID         string
+	Num        int
+	Title      string
+	Capability string
+	Status     workflow.State
+	Parent     string
+	Covers     []string
+	Deps       []Dep
+	Needs      []string
+	External   []map[string]string
+	Path       string
 
 	Conductor    string
 	AcceptedBy   string
@@ -377,6 +378,7 @@ func (s *Spec) SetStatus(to workflow.State, by, note string) {
 func (s *Spec) Save() error {
 	s.doc.SetStr("title", s.Title)
 	s.doc.SetStr("status", string(s.Status))
+	setOrDelete(s.doc, "capability", s.Capability)
 	setOrDelete(s.doc, "parent", s.Parent)
 	setListOrDelete(s.doc, "covers", s.Covers)
 	deps := make([]string, 0, len(s.Deps))
@@ -427,6 +429,7 @@ func FromDoc(path string, d *doc.Doc) (*Spec, error) {
 		ID:           id,
 		Num:          num,
 		Title:        d.Str("title"),
+		Capability:   strings.TrimSpace(d.Str("capability")),
 		Status:       workflow.State(d.Str("status")),
 		Parent:       NormalizeID(d.Str("parent")),
 		Covers:       upperAll(d.List("covers")),
@@ -501,6 +504,13 @@ func Slug(title string) string {
 	}
 	return s
 }
+
+var capabilityRe = regexp.MustCompile(`^[a-z0-9-]+$`)
+
+// ValidCapability reports whether name is a capability slug: one or more
+// lowercase letters, digits or hyphens. It is the single shape both
+// `forge validate` and the derived capability view rely on.
+func ValidCapability(name string) bool { return capabilityRe.MatchString(name) }
 
 func setOrDelete(d *doc.Doc, key, val string) {
 	if val == "" {

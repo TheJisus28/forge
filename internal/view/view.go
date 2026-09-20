@@ -39,6 +39,7 @@ func Brief(p *project.Project) string {
 
 	if cur, ok := p.Current(); ok {
 		fmt.Fprintf(&b, "%s  %s  %s\n", cur.ID, cur.Status, cur.Title)
+		fmt.Fprintf(&b, "  capability  %s\n", capabilityOrNone(cur.Capability))
 		fmt.Fprintf(&b, "  waiting on %s\n", workflow.WaitingFor(cur.Status))
 		if done, total := cur.TaskProgress(); total > 0 {
 			fmt.Fprintf(&b, "  tasks %d/%d\n", done, total)
@@ -226,6 +227,7 @@ func Detail(p *project.Project, s *project.Spec) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s  %s\n%s\n\n", s.ID, s.Title, strings.Repeat("-", 60))
 	fmt.Fprintf(&b, "status      %s\n", s.Status)
+	fmt.Fprintf(&b, "capability  %s\n", capabilityOrNone(s.Capability))
 	fmt.Fprintf(&b, "waiting on  %s\n", workflow.WaitingFor(s.Status))
 	if done, total := s.TaskProgress(); total > 0 {
 		fmt.Fprintf(&b, "tasks       %d/%d\n", done, total)
@@ -286,6 +288,15 @@ func Detail(p *project.Project, s *project.Spec) string {
 		fmt.Fprintf(&b, "\nnext states  %s\n", strings.Join(names, ", "))
 	}
 	return b.String()
+}
+
+// capabilityOrNone renders a spec's capability, or "(none)" when it does not
+// declare one, so a reader never sees an empty field.
+func capabilityOrNone(name string) string {
+	if name == "" {
+		return "(none)"
+	}
+	return name
 }
 
 func truncate(s string, n int) string {

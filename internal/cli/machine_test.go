@@ -53,7 +53,7 @@ func TestTemplateCommand_PrintsAndRejects(t *testing.T) {
 func TestNew_IgnoresAPlantedTemplate(t *testing.T) {
 	dir := newRepo(t)
 	write(t, filepath.Join(dir, ".forge", "kit", "templates", "spec.md"), "JUNK\n")
-	mustRun(t, dir, "new", "Probe")
+	mustRun(t, dir, "new", "Probe", "--capability", "workflow")
 
 	specs, _ := filepath.Glob(filepath.Join(dir, ".forge", "specs", "*", "spec.md"))
 	if len(specs) != 1 {

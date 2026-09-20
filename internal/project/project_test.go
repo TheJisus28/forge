@@ -60,6 +60,7 @@ const api = `---
 id: SPEC-002
 title: Notifications API
 status: done
+capability: notifications
 parent: SPEC-001
 covers: [AC1, AC2]
 approved_by: jesus
@@ -116,6 +117,9 @@ func TestLoad_ReadsSpecsAndConfig(t *testing.T) {
 	}
 	if s.Status != workflow.Done || s.ApprovedBy != "jesus" {
 		t.Errorf("frontmatter not read: %+v", s)
+	}
+	if s.Capability != "notifications" {
+		t.Errorf("capability = %q, want notifications", s.Capability)
 	}
 }
 
@@ -214,6 +218,7 @@ func TestSaveRoundTrip(t *testing.T) {
 	s, _ := p.Spec("SPEC-003")
 	s.SetStatus(workflow.Specifying, "ana", "started")
 	s.Conductor = "ana"
+	s.Capability = "notifications"
 	s.Agreed["SPEC-002"] = "abc123"
 	if err := s.Save(); err != nil {
 		t.Fatal(err)
@@ -226,6 +231,9 @@ func TestSaveRoundTrip(t *testing.T) {
 	if reloaded.Status != workflow.Specifying || reloaded.Conductor != "ana" {
 		t.Errorf("not persisted: %+v", reloaded)
 	}
+	if reloaded.Capability != "notifications" {
+		t.Errorf("capability not persisted: %q", reloaded.Capability)
+	}
 	if reloaded.Agreed["SPEC-002"] != "abc123" {
 		t.Errorf("agreed contracts lost: %v", reloaded.Agreed)
 	}
@@ -234,6 +242,17 @@ func TestSaveRoundTrip(t *testing.T) {
 	}
 	if len(reloaded.Deps) != 1 || reloaded.Deps[0].String() != "SPEC-002@contract" {
 		t.Errorf("dependencies not preserved: %+v", reloaded.Deps)
+	}
+}
+
+func TestValidCapability(t *testing.T) {
+	if !project.ValidCapability("guard") {
+		t.Error("guard is a valid capability")
+	}
+	for _, bad := range []string{"Guard", "", "with_underscore", "guard!"} {
+		if project.ValidCapability(bad) {
+			t.Errorf("%q is not a valid capability", bad)
+		}
 	}
 }
 

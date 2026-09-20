@@ -40,11 +40,14 @@ planted kit; refreshing the kit stays `forge update`.
 
 ## Moving work
 
-### `forge new "<title>" [--parent SPEC-002] [--covers AC1,AC3]`
+### `forge new "<title>" --capability <name> [--parent SPEC-002] [--covers AC1,AC3]`
 
 Creates a spec in `proposed` with the next free number, as
-`.forge/specs/<id-slug>/spec.md`. `--covers` requires `--parent`, and fails
-if the parent does not declare those criteria.
+`.forge/specs/<id-slug>/spec.md`. `--capability` is required and must be a
+lowercase slug naming the part of the system the spec touches, such as
+`guard`; an undeclared name prints a warning and the spec is still created.
+`--covers` requires `--parent`, and fails if the parent does not declare
+those criteria.
 
 ### `forge accept <id> [--by <you>] [--note ...]`
 
@@ -88,16 +91,16 @@ Resolves a duplicate id. Refuses once anything points at the spec.
 
 Without an id: the tree of specs with coverage, blockers and who is waiting.
 With an id: the full detail of one spec, including task progress as
-`tasks done/total` read from its `tasks.md`. `--fetch` runs `git fetch`
-first.
+`tasks done/total` read from its `tasks.md`, and its `capability` (or
+`(none)`). `--fetch` runs `git fetch` first.
 
 ### `forge brief [--json]`
 
 The short state an agent reads at the start of a session. It shows the
 current spec's task progress as `tasks done/total`, read from its
-`tasks.md`. `--json` emits the Claude Code `SessionStart` payload. In a
-repository without Forge it prints nothing and succeeds, so the hook is
-harmless everywhere.
+`tasks.md`, and names that spec's `capability`. `--json` emits the Claude
+Code `SessionStart` payload. In a repository without Forge it prints
+nothing and succeeds, so the hook is harmless everywhere.
 
 It lists the most recent five `done` specs, so a session knows what already
 exists without the context growing with every closed spec; `forge status`
@@ -132,9 +135,10 @@ override.
 
 Exits 1 when the project is inconsistent: unknown or duplicate ids, illegal
 history, missing artifacts for a state, broken references, dependency
-cycles, uncovered promises once a child closes, and contract drift. It
-does not check who accepted or approved anything: Forge has no
-authorization model to enforce.
+cycles, uncovered promises once a child closes, and contract drift. A spec
+with no `capability` is a warning; a present value that is not a lowercase
+slug is an error. It does not check who accepted or approved anything:
+Forge has no authorization model to enforce.
 
 ### `forge guard [--explain] [--file path] [--command <cmd>]`
 
