@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -487,12 +488,23 @@ func pendingConventions(dir string) []string {
 			continue
 		}
 		for _, heading := range []string{"Proposed conventions", "Convenciones propuestas"} {
-			if body := d.Section(heading); body != "" && !isNone(body) {
+			if body := stripComments(d.Section(heading)); strings.TrimSpace(body) != "" && !isNone(body) {
 				out = append(out, e.Name()+": "+firstLine(body))
 			}
 		}
 	}
 	return out
+}
+
+// commentRe matches an HTML comment, the shape the templates use to ship
+// guidance inside a section without proposing anything. The dash form is
+// excluded so a `<--` typo is not eaten as a comment.
+var commentRe = regexp.MustCompile(`(?s)<!--.*?-->`)
+
+// stripComments removes HTML comments, so the guidance a template ships in a
+// `Proposed conventions` section is not read as a proposal.
+func stripComments(s string) string {
+	return commentRe.ReplaceAllString(s, "")
 }
 
 func isNone(body string) bool {

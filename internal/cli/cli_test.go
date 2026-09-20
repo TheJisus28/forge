@@ -361,6 +361,38 @@ func TestLifecycle(t *testing.T) {
 	}
 }
 
+// The shipped templates carry their Proposed conventions guidance as an HTML
+// comment, so a spec that proposed nothing archives without anyone deleting
+// the template's own text; a real proposal under the comment still blocks and
+// is named instead of the comment (SPEC-019).
+func TestArchive_IgnoresTemplateConventionsComment(t *testing.T) {
+	dir := newRepo(t)
+	specDir := filepath.Join(dir, ".forge", "specs", "SPEC-001-a-change")
+	write(t, filepath.Join(specDir, "spec.md"),
+		"---\nid: SPEC-001\ntitle: A change\nstatus: reviewing\ncapability: workflow\n---\n\n## Contract\n\nx\n")
+	write(t, filepath.Join(specDir, "review.md"), "Verdict: pass\n")
+	tasks := mustRun(t, dir, "template", "tasks")
+
+	write(t, filepath.Join(specDir, "tasks.md"),
+		strings.Replace(tasks, "\nNone.\n", "\n- Errors use an envelope.\n", 1))
+	out, code := run(t, dir, "archive", "SPEC-001")
+	if code == 0 {
+		t.Fatalf("a real proposal should block archiving:\n%s", out)
+	}
+	if !strings.Contains(out, "Errors use an envelope.") {
+		t.Errorf("the proposal should be the reported line:\n%s", out)
+	}
+	if strings.Contains(out, "Patterns you had to decide") {
+		t.Errorf("the template comment should not be read as a proposal:\n%s", out)
+	}
+
+	write(t, filepath.Join(specDir, "tasks.md"), tasks)
+	mustRun(t, dir, "archive", "SPEC-001")
+	if body := read(t, filepath.Join(specDir, "spec.md")); !strings.Contains(body, "status: done") {
+		t.Errorf("the shipped template default should not block archiving:\n%s", body)
+	}
+}
+
 func TestHierarchyAndDependencies(t *testing.T) {
 	dir := newRepo(t)
 	specs := filepath.Join(dir, ".forge", "specs")
