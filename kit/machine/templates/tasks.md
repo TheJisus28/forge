@@ -9,7 +9,7 @@ later spec knows what exists without reading the diff.
 
 ## Proposed conventions
 
-Patterns decided because nothing was written. The team decides whether they
-become rules in `.forge/conventions/`.
+<!-- Patterns you had to decide because nothing was written. Record them in
+     .forge/conventions/ or replace this comment with None. -->
 
 None.

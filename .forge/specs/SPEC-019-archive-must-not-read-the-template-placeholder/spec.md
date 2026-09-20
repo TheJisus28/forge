@@ -1,10 +1,14 @@
 ---
 id: SPEC-019
 title: Archive must not read the template placeholder as a pending convention
-status: proposed
+status: done
 capability: workflow
 created: 2026-09-20
 updated: 2026-09-20
+accepted_by: TheJisus28
+conductor: TheJisus28
+approved_by: TheJisus28
+contract_hash: 57f52814717d
 ---
 
 ## Problem
@@ -38,15 +42,70 @@ None.
 
 ## Contract
 
-Written by the architect once the work is accepted, and frozen once
-approved. Real names from this repository: modules, endpoints,
-tables, screens. Numbered decisions with what they discard. Anything other
-specs will build against goes here.
+### Decisions
 
-## Out of scope
+**1. The template keeps its guidance, as an HTML comment.**
+`kit/machine/templates/tasks.md`'s `## Proposed conventions` section becomes:
 
-A closed list.
+```markdown
+## Proposed conventions
+
+<!-- Patterns you had to decide because nothing was written. Record them in
+     .forge/conventions/ or replace this comment with None. -->
+
+None.
+```
+
+Markdown renders the comment invisibly, so the human still sees the help in
+`forge template tasks` and in the file, while the section body is a comment
+plus `None.`. Discards: deleting the guidance (the section becomes
+unexplained), and putting the guidance in the template's intro above the
+heading (it would no longer travel with the section).
+
+**2. `pendingConventions` ignores HTML comments.** Before deciding whether a
+body is a proposal, `isNone` strips `<!-- ... -->` spans (non-greedy, across
+lines). A section is pending on the same rule as today otherwise: after
+stripping comments and trimming, the body must be `None.` (or `-` /
+`ninguna`). This is what makes the shipped default archive, and it stays
+strict: a real proposal, in prose or as a bullet, is not a comment and still
+blocks. Discards: teaching the detector the exact placeholder sentence (the
+binary would carry a copy of the template's prose), and treating any
+"mostly empty" body as None.
+
+**3. Archive keeps naming the file and the first meaningful line.** The
+existing message (`<file>: <first line>`) is unchanged; when the body keeps a
+comment, the first line reported is the first non-comment, non-blank line, so
+the reader sees the actual proposal.
+
+### Interfaces other specs build against
+
+None. This is internal to `internal/cli` and one template; no public command
+or field changes.
+
+### Tests
+
+- `internal/cli/cli_test.go`: a spec whose `tasks.md` is the shipped template
+  (read through `kit.Template("tasks")` or `forge template tasks`) archives
+  successfully.
+- The existing test that a real proposal (`Errors use an envelope.`) blocks
+  archiving still passes, and the reported line is the proposal, not a
+  comment.
+
+### Out of scope of this contract
+
+- Moving any other section's template prose.
+- Changing when `forge archive` refuses for any reason other than a pending
+  convention section.
 
 ## History
 
 Written by `forge`. Do not edit by hand.
+- 2026-09-20  accepted  by TheJisus28
+- 2026-09-20  specifying  by TheJisus28
+- 2026-09-20  awaiting-approval  by orchestrator
+- 2026-09-20  planning  by TheJisus28
+- 2026-09-20  implementing  by orchestrator
+- 2026-09-20  reviewing  by orchestrator
+- 2026-09-20  implementing  by orchestrator: review found doc.Section reads a ## heading inside a fenced code block, so the contract's own example blocked archive
+- 2026-09-20  reviewing  by orchestrator: fixed doc.Section reading headings inside code fences
+- 2026-09-20  done  by orchestrator: archived
