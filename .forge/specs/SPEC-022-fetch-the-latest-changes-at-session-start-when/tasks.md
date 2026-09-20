@@ -58,9 +58,4 @@ the task that moves it; `forge check` reads these ids from this file.
 
 ## Proposed conventions
 
-- When a warning must accompany a single text that also feeds a machine
-  payload, prepend `warning: ...\n` to the text instead of writing it
-  separately, so the human and the hook see identical content and the JSON
-  stays one line (SPEC-022, decision 6). `cmdBrief` is the first case; the
-  cli-output convention already fixes the `warning: ` prefix and exit 0, only
-  the join was undecided.
+None.
