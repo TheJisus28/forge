@@ -61,8 +61,8 @@ history line. `--to done` is refused: that is what `archive` is for.
 
 Closes a spec that passed review. Marks the spec `done` and keeps its folder
 as the durable record, and reports whether the parent can now be closed.
-Refuses if the spec folder has no `review.md` or
-if the scaffolding still proposes conventions nobody decided.
+Refuses if the spec folder has no `review.md` or if `tasks.md` or `review.md`
+still propose conventions nobody decided.
 
 ### `forge renumber <id> [--to N]`
 

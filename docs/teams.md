@@ -36,11 +36,10 @@ forge start SPEC-005
 git checkout -b spec/005-export-invoices
 ```
 
-The branch holds the contract and the scaffolding in
-`.forge/specs/SPEC-005/`.
-A teammate who checks it out sees the plan, what each phase did and what the
-review found. That is the point of keeping it in the branch instead of on
-someone's laptop.
+The branch holds the spec folder `.forge/specs/SPEC-005-export-invoices/`,
+with the contract, the plan, the tasks and the review. A teammate who checks
+it out sees what each phase did and what the review found. That is the point
+of keeping it in the branch instead of on someone's laptop.
 
 Open the pull request **early, with the contract and no code**. It is the
 cheapest moment to disagree.
@@ -75,9 +74,9 @@ recording it on the spec. It never merges: a person reviews and merges on
 GitHub. Without `gh` it prints the `git push` and `gh pr create` commands
 instead of failing.
 
-Archive refuses if the scaffolding still proposes conventions nobody
-decided. Decide them first: that is how the project accumulates criteria
-instead of losing it.
+Archive refuses if the spec still proposes conventions nobody decided.
+Decide them first: that is how the project accumulates criteria instead of
+losing it.
 
 The pull request that lands in main contains the code, the spec folder with
 its contract, plan, tasks and review, any new decisions and conventions, and
