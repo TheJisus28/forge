@@ -1,9 +1,10 @@
 // Forge guard for opencode.
 //
 // opencode has no PreToolUse hook, so the equivalent of the Claude Code
-// guard is a plugin: before opencode writes to a file, ask `forge guard`
-// whether a spec is in `implementing`. `forge guard --file <path>` exits 1
-// and prints the reason when the edit must be denied.
+// guard is a plugin: before opencode writes to a file or runs a shell
+// command, ask `forge guard`. `forge guard --file <path>` and
+// `forge guard --command <cmd>` exit 1 and print the reason when the action
+// must be denied.
 //
 // The rule itself lives in the Go binary, so this file is only an adapter.
 // Set `guard: off` in .forge/project.md, or re-run `forge init --no-guard`,
@@ -28,23 +29,33 @@ function patchPaths(text) {
   return out;
 }
 
+function throwIfDenied(result) {
+  if (result.exitCode === 0) return;
+  const reason =
+    (result.stderr && result.stderr.toString().trim()) ||
+    (result.stdout && result.stdout.toString().trim()) ||
+    "Forge: blocked by the guard.";
+  throw new Error(reason);
+}
+
 export const ForgeGuard = async ({ $, directory }) => {
   return {
     "tool.execute.before": async (input, output) => {
+      if (input.tool === "bash") {
+        const command = output.args && output.args.command;
+        if (!command) return;
+        throwIfDenied(
+          await $`forge guard --command ${command}`.cwd(directory).nothrow().quiet()
+        );
+        return;
+      }
       const files = EDIT_TOOLS[input.tool];
       if (!files) return;
       for (const file of files(output.args)) {
         if (!file) continue;
-        const result = await $`forge guard --file ${file}`
-          .cwd(directory)
-          .nothrow()
-          .quiet();
-        if (result.exitCode === 0) continue;
-        const reason =
-          (result.stderr && result.stderr.toString().trim()) ||
-          (result.stdout && result.stdout.toString().trim()) ||
-          "Forge: no product code without a spec in implementing.";
-        throw new Error(reason);
+        throwIfDenied(
+          await $`forge guard --file ${file}`.cwd(directory).nothrow().quiet()
+        );
       }
     },
   };

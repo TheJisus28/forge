@@ -28,7 +28,6 @@ const usage = `forge — spec-driven agentic development, in files you own
 
   forge status [id]             what is open, who is waiting, what blocks
   forge brief                   the short state an agent reads at session start
-  forge board                   regenerate .forge/BOARD.md
   forge validate                exit 1 when the project is inconsistent
   forge sync [id]               read the pull request state through gh
   forge renumber <id>           resolve a duplicate id
@@ -73,8 +72,6 @@ func Main(args []string, stdout, stderr io.Writer) int {
 		err = cmdStatus(rest, stdout)
 	case "brief":
 		err = cmdBrief(rest, stdout)
-	case "board":
-		err = cmdBoard(rest, stdout)
 	case "validate":
 		return cmdValidate(rest, stdout, stderr)
 	case "sync":

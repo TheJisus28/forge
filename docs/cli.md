@@ -49,8 +49,10 @@ and prints the branch to create.
 
 ### `forge approve <id> [--by <you>] [--note ...]`
 
-The contract is right; code can start. Requires a non-empty `## Contract`,
-stores its fingerprint, and reports which specs it unblocks.
+The contract is right; code can start. Requires a non-empty `## Contract`
+and refuses while `## Open questions` lists a question, so questions are
+settled before approval. Stores the contract fingerprint and reports which
+specs it unblocks.
 
 ### `forge advance <id> --to <state> [--by ...] [--note ...]`
 
@@ -73,21 +75,21 @@ Resolves a duplicate id. Refuses once anything points at the spec.
 ### `forge status [id] [--fetch]`
 
 Without an id: the tree of specs with coverage, blockers and who is waiting.
-With an id: the full detail of one spec. `--fetch` runs `git fetch` first.
+With an id: the full detail of one spec, including task progress as
+`tasks done/total` read from its `tasks.md`. `--fetch` runs `git fetch`
+first.
 
 ### `forge brief [--json]`
 
-The short state an agent reads at the start of a session. `--json` emits the
-Claude Code `SessionStart` payload. In a repository without Forge it prints
-nothing and succeeds, so the hook is harmless everywhere.
+The short state an agent reads at the start of a session. It shows the
+current spec's task progress as `tasks done/total`, read from its
+`tasks.md`. `--json` emits the Claude Code `SessionStart` payload. In a
+repository without Forge it prints nothing and succeeds, so the hook is
+harmless everywhere.
 
 It lists the most recent five `done` specs, so a session knows what already
 exists without the context growing with every closed spec; `forge status`
 shows the whole list and is the place to drill down.
-
-### `forge board [--print]`
-
-Regenerates `.forge/BOARD.md`, which is gitignored on purpose.
 
 ## CI and integration
 
@@ -99,16 +101,21 @@ cycles, uncovered promises once a child closes, and contract drift. It
 does not check who accepted or approved anything: Forge has no
 authorization model to enforce.
 
-### `forge guard [--explain] [--file path]`
+### `forge guard [--explain] [--file path] [--command <cmd>]`
 
-The `PreToolUse` hook. Reads the payload on stdin and denies edits to
-product code while no spec is `implementing`, explaining how to unblock.
-Silence means no decision, so the normal permission flow continues.
+The `PreToolUse` hook, matched on `Write|Edit|Bash`. Reads the payload on
+stdin and denies edits to product code while no spec is `implementing`, and
+denies commands that would land on the default branch: `gh pr merge`, and
+any `git push` or `git merge` targeting `main` or `master`. The rule is that
+a person merges the pull request; the agent never pushes or merges into the
+default branch. It explains how to unblock. Silence means no decision, so
+the normal permission flow continues.
 
-With `--file` and no `--explain` it is hook-free: it decides for that one
-path, prints the reason and exits 1 when the edit must be denied, so any
-agent can call it. This is what the opencode plugin uses. `--explain` never
-exits 1: it prints `would deny` or `would allow` for a human.
+With `--file` or `--command` and no `--explain` it is hook-free: it decides
+for that one path or command, prints the reason and exits 1 when it must be
+denied, so any agent can call it. This is what the opencode plugin uses.
+`--explain` never exits 1: it prints `would deny` or `would allow` for a
+human.
 
 ### `forge submit [id] [--base <branch>] [--dry-run]`
 

@@ -10,8 +10,6 @@ unlikely rather than politely avoided.
   the same file.
 - One file per decision, because a shared log would collide on every merge.
 - Coverage declared by children, so a parent is never rewritten.
-- `BOARD.md` is generated and gitignored: a projection cannot go stale if
-  it is never stored.
 
 ## Intake
 
@@ -72,7 +70,9 @@ forge submit SPEC-005
 `forge submit` pushes the branch and opens the pull request through `gh`,
 recording it on the spec. It never merges: a person reviews and merges on
 GitHub. Without `gh` it prints the `git push` and `gh pr create` commands
-instead of failing.
+instead of failing. `forge guard` denies `gh pr merge` and any `git push`
+or `git merge` that lands on the default branch, so the pull request is the
+only way in.
 
 Archive refuses if the spec still proposes conventions nobody decided.
 Decide them first: that is how the project accumulates criteria instead of

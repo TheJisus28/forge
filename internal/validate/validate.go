@@ -70,6 +70,13 @@ func Run(p *project.Project) []Finding {
 		}
 		checkRelations(p, s, add)
 		checkArtifacts(p, s, add)
+		if s.HasOpenQuestions() {
+			q := s.OpenQuestions()
+			if i := strings.IndexByte(q, '\n'); i > 0 {
+				q = q[:i]
+			}
+			add(Warning, s.ID, "has open questions: %s", strings.TrimSpace(q))
+		}
 	}
 
 	for _, s := range p.Specs {

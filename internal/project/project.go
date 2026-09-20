@@ -80,6 +80,26 @@ func (s *Spec) PlanPath() string   { return filepath.Join(s.Dir(), "plan.md") }
 func (s *Spec) TasksPath() string  { return filepath.Join(s.Dir(), "tasks.md") }
 func (s *Spec) ReviewPath() string { return filepath.Join(s.Dir(), "review.md") }
 
+// TaskProgress counts the checked and total checkbox tasks in tasks.md. Both
+// are zero when the file has no tasks yet.
+func (s *Spec) TaskProgress() (done, total int) {
+	data, err := os.ReadFile(s.TasksPath())
+	if err != nil {
+		return 0, 0
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		l := strings.TrimSpace(line)
+		if !strings.HasPrefix(l, "- [") || len(l) < 5 || l[4] != ']' {
+			continue
+		}
+		total++
+		if l[3] == 'x' || l[3] == 'X' {
+			done++
+		}
+	}
+	return done, total
+}
+
 // Project is a loaded .forge directory.
 type Project struct {
 	Root   string // repository root
@@ -289,6 +309,32 @@ func (s *Spec) Contract() string {
 		return c
 	}
 	return s.doc.Section("Contrato")
+}
+
+// OpenQuestions returns the section that must be settled before the contract
+// is approved, empty when it is not written.
+func (s *Spec) OpenQuestions() string {
+	if q := s.doc.Section("Open questions"); q != "" {
+		return q
+	}
+	return s.doc.Section("Preguntas abiertas")
+}
+
+// HasOpenQuestions reports whether the spec still lists an unanswered
+// question. Questions are list items; prose and `None.` are not.
+func (s *Spec) HasOpenQuestions() bool {
+	for _, line := range strings.Split(s.OpenQuestions(), "\n") {
+		l := strings.TrimSpace(line)
+		if !strings.HasPrefix(l, "-") {
+			continue
+		}
+		switch strings.ToLower(strings.TrimSpace(strings.TrimPrefix(l, "-"))) {
+		case "", "none", "none.", "ninguna", "ninguna.", "-":
+			continue
+		}
+		return true
+	}
+	return false
 }
 
 // ContractChanged reports whether the contract was edited after approval.

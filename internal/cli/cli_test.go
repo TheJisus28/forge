@@ -99,7 +99,6 @@ func TestInit_PlantsTheKitAndKeepsYourContent(t *testing.T) {
 		".claude/agents/forge-implementer.md", ".claude/skills/forge-onboard/SKILL.md",
 		".claude/settings.json",
 		".opencode/agents/forge-implementer.md", ".opencode/plugins/forge-guard.js",
-		".gitignore",
 	} {
 		if _, err := os.Stat(filepath.Join(dir, rel)); err != nil {
 			t.Errorf("missing %s", rel)
@@ -110,13 +109,12 @@ func TestInit_PlantsTheKitAndKeepsYourContent(t *testing.T) {
 	}
 
 	settings := read(t, filepath.Join(dir, ".claude", "settings.json"))
-	for _, want := range []string{"SessionStart", "forge brief --json", "PreToolUse", "forge guard"} {
+	for _, want := range []string{
+		"SessionStart", "forge brief --json", "PreToolUse", "Write|Edit|Bash", "forge guard",
+	} {
 		if !strings.Contains(settings, want) {
 			t.Errorf("settings.json missing %q:\n%s", want, settings)
 		}
-	}
-	if !strings.Contains(read(t, filepath.Join(dir, ".gitignore")), ".forge/BOARD.md") {
-		t.Error("the generated board should be gitignored")
 	}
 
 	// The project's own memory survives a second init and an update.
@@ -382,13 +380,57 @@ func TestGuardFileMode(t *testing.T) {
 	}
 }
 
-func TestBoardIsGeneratedAndDisposable(t *testing.T) {
+// The guard also refuses what would land on the default branch.
+func TestGuardCommand(t *testing.T) {
 	dir := newRepo(t)
-	mustRun(t, dir, "new", "Something")
-	mustRun(t, dir, "board")
-	board := read(t, filepath.Join(dir, ".forge", "BOARD.md"))
-	if !strings.Contains(board, "SPEC-001") || !strings.Contains(board, "Do not edit by hand") {
-		t.Errorf("board:\n%s", board)
+
+	for _, cmd := range []string{
+		"gh pr merge 3", "git push origin main", "git push origin HEAD:master",
+	} {
+		if out, code := run(t, dir, "guard", "--command", cmd); code == 0 {
+			t.Errorf("%q should be denied: %s", cmd, out)
+		}
+	}
+	for _, cmd := range []string{
+		"go test ./...", "git push -u origin spec/004-x", "git push origin feature/main", "git status",
+	} {
+		if out, code := run(t, dir, "guard", "--command", cmd); code != 0 {
+			t.Errorf("%q should be allowed: %s", cmd, out)
+		}
+	}
+}
+
+// Open questions block the contract: a design built on them is the mistake.
+func TestApprove_RefusesOpenQuestions(t *testing.T) {
+	dir := newRepo(t)
+	mustRun(t, dir, "new", "Thing")
+	mustRun(t, dir, "accept", "SPEC-001", "--by", "ana")
+	mustRun(t, dir, "start", "SPEC-001", "--by", "ana")
+
+	spec := filepath.Join(dir, ".forge", "specs", "SPEC-001-thing", "spec.md")
+	body := read(t, spec)
+	write(t, spec, strings.Replace(body, "## Open questions\n",
+		"## Open questions\n\n- OQ1: which store?\n", 1))
+
+	mustRun(t, dir, "advance", "SPEC-001", "--to", "awaiting-approval", "--by", "ana")
+	if out, code := run(t, dir, "approve", "SPEC-001", "--by", "ana"); code == 0 {
+		t.Fatalf("approve should refuse while questions are open: %s", out)
+	}
+}
+
+// The detail shows how far the tasks have gone, straight from tasks.md.
+func TestStatusShowsTaskProgress(t *testing.T) {
+	dir := newRepo(t)
+	mustRun(t, dir, "new", "Thing")
+	mustRun(t, dir, "accept", "SPEC-001", "--by", "ana")
+	mustRun(t, dir, "start", "SPEC-001", "--by", "ana")
+
+	write(t, filepath.Join(dir, ".forge", "specs", "SPEC-001-thing", "tasks.md"),
+		"# Tasks\n\n- [x] Phase 1\n- [ ] Phase 2\n")
+
+	out := mustRun(t, dir, "status", "SPEC-001")
+	if !strings.Contains(out, "tasks") || !strings.Contains(out, "1/2") {
+		t.Errorf("status should show task progress:\n%s", out)
 	}
 }
 

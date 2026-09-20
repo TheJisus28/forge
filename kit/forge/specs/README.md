@@ -1,8 +1,8 @@
 # specs
 
-One folder per unit of work, in any state. This folder is the backlog, the
-board and the archive at once: what state a spec is in is written in its
-frontmatter, not in which folder it sits.
+One folder per unit of work, in any state. This folder is the backlog and
+the archive at once: what state a spec is in is written in its frontmatter,
+not in which folder it sits.
 
 - One folder per spec, created by `forge new`:
   `.forge/specs/SPEC-004-short-slug/`, with four files: `spec.md` (problem,

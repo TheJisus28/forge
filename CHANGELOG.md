@@ -40,6 +40,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Removed `forge board` and `.forge/BOARD.md`; `forge init` no longer touches
+  `.gitignore`, and everything the board showed is in `forge status`.
+- `forge guard` now guards shell commands too: it denies `gh pr merge` and any
+  `git push` or `git merge` that lands on the default branch (`main` or
+  `master`). It runs hook-free with `forge guard --command "<cmd>"`, and from
+  the Claude `PreToolUse` hook (matcher `Write|Edit|Bash`) and the opencode
+  plugin. A person merges the pull request; the agent never pushes or merges
+  into the default branch.
+- `forge approve` refuses while the spec's `## Open questions` section lists a
+  question and `forge validate` warns; `forge brief` and `forge status <id>`
+  show task progress as `tasks done/total` read from the spec's `tasks.md`.
 - Specs now live in a folder per spec, `.forge/specs/SPEC-NNN-slug/`, with the
   standard `spec.md`, `plan.md`, `tasks.md` and `review.md`. `wip/` and
   `changes.md` are gone, and `forge archive` keeps the folder as the durable
