@@ -51,6 +51,26 @@ later spec knows what exists without reading the diff.
   `planning`/`dropped`, and none at any state without `## Existing state`).
   Verified: `go test ./...` all `ok`; `gofmt -l .` empty; `go vet ./...`
   clean; `go test ./internal/project/ -run TestCriterionGaps -v` both PASS.
+  Fix (review residual risk #1, closed in this phase): `doc.Section` keeps
+  HTML comments, so a hand-written `<!-- AC1 ... -->` inside
+  `## Acceptance criteria`, or a commented `AC1` in `tasks.md`, read as
+  coverage and `forge check` exited 0 for a spec that had none. `internal/doc`
+  gains the exported `StripComments` — the one regex, moved from
+  `internal/cli/work.go`'s local `stripComments`/`commentRe`, which now
+  delegates — and `CriterionGaps` strips comments from the `tasks.md` text and
+  from the `## Acceptance criteria` section before matching. Tests:
+  `internal/doc/doc_test.go:TestStripComments` (inline and multiline removed,
+  text outside kept, a `<--` typo and an unterminated comment left alone);
+  `internal/project/project_test.go:TestCriterionGaps_IgnoresCommentedTokens`
+  (a commented `AC1` is neither a task nor evidence; a real line after the
+  comment still counts); `internal/cli/cli_test.go`:
+  `TestCheck_CommentedEvidenceIsNotCoverage` (a `done` spec whose only evidence
+  is commented prints `AC1 has no evidence` and exits 1) and
+  `TestCheck_TemplateReviewLeavesCriterionUncovered` (the real `forge template
+  review` output still reports `AC1` uncovered). Verified: `go test ./...` all
+  `ok`; `gofmt -l .` empty; `go vet ./...` clean; the new tests pass with `-v`;
+  `go run . validate` and `go run . check` unchanged (five SPEC-015 task
+  warnings, exit 0).
 - [x] Phase 3 — `forge check`. Moves: AC2, AC3. Where: `internal/cli/check.go`
   (new), `internal/cli/cli.go`; tests in `internal/cli/cli_test.go`.
   Landed: `cmdCheck(args []string, out, errOut io.Writer) int`, dispatched
@@ -172,41 +192,45 @@ later spec knows what exists without reading the diff.
   0; `go run . validate` prints five warnings and exits 0; `go run .
   template tasks` shows `Moves: <criterion ids>`, `go run . template
   review` shows the commented `ACn` example.
+- [x] Post-review fix — a criterion id is read only from comment-stripped,
+  whole-token artifacts. Landed: `internal/doc/doc.go` exports
+  `StripComments` (the one HTML-comment regex); `Spec.CriterionGaps` strips
+  comments from the whole `tasks.md` text and from the review's
+  `## Acceptance criteria` section before matching; `internal/cli/work.go`'s
+  local `stripComments`/`commentRe` is gone and delegates to `doc.StripComments`,
+  so the archive gate and coverage share one rule. The matcher is `hasToken`
+  (`internal/project/project.go`): it tokenizes with `[0-9A-Za-z_-]+` and
+  compares with `strings.EqualFold`, replacing `acTokenRe`, so `AC1-`, `AC10`
+  and `AC1x` stay single tokens that never equal `AC1`. Wired into
+  `CriterionGaps` for both `tasks.md` and the review section.
+  Contract finding: decision 3's rationale for the tokenizer — "Go's
+  `FindAll` ... consumes the trailing delimiter, so in `AC1 AC2` or
+  `AC1,AC2` the second id is missed" — does not describe this code.
+  `CriterionGaps` builds one `acTokenRe(c.ID)` per criterion and calls
+  `MatchString`, never `FindAll`, so the old regex already matched both ids
+  in `AC1 AC2` and `AC1,AC2`. Reproduced by temporarily restoring the old
+  matcher: `TestCriterionGaps_MatchesBoundedTokens` passes. The tokenizer was
+  still adopted because the contract asks for it; it is behaviour-equivalent
+  and no user-visible behaviour changes.
+  Tests: `internal/doc/doc_test.go:TestStripComments`; `internal/project/
+  project_test.go:TestCriterionGaps_IgnoresCommentedTokens` and the extended
+  `TestCriterionGaps_MatchesBoundedTokens` (space and comma adjacency, the
+  `AC1-`/`AC10` negatives, file paths); `internal/cli/cli_test.go`:
+  `TestCheck_CommentedEvidenceIsNotCoverage`,
+  `TestCheck_TemplateReviewLeavesCriterionUncovered`.
+  Verified: `go test ./...` all `ok`; `gofmt -l .` empty; `go vet ./...`
+  clean. Exit-code comparison, pre-fix (this change stashed) vs post-fix:
+  both `go run . validate` → the same five
+  `warning SPEC-015: ACn has no task in .../tasks.md` lines, exit 0; both
+  `go run . check` → the same five lines, exit 0; `go run . check <id>` for
+  SPEC-001..SPEC-015, SPEC-018, SPEC-019 → exit 0 (SPEC-001..014, 018 and 019
+  print `1 specs checked, every criterion is covered`; SPEC-015 prints its
+  five task-gap lines). No delivered spec's lines or exit code changed.
 
 ## Proposed conventions
 
-- **A bounded id token must exclude `-` as well as word characters.**
-  Go's `\b` matches `AC1` inside `AC1-` (a hyphen is not a word character),
-  so `acTokenRe` uses `(?:^|[^0-9A-Za-z_-])` on each side instead of `\b`.
-  A later matcher of ids in artifacts should reuse that boundary rather than
-  write `\b<id>\b`, which would silently accept `AC1-`.
-- **A command that owns an exit code takes `errOut` and prints its own
-  failure, instead of returning the error to `Main`.** `cmdValidate` is the
-  precedent and `cmdCheck` follows it: a command that returns `int` has no
-  way to reach `Main`'s `forge: ...` handler, so it writes `forge: ...` to a
-  separate `errOut io.Writer` and returns 1 itself. That keeps the test seam
-  working — `Main`'s `stderr` argument is what a test replaces — rather than
-  writing to `os.Stderr` directly. A later `int`-returning command should
-  take `(args []string, out, errOut io.Writer) int`.
-- **A `validate` rule that judges a spec's artifacts delegates the
-  derivation and only assigns severity.** `checkCriteriaCoverage` does not
-  re-read `tasks.md` or `review.md`: it calls `project.Spec.CriterionGaps()`
-  and maps each gap to a `Finding`, so the token matcher and the state table
-  live in one place (the same single-source rule SPEC-018 enforced for the
-  workflow). A later rule over the same artifacts should reuse the
-  `internal/project` derivation rather than grow a second reader.
-- **A shipped template carries a placeholder that cannot match the token the
-  CLI derives from the file.** `review.md`/`tasks.md` write `ACn` and
-  `<criterion ids>` because a literal `AC1` in a copied file reads as covered
-  by `forge check` even when the author edits nothing —
-  `TestTemplates_CarryNoRealCriterionId` enforces it for both. This is
-  SPEC-019's "comment out the example" principle generalized: every example a
-  template ships must be inert to every reader, not just to `forge archive`.
-  A declaration that is *supposed* to be real (`spec.md`'s `- AC1: ...`) is
-  the exception, and its cost is that a test cannot scan the whole template
-  set for the token.
-- **A docs test scopes to the command's section and asserts stable anchors,
-  not whole sentences.** `TestDocPages_DocumentTheCriterionRule` uses
-  `docsSection` and checks the command name, the two gap words and
-  `verifiable`; the wording around them can change without breaking the
-  test, and a missing section fails loudly.
+None.
+
+<!-- Decided 2026-09-20 by TheJisus28: recorded 0 (coverage strips comments),
+2 (whole-token id matching) and 3 (validate delegates derivation) in
+.forge/conventions/{coverage,parsing,architecture}.md; dropped 1, 4 and 5. -->
