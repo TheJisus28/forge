@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -29,11 +30,37 @@ func SpecIDFromBranch(branch string) string {
 	return ""
 }
 
-// RemoteSpecIDs returns the spec ids committed under `.forge/specs` on a git
-// ref, or nothing when that ref does not exist. Nothing is fetched: only refs
-// already present are read, because the network belongs to git and fetching is
-// the user's call (SPEC-015, decision 7).
-func RemoteSpecIDs(root, ref string) []string {
+// SpecRef is one spec folder on a git ref: its id and the `SPEC-NNN-slug`
+// folder that carries it. The folder is the identity — the same id under a
+// different folder is a different spec (SPEC-023, decision 1).
+type SpecRef struct {
+	ID  string
+	Dir string
+}
+
+// RemoteRefs returns every remote-tracking ref, or nothing outside a
+// repository. One git call reads the refs git already has; nothing is fetched
+// (SPEC-023, decision 2).
+func RemoteRefs(root string) []string {
+	out, err := run(root, "git", "for-each-ref", "--format=%(refname)", "refs/remotes/")
+	if err != nil {
+		return nil
+	}
+	var refs []string
+	for _, line := range strings.Split(out, "\n") {
+		if line = strings.TrimSpace(line); line != "" {
+			refs = append(refs, line)
+		}
+	}
+	sort.Strings(refs)
+	return refs
+}
+
+// RemoteSpecDirs returns the `SPEC-NNN-slug` folders under `.forge/specs/` on
+// a git ref, deduped and sorted. A ref that is not there, or carries no spec,
+// yields nothing. Nothing is fetched: only refs already present are read
+// (SPEC-023, decision 2).
+func RemoteSpecDirs(root, ref string) []string {
 	ref = strings.TrimSpace(ref)
 	if ref == "" {
 		return nil
@@ -42,25 +69,91 @@ func RemoteSpecIDs(root, ref string) []string {
 	if err != nil {
 		return nil
 	}
-	var ids []string
+	seen := map[string]bool{}
+	var dirs []string
 	for _, line := range strings.Split(out, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		// A folder is `SPEC-NNN-slug`; the id is the first two dash-separated
-		// parts, normalised the same way every other id is.
-		parts := strings.SplitN(filepath.Base(line), "-", 3)
-		if len(parts) < 2 {
+		base := filepath.Base(line)
+		if dirID(base) == "" || seen[base] {
 			continue
 		}
-		id := NormalizeID(parts[0] + "-" + parts[1])
-		if !idRe.MatchString(id) {
+		seen[base] = true
+		dirs = append(dirs, base)
+	}
+	sort.Strings(dirs)
+	return dirs
+}
+
+// dirID reads the normalised id out of a `SPEC-NNN-slug` folder name, or "".
+func dirID(dir string) string {
+	parts := strings.SplitN(dir, "-", 3)
+	if len(parts) < 2 {
+		return ""
+	}
+	id := NormalizeID(parts[0] + "-" + parts[1])
+	if !idRe.MatchString(id) {
+		return ""
+	}
+	return id
+}
+
+// RemoteSpecIDs returns the spec ids committed under `.forge/specs` on a git
+// ref, or nothing when that ref does not exist. It is the id view over
+// RemoteSpecDirs; nothing is fetched (SPEC-015, decision 7).
+func RemoteSpecIDs(root, ref string) []string {
+	var ids []string
+	seen := map[string]bool{}
+	for _, dir := range RemoteSpecDirs(root, ref) {
+		id := dirID(dir)
+		if id == "" || seen[id] {
 			continue
 		}
+		seen[id] = true
 		ids = append(ids, id)
 	}
 	return ids
+}
+
+// RemoteSpecRefs returns every spec folder on every remote-tracking ref,
+// deduped by folder. It never falls back to a local branch: `forge new` uses
+// it so a branch keeps minting its provisional number while `forge accept`
+// does the confirming (SPEC-023, decision 1). Nothing is fetched.
+func RemoteSpecRefs(root string) []SpecRef {
+	return collectSpecRefs(root, RemoteRefs(root))
+}
+
+// SharedSpecRefs returns the spec folders the id confirmation reads: every
+// remote-tracking ref, or the local `main` ref when no remote-tracking ref
+// carries a spec, so a repository with no remote keeps the SPEC-015
+// behaviour. A missing ref yields nothing and never fails. Nothing is fetched
+// (SPEC-023, decisions 2, 3 and 8).
+func SharedSpecRefs(root string) []SpecRef {
+	out := RemoteSpecRefs(root)
+	if len(out) == 0 {
+		out = collectSpecRefs(root, []string{"main"})
+	}
+	return out
+}
+
+// collectSpecRefs unions the spec folders on refs, deduped by folder and
+// sorted.
+func collectSpecRefs(root string, refs []string) []SpecRef {
+	seen := map[string]bool{}
+	var out []SpecRef
+	for _, ref := range refs {
+		for _, dir := range RemoteSpecDirs(root, ref) {
+			if seen[dir] {
+				continue
+			}
+			seen[dir] = true
+			out = append(out, SpecRef{ID: dirID(dir), Dir: dir})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Dir < out[j].Dir })
+	return out
 }
 
 // HasGitHubRemote reports whether any configured remote points at GitHub. It

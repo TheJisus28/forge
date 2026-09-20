@@ -438,6 +438,158 @@ func TestRenumber_ResolvesTheRace(t *testing.T) {
 	}
 }
 
+// bareOriginRepo returns an initialized, onboarded repository wired to a local
+// bare origin, checked out on main, plus the origin path. The remote is a
+// directory, so no test touches the network (SPEC-023, the Risks note).
+func bareOriginRepo(t *testing.T) (dir, origin string) {
+	t.Helper()
+	origin = filepath.Join(t.TempDir(), "origin.git")
+	runGit(t, filepath.Dir(origin), "init", "--bare", origin)
+
+	dir = t.TempDir()
+	runGit(t, dir, "init")
+	runGit(t, dir, "config", "user.email", "t@example.com")
+	runGit(t, dir, "config", "user.name", "tester")
+	write(t, filepath.Join(dir, "README.md"), "root\n")
+	runGit(t, dir, "add", "-A")
+	runGit(t, dir, "commit", "-m", "root")
+	runGit(t, dir, "branch", "-M", "main")
+
+	mustRun(t, dir, "init")
+	write(t, filepath.Join(dir, ".forge", "project.md"), projectConfig)
+	runGit(t, dir, "add", "-A")
+	runGit(t, dir, "commit", "-m", "forge")
+	runGit(t, dir, "remote", "add", "origin", origin)
+	return dir, origin
+}
+
+// publishSpec writes a spec folder on a new branch, pushes it and returns to
+// main, so the remote carries the folder under .forge/specs without the
+// working tree seeing it.
+func publishSpec(t *testing.T, dir, branch, folder, id string) {
+	t.Helper()
+	runGit(t, dir, "checkout", "-b", branch)
+	write(t, filepath.Join(dir, ".forge", "specs", folder, "spec.md"),
+		"---\nid: "+id+"\ntitle: X\nstatus: proposed\ncapability: workflow\n---\n")
+	runGit(t, dir, "add", "-A")
+	runGit(t, dir, "commit", "-m", branch)
+	runGit(t, dir, "push", "-u", "origin", branch)
+	runGit(t, dir, "checkout", "main")
+}
+
+// pushSpecElsewhere publishes a spec branch to origin from a second
+// repository, so the caller's remote-tracking refs stay absent until a fetch.
+func pushSpecElsewhere(t *testing.T, origin, branch, folder, id string) {
+	t.Helper()
+	other := t.TempDir()
+	runGit(t, other, "init")
+	runGit(t, other, "config", "user.email", "t@example.com")
+	runGit(t, other, "config", "user.name", "tester")
+	write(t, filepath.Join(other, "README.md"), "root\n")
+	write(t, filepath.Join(other, ".forge", "specs", folder, "spec.md"),
+		"---\nid: "+id+"\ntitle: X\nstatus: proposed\ncapability: workflow\n---\n")
+	runGit(t, other, "add", "-A")
+	runGit(t, other, "commit", "-m", "root")
+	runGit(t, other, "branch", "-M", branch)
+	runGit(t, other, "remote", "add", "origin", origin)
+	runGit(t, other, "push", "-u", "origin", branch)
+}
+
+// The read covers every remote-tracking ref, not just spec/*: a number an
+// intake/* branch already pushed is skipped too (SPEC-023, AC1 and decision 2).
+func TestNew_SkipsIdsOnOtherBranches(t *testing.T) {
+	dir, _ := bareOriginRepo(t)
+	publishSpec(t, dir, "spec/030-elsewhere", "SPEC-030-elsewhere", "SPEC-030")
+	publishSpec(t, dir, "intake/spec-031-elsewhere", "SPEC-031-elsewhere", "SPEC-031")
+
+	out := mustRun(t, dir, "new", "Local", "--capability", "workflow")
+	if !strings.Contains(out, "SPEC-032") {
+		t.Errorf("new should skip the ids on the spec/* and intake/* refs:\n%s", out)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".forge", "specs", "SPEC-032-local", "spec.md")); err != nil {
+		t.Errorf("the new spec should be SPEC-032-local: %v", err)
+	}
+}
+
+// With no remote-tracking refs the read falls back to the local main ref and
+// never fetches: the refs and FETCH_HEAD are untouched (SPEC-023, AC2).
+func TestNew_NoRemoteBranchesStaysOffline(t *testing.T) {
+	dir, origin := bareOriginRepo(t)
+	write(t, filepath.Join(dir, ".forge", "project.md"),
+		strings.Replace(projectConfig, "guard: on\n", "guard: on\nfetch: on\n", 1))
+
+	// main carries a spec the branch under test does not; origin gets a branch
+	// from a second repository, so a fetch here would add remote-tracking refs.
+	write(t, filepath.Join(dir, ".forge", "specs", "SPEC-005-on-main", "spec.md"),
+		"---\nid: SPEC-005\ntitle: On main\nstatus: proposed\ncapability: workflow\n---\n")
+	runGit(t, dir, "add", "-A")
+	runGit(t, dir, "commit", "-m", "main spec")
+	pushSpecElsewhere(t, origin, "spec/050-elsewhere", "SPEC-050-elsewhere", "SPEC-050")
+
+	runGit(t, dir, "checkout", "-b", "spec/000-local")
+	if err := os.RemoveAll(filepath.Join(dir, ".forge", "specs", "SPEC-005-on-main")); err != nil {
+		t.Fatal(err)
+	}
+
+	before := gitOut(t, dir, "for-each-ref", "refs/remotes/")
+	out := mustRun(t, dir, "new", "Offline", "--capability", "workflow")
+	after := gitOut(t, dir, "for-each-ref", "refs/remotes/")
+
+	if before != after {
+		t.Errorf("new must not fetch: remote refs changed\nbefore: %q\nafter: %q", before, after)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".git", "FETCH_HEAD")); !os.IsNotExist(err) {
+		t.Errorf("new must not fetch: FETCH_HEAD exists (err = %v)", err)
+	}
+	if !strings.Contains(out, "SPEC-001") {
+		t.Errorf("new should number from the local tree when no remote ref is present:\n%s", out)
+	}
+	// The confirmation still falls back to the local main ref.
+	if moved := mustRun(t, dir, "renumber", "SPEC-001"); !strings.Contains(moved, "SPEC-006") {
+		t.Errorf("the wider read should fall back to main:\n%s", moved)
+	}
+}
+
+// The spec's own folder on its own published branch is the same spec, so
+// accepting keeps the id instead of renumbering it (SPEC-023, AC7 and
+// decision 1).
+func TestAccept_KeepsIdForItsOwnPublishedBranch(t *testing.T) {
+	dir, _ := bareOriginRepo(t)
+	mustRun(t, dir, "new", "Own branch", "--capability", "workflow")
+	runGit(t, dir, "checkout", "-b", "spec/001-own-branch")
+	runGit(t, dir, "add", "-A")
+	runGit(t, dir, "commit", "-m", "spec 001")
+	runGit(t, dir, "push", "-u", "origin", "spec/001-own-branch")
+
+	out := mustRun(t, dir, "accept", "SPEC-001", "--by", "ana")
+	if strings.Contains(out, "renumbered") || strings.Contains(out, "SPEC-002") {
+		t.Errorf("accept should keep the id of its own published branch:\n%s", out)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".forge", "specs", "SPEC-001-own-branch", "spec.md")); err != nil {
+		t.Errorf("the spec should keep its folder: %v", err)
+	}
+}
+
+// An explicit target is checked against the wider set: a number another folder
+// holds on a ref is refused and the spec does not move (SPEC-023, AC4 and
+// decision 6).
+func TestRenumber_ToRefusesTakenOnAnotherFolder(t *testing.T) {
+	dir, _ := bareOriginRepo(t)
+	publishSpec(t, dir, "spec/030-elsewhere", "SPEC-030-elsewhere", "SPEC-030")
+	mustRun(t, dir, "new", "Local", "--capability", "workflow")
+
+	out, code := run(t, dir, "renumber", "SPEC-031", "--to", "30")
+	if code == 0 || !strings.Contains(out, "SPEC-030") {
+		t.Fatalf("renumber --to should refuse a number held on another folder:\n%s", out)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".forge", "specs", "SPEC-031-local", "spec.md")); err != nil {
+		t.Errorf("the refused spec should not move: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".forge", "specs", "SPEC-030-local")); !os.IsNotExist(err) {
+		t.Errorf("the refused target must not exist (err = %v)", err)
+	}
+}
+
 // Without gh, or with --dry-run, submit prints the commands instead of
 // touching the network.
 func TestSubmit_DryRunPrintsCommands(t *testing.T) {
@@ -1355,6 +1507,25 @@ func TestDocs_DescribeCapability(t *testing.T) {
 	}
 	if !strings.Contains(string(doc), "--capability") {
 		t.Error("docs/cli.md should document --capability")
+	}
+}
+
+// The wider, best-effort id read is documented where a person looks: the
+// command pages and the workflow page name the remote refs, the manual fetch
+// and the residual windows (SPEC-023, AC5).
+func TestDocs_DescribeTheWiderIdRead(t *testing.T) {
+	for _, page := range []string{"../../docs/cli.md", "../../docs/workflow.md"} {
+		body := read(t, page)
+		for _, want := range []string{
+			"every remote-tracking ref",
+			"best-effort",
+			"`git fetch`",
+			"same title",
+		} {
+			if !strings.Contains(body, want) {
+				t.Errorf("%s should state %q about the id read", page, want)
+			}
+		}
 	}
 }
 

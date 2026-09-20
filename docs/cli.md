@@ -45,19 +45,29 @@ planted kit; refreshing the kit stays `forge update`.
 
 Creates a spec in `proposed` with the next free number, as
 `.forge/specs/<id-slug>/spec.md`. The number is provisional: `forge accept`
-confirms it against the ids already committed on `main`. `--capability` is
-required and must be a lowercase slug naming the part of the system the spec
-touches, such as `guard`; an undeclared name prints a warning and the spec
-is still created. `--covers` requires `--parent`, and fails if the parent
-does not declare those criteria.
+confirms it against the spec folders committed under `.forge/specs/` on
+every remote-tracking ref — every configured remote, whatever the branch is
+named — plus the local tree, and `forge new` skips a number a remote branch
+already holds on a different folder. The read is best-effort,
+not a reservation: a branch whose refs are not present locally, or two
+branches that mint the same number before either pushes, can still collide,
+and two specs with the same title share a folder and surface only as a git
+conflict at merge. Neither `forge new` nor `forge accept` fetches; in a
+repository with more than one person, run `git fetch` before `forge new` so
+the read sees the latest branches. `--capability` is required and must be a
+lowercase slug naming the part of the system the spec touches, such as
+`guard`; an undeclared name prints a warning and the spec is still created.
+`--covers` requires `--parent`, and fails if the parent does not declare those
+criteria.
 
 ### `forge accept <id> [--by <you>] [--note ...]`
 
 Into the queue, and the single gate. Confirms the provisional number against
-the ids committed on `origin/main` (or `main`), renumbers the spec when the
-number is taken, and records who accepted it. `--by` defaults to `git config
-user.name`. Anyone can run this; Forge has no list to check the handle
-against.
+the same wider set of spec folders, renumbers the spec when the number is held
+by a different folder, and records who accepted it. The spec's own folder on
+its own published branch is the same spec, never a collision, so accepting
+does not renumber it. `--by` defaults to `git config user.name`. Anyone can
+run this; Forge has no list to check the handle against.
 
 ### `forge start <id> [--by <you>] [--force]`
 
@@ -107,7 +117,9 @@ still propose conventions nobody decided.
 
 ### `forge renumber <id> [--to N]`
 
-Resolves a duplicate id. Refuses once anything points at the spec.
+Resolves a duplicate id. Refuses once anything points at the spec. With
+`--to N`, N is checked against the same wider set and refused when another
+folder already holds it.
 
 ### `forge migrate [--dry-run]`
 

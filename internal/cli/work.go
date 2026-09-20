@@ -47,8 +47,9 @@ func cmdNew(args []string, out io.Writer) error {
 		fmt.Fprintf(out, "warning: no existing spec declares the capability %q; creating it as a new one\n", cap)
 	}
 
+	free := freeNewNum(p, title, project.RemoteSpecRefs(p.Root))
 	s := &project.Spec{
-		ID:     project.FormatID(p.NextNum()),
+		ID:     project.FormatID(free),
 		Title:  title,
 		Status: workflow.Proposed,
 		Parent: project.NormalizeID(*parent),
@@ -133,17 +134,18 @@ func cmdAccept(args []string, out io.Writer) error {
 	if err := workflow.Check(s.Status, workflow.Accepted); err != nil {
 		return err
 	}
-	// The number forge new wrote is provisional: confirm it against the ids
-	// already committed on the shared branch before recording the acceptance
-	// (SPEC-015, decision 7).
-	remote := sharedSpecIDs(p.Root)
+	// The number forge new wrote is provisional: confirm it against the spec
+	// folders on every shared ref before recording the acceptance, keeping the
+	// id when the only match is this spec's own published branch
+	// (SPEC-015, decision 7; SPEC-023, decisions 1 and 9).
+	shared := project.SharedSpecRefs(p.Root)
 	was := s.ID
 	historyNote := *note
-	if idTaken(p, s, remote) {
+	if idTaken(p, s, shared) {
 		if len(referencesTo(p, s.ID)) > 0 {
 			return referencedError(p, s.ID)
 		}
-		if err := renumberSpec(p, s, nextFreeNum(p, remote)); err != nil {
+		if err := renumberSpec(p, s, nextFreeNum(p, shared)); err != nil {
 			return err
 		}
 		historyNote = fmt.Sprintf("renumbered from %s: taken on main", was)
@@ -383,9 +385,15 @@ func cmdRenumber(args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
+	shared := project.SharedSpecRefs(p.Root)
 	num := *to
 	if num == 0 {
-		num = p.NextNum()
+		num = nextFreeNum(p, shared)
+	} else {
+		id := project.FormatID(num)
+		if dirTaken(p, id, project.SpecDirName(id, s.Title), shared) {
+			return fmt.Errorf("%s is already held by another folder on a shared ref; pick another number", id)
+		}
 	}
 	old := s.ID
 	if len(referencesTo(p, old)) > 0 {
@@ -428,20 +436,43 @@ func referencedError(p *project.Project, id string) error {
 		"at a spec", id, strings.Join(referencesTo(p, id), ", "))
 }
 
-// sharedSpecIDs reads the ids committed on the shared branch, trying
-// origin/main and then main. A repository with neither keeps local numbering.
-func sharedSpecIDs(root string) []string {
-	if ids := project.RemoteSpecIDs(root, "origin/main"); len(ids) > 0 {
-		return ids
+// freeNewNum is the first number whose folder is not held by a different spec
+// on a shared ref or in the local tree. It starts above the highest id on
+// either side, so the common case costs no extra probe (SPEC-023, decision 1).
+func freeNewNum(p *project.Project, title string, shared []project.SpecRef) int {
+	for num := nextFreeNum(p, shared); ; num++ {
+		id := project.FormatID(num)
+		if !dirTaken(p, id, project.SpecDirName(id, title), shared) {
+			return num
+		}
 	}
-	return project.RemoteSpecIDs(root, "main")
 }
 
-// idTaken reports whether the spec's number is already used, either on the
-// shared branch or by another spec in the local tree.
-func idTaken(p *project.Project, s *project.Spec, remote []string) bool {
-	for _, id := range remote {
-		if id == s.ID {
+// dirTaken reports whether id is held by a different spec: another folder on a
+// shared ref, or another spec in the local tree. A shared folder equal to dir
+// is the spec itself, already published (SPEC-023, decision 1).
+func dirTaken(p *project.Project, id, dir string, shared []project.SpecRef) bool {
+	for _, ref := range shared {
+		if ref.ID == id && ref.Dir != dir {
+			return true
+		}
+	}
+	for _, other := range p.Specs {
+		if other.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+// idTaken reports whether the spec's number is held by a different spec:
+// another folder on a shared ref, or another spec in the local tree. The
+// spec's own folder on its own published branch is not a collision
+// (SPEC-023, decisions 1 and 9).
+func idTaken(p *project.Project, s *project.Spec, shared []project.SpecRef) bool {
+	own := filepath.Base(s.Dir())
+	for _, ref := range shared {
+		if ref.ID == s.ID && ref.Dir != own {
 			return true
 		}
 	}
@@ -454,11 +485,11 @@ func idTaken(p *project.Project, s *project.Spec, remote []string) bool {
 }
 
 // nextFreeNum is the next number over the union of the local tree and the ids
-// on the shared branch, so a renumbered spec cannot collide with either.
-func nextFreeNum(p *project.Project, remote []string) int {
+// on every shared ref, so a renumbered spec cannot collide with either.
+func nextFreeNum(p *project.Project, shared []project.SpecRef) int {
 	max := p.NextNum() - 1
-	for _, id := range remote {
-		if n, err := idNum(id); err == nil && n > max {
+	for _, ref := range shared {
+		if n, err := idNum(ref.ID); err == nil && n > max {
 			max = n
 		}
 	}
