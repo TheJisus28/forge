@@ -805,6 +805,102 @@ func TestGuard_DeniesForgeAcceptForAgents(t *testing.T) {
 	}
 }
 
+// The guard reports the contract phase by its current name whichever retired
+// name the frontmatter still carries, because the spec loads as `contracting`
+// and the denial names `forge approve` (SPEC-015, decision 6).
+func TestGuard_NamesContracting(t *testing.T) {
+	dir := newRepo(t)
+	runGit(t, dir, "init")
+	runGit(t, dir, "config", "user.email", "t@example.com")
+	runGit(t, dir, "config", "user.name", "T")
+	write(t, filepath.Join(dir, "README.md"), "# x\n")
+	runGit(t, dir, "add", "README.md")
+	runGit(t, dir, "commit", "-m", "init")
+	runGit(t, dir, "checkout", "-b", "spec/001-thing")
+
+	spec := filepath.Join(dir, ".forge", "specs", "SPEC-001-thing", "spec.md")
+	for _, status := range []string{"contracting", "specifying", "awaiting-approval"} {
+		write(t, spec, "---\nid: SPEC-001\ntitle: Thing\nstatus: "+status+
+			"\ncapability: workflow\n---\n\n## Contract\n\nGET /things\n")
+
+		out, code := run(t, dir, "guard", "--file", "src/x")
+		if code == 0 {
+			t.Fatalf("a %s spec should deny product code: %s", status, out)
+		}
+		if !strings.Contains(out, "contracting") || !strings.Contains(out, "forge approve") {
+			t.Errorf("the %s denial should name contracting and forge approve: %q", status, out)
+		}
+		if strings.Contains(out, "specifying") || strings.Contains(out, "awaiting-approval") {
+			t.Errorf("the %s denial should not name a retired state: %q", status, out)
+		}
+	}
+}
+
+// forge migrate rewrites the retired status scalars to contracting, leaves the
+// body including ## History byte-identical, writes nothing under --dry-run,
+// and reports a clean no-op on a second run (SPEC-015, decision 6).
+func TestMigrate_RewritesRetiredStatus(t *testing.T) {
+	dir := newRepo(t)
+
+	specBody := func(id, status string) string {
+		return "---\nid: " + id + "\ntitle: " + id + "\nstatus: " + status +
+			"\ncapability: workflow\n---\n\n## Problem\n\nSomething.\n\n" +
+			"## History\n\nWritten by `forge`. Do not edit by hand.\n" +
+			"- 2026-09-20  accepted  by ana\n" +
+			"- 2026-09-20  " + status + "  by ana\n"
+	}
+	specs := map[string]string{
+		filepath.Join(dir, ".forge", "specs", "SPEC-001-old", "spec.md"): "specifying",
+		filepath.Join(dir, ".forge", "specs", "SPEC-002-old", "spec.md"): "awaiting-approval",
+	}
+	for path, status := range specs {
+		id := strings.TrimSuffix(filepath.Base(filepath.Dir(path)), "-old")
+		write(t, path, specBody(id, status))
+	}
+
+	historyOf := func(path string) string {
+		body := read(t, path)
+		i := strings.Index(body, "## History")
+		if i < 0 {
+			t.Fatalf("%s has no History section:\n%s", path, body)
+		}
+		return body[i:]
+	}
+	beforeHistory := map[string]string{}
+	for path := range specs {
+		beforeHistory[path] = historyOf(path)
+	}
+
+	before := tree(t, filepath.Join(dir, ".forge"))
+	out := mustRun(t, dir, "migrate", "--dry-run")
+	for path := range specs {
+		rel, _ := filepath.Rel(dir, path)
+		if !strings.Contains(out, filepath.ToSlash(rel)) {
+			t.Errorf("--dry-run should list %s:\n%s", rel, out)
+		}
+	}
+	if after := tree(t, filepath.Join(dir, ".forge")); after != before {
+		t.Errorf("forge migrate --dry-run wrote to .forge:\nbefore:\n%s\nafter:\n%s", before, after)
+	}
+
+	mustRun(t, dir, "migrate")
+	for path := range specs {
+		got := read(t, path)
+		if !strings.Contains(got, "status: contracting") {
+			t.Errorf("%s should say contracting:\n%s", path, got)
+		}
+		if historyOf(path) != beforeHistory[path] {
+			t.Errorf("%s rewrote ## History:\nbefore:\n%s\nafter:\n%s",
+				path, beforeHistory[path], historyOf(path))
+		}
+	}
+
+	out = mustRun(t, dir, "migrate")
+	if !strings.Contains(out, "nothing to migrate") {
+		t.Errorf("a current tree should print nothing to migrate: %q", out)
+	}
+}
+
 // Open questions block the contract: a design built on them is the mistake.
 func TestApprove_RefusesOpenQuestions(t *testing.T) {
 	dir := newRepo(t)

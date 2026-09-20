@@ -56,9 +56,37 @@ what exists without reading the diff.
   workflow` in a scratch repo prints `forge accept SPEC-001` and no `intake`.
   Also fixed `.claude/skills/forge-work/SKILL.md`, the planted copy `forge
   update` refreshes, so the two do not disagree in this tree.
-- [ ] Phase 3 — `forge migrate` and the reported names. Where:
+- [x] Phase 3 — `forge migrate` and the reported names. Where:
   `internal/cli/migrate.go` (new), `internal/cli/cli.go`, `docs/cli.md`;
   tests in `internal/cli/cli_test.go`.
+  Landed 2026-09-20: `cmdMigrate [--dry-run]` loads through `project.Load`,
+  rewrites the raw `status` scalar of every retired-name spec to
+  `contracting` with `doc.SetStr` + `doc.Save` (the body, `## History`
+  included, is byte-identical; no history line and no `updated` change),
+  prints `rel/path: old -> new` for each, prints `nothing to migrate` and
+  exits 0 on a current tree, and writes nothing under `--dry-run`; dispatched
+  from `internal/cli/cli.go` and listed in the usage text and `docs/cli.md`.
+  Confirmed unchanged and kept: `validate.checkLegacyStatus` already warns
+  `status "specifying" is the old name for "contracting"; run forge migrate`
+  (`TestRun_WarnsLegacyStatusName` still green) and `guard.denial`'s single
+  `case workflow.Contracting` reports the new name for a retired frontmatter.
+  Added `TestMigrate_RewritesRetiredStatus` (before/after `tree` snapshot
+  proves `--dry-run` writes nothing; `## History` compared byte-for-byte; a
+  second run prints `nothing to migrate`) and `TestGuard_NamesContracting`
+  (`contracting` plus both retired names deny with `contracting` and
+  `forge approve`, never a retired name). Verified: `go test ./...` (all
+  packages ok), `gofmt -l .` (clean), `go vet ./...` (clean), and on a
+  scratch copy `forge migrate --dry-run` printed `nothing to migrate` exit 0,
+  then listed both retired specs and left their status lines unchanged; the
+  real run rewrote only `status` and left `## History` intact; a third run
+  printed `nothing to migrate`; `forge guard --file src/x` on a `specifying`
+  scratch spec reported `SPEC-003 is contracting ... forge approve SPEC-003`.
+  Decision recorded: `docs/cli.md`'s new section does not spell the retired
+  names, because Phase 5's `TestDocPages_UseContracting` scans `docs/*.md`
+  for them and the Phase 2 proposed convention chose to avoid the word rather
+  than carve out an exception; the names live in the binary, the validate
+  warning and this spec. `CHANGELOG.md` was not touched (Phases 1–2 did not
+  either); the maintainer's release step owns it.
 - [ ] Phase 4 — The survey lives once, in `spec.md`. Where:
   `kit/machine/templates/spec.md`, `kit/machine/templates/plan.md`,
   `internal/project/project.go` (`ExistingState`),
@@ -91,3 +119,23 @@ what exists without reading the diff.
   `.forge/specs/` with a trailing slash: `git ls-tree -d` without it returns
   the `specs` tree entry, not its child folders. Recorded as an
   implementation note, not a rule.
+- **A frontmatter-only rewrite edits the `doc.Doc` directly, not `Spec.Save`.**
+  `Spec.Save` syncs every typed field, so a rename that must leave the body
+  and the untouched keys byte-identical would rewrite `conductor`, lists and
+  empty values as a side effect. `cmdMigrate` calls `s.Doc().SetStr` +
+  `s.Doc().Save` for exactly the one scalar. Rule to decide: a command whose
+  contract promises "only this field changes" edits the document, and
+  `Spec.Save` stays for a state move that owns the whole record.
+- **A maintenance command's output read both ways.** `forge migrate` prints
+  `rel/path: old -> new` and the same lines under `--dry-run`, because the
+  contract says the dry run "prints the same list"; a no-op prints a fixed
+  `nothing to migrate`. Rule to decide: a `--dry-run` is not distinguished in
+  the output, and the "nothing to do" line is the stable contract a test can
+  pin. (The `docs/cli.md` section deliberately does not name the retired
+  states, extending the first bullet above: Phase 5 scans `docs/*.md` for
+  them, so the reference lives only in the binary and the validate warning.)
+- **`CHANGELOG.md` stays untouched until the release step.** `AGENTS.md` says
+  to update it in the pull request that changes behaviour, but Phases 1–2 did
+  not add an `[Unreleased]` entry and Phase 3 matched them. Worth deciding
+  whether a multi-phase spec writes one changelog entry at the end or each
+  phase writes its own.

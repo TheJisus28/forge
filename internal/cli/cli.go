@@ -33,6 +33,7 @@ const usage = `forge — spec-driven agentic development, in files you own
   forge validate                exit 1 when the project is inconsistent
   forge sync [id]               read the pull request state through gh
   forge renumber <id>           resolve a duplicate id
+  forge migrate [--dry-run]     rewrite retired state names
   forge guard                   no product code without a spec (hook or --file)
   forge workflow                print the workflow the process follows
   forge roles [name]            print the role names, or one role
@@ -90,6 +91,8 @@ func Main(args []string, stdout, stderr io.Writer) int {
 		err = cmdSubmit(rest, stdout)
 	case "renumber":
 		err = cmdRenumber(rest, stdout)
+	case "migrate":
+		err = cmdMigrate(rest, stdout)
 	case "guard":
 		err = cmdGuard(rest, stdout)
 	case "workflow":

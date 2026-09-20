@@ -90,6 +90,15 @@ still propose conventions nobody decided.
 
 Resolves a duplicate id. Refuses once anything points at the spec.
 
+### `forge migrate [--dry-run]`
+
+Rewrites the `status` of every spec whose frontmatter still carries a retired
+state name to `contracting`, so a tree written before the rename converges.
+Only the `status` field changes: the body, including `## History`, is left
+byte-identical, because a rename is not a state move. `--dry-run` prints the
+same list and writes nothing. When the tree is already current it prints
+`nothing to migrate` and succeeds.
+
 ## Seeing the state
 
 ### `forge status [id] [--fetch]`
