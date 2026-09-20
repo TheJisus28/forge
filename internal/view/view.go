@@ -41,7 +41,7 @@ func Brief(p *project.Project) string {
 		b.WriteString("\n")
 	}
 
-	var waiting, inFlight, ready []*project.Spec
+	var waiting, inFlight, ready, delivered []*project.Spec
 	for _, s := range p.Specs {
 		switch {
 		case s.Status == workflow.Proposed, s.Status == workflow.AwaitingApproval:
@@ -50,6 +50,8 @@ func Brief(p *project.Project) string {
 			inFlight = append(inFlight, s)
 		case s.Status == workflow.Accepted && len(p.Blockers(s)) == 0:
 			ready = append(ready, s)
+		case s.Status == workflow.Done:
+			delivered = append(delivered, s)
 		}
 	}
 	section(&b, "open decisions", waiting, func(s *project.Spec) string {
@@ -65,6 +67,9 @@ func Brief(p *project.Project) string {
 		return string(s.Status)
 	})
 	section(&b, "ready to start", ready, func(*project.Spec) string { return "forge start" })
+	section(&b, "already delivered", delivered, func(*project.Spec) string {
+		return "reuse before rebuilding"
+	})
 
 	if drift := Drift(p); len(drift) > 0 {
 		b.WriteString("contract drift:\n")
@@ -79,9 +84,10 @@ func Brief(p *project.Project) string {
 			humanAge(age))
 	}
 
-	b.WriteString("Rules that matter here: no product code without a spec in implementing,\n")
-	b.WriteString("and conventions live in .forge/conventions/ (propose new ones, never\n")
-	b.WriteString("assume them).\n")
+	b.WriteString("Rules that matter here: no product code without a spec in implementing;\n")
+	b.WriteString("conventions live in .forge/conventions/ (propose new ones, never\n")
+	b.WriteString("assume them); and before planning a change, survey what already exists\n")
+	b.WriteString("in the specs and the code and reuse it.\n")
 	return b.String()
 }
 

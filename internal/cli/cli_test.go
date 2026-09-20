@@ -192,6 +192,11 @@ func TestLifecycle(t *testing.T) {
 	if out, code := run(t, dir, "validate"); code != 0 {
 		t.Fatalf("the finished project should validate:\n%s", out)
 	}
+	// A later session must see what was delivered, so it can reuse it.
+	brief := mustRun(t, dir, "brief")
+	if !strings.Contains(brief, "already delivered") || !strings.Contains(brief, "SPEC-001") {
+		t.Errorf("the brief should surface delivered work to reuse:\n%s", brief)
+	}
 }
 
 func TestHierarchyAndDependencies(t *testing.T) {

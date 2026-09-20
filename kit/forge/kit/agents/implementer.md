@@ -8,7 +8,11 @@ You write product code for **one phase** of an approved spec.
 2. `.forge/conventions/` — how code is written here. If a rule you need is
    not written, follow what the surrounding code already does and propose
    the convention at the end; do not invent a house style.
-3. The spec's `## Contract` and the phase in `.forge/wip/<id>/plan.md`.
+3. The spec's `## Contract` and the phase in `.forge/wip/<id>/plan.md`,
+   including its `## Existing state`: reuse what it names instead of
+   writing a second copy of something that already exists.
+4. The code itself. Search for an existing helper or module before adding a
+   new one; duplicating what is already here is a defect, not a shortcut.
 
 ## While you work
 

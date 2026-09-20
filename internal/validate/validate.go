@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/TheJisus28/forge/internal/doc"
 	"github.com/TheJisus28/forge/internal/project"
 	"github.com/TheJisus28/forge/internal/workflow"
 )
@@ -134,6 +135,9 @@ func checkArtifacts(p *project.Project, s *project.Spec, add func(Severity, stri
 	case workflow.Implementing:
 		if !exists("plan.md") {
 			add(Error, s.ID, "is implementing without .forge/wip/%s/plan.md", s.ID)
+		} else if !planSurveysExisting(wip) {
+			add(Warning, s.ID, "plan.md has no Existing state section; name what to "+
+				"reuse before building")
 		}
 	case workflow.Reviewing:
 		if !exists("review.md") {
@@ -147,6 +151,16 @@ func checkArtifacts(p *project.Project, s *project.Spec, add func(Severity, stri
 			add(Error, s.ID, "is done without an approved contract")
 		}
 	}
+}
+
+// planSurveysExisting reports whether the plan recorded what already exists
+// and can be reused. Only a warning: guidance, not a gate.
+func planSurveysExisting(wip string) bool {
+	d, err := doc.Load(filepath.Join(wip, "plan.md"))
+	if err != nil {
+		return true
+	}
+	return strings.TrimSpace(d.Section("Existing state")) != ""
 }
 
 func checkCoverage(p *project.Project, s *project.Spec, add func(Severity, string, string, ...any)) {

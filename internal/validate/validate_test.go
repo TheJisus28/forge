@@ -161,6 +161,43 @@ func TestRun_MissingArtifacts(t *testing.T) {
 	expectError(t, findings(t, p), "empty Contract section")
 }
 
+// A plan that does not survey what already exists is only a warning: it
+// guides the agent to record reuse without blocking the build.
+func TestRun_PlanWithoutExistingStateWarns(t *testing.T) {
+	spec := "---\nid: SPEC-001\ntitle: A\nstatus: implementing\n---\n\n## Contract\n\nx\n"
+
+	p := build(t, map[string]string{"SPEC-001-a.md": spec})
+	plan := filepath.Join(p.WipDirFor("SPEC-001"), "plan.md")
+	write(t, plan, "# Plan\n\n## Phase 1\n\n- Scope: x.\n")
+	p, err := project.Load(p.Root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !warns(t, p, "Existing state") {
+		t.Fatal("a plan with no Existing state section should warn")
+	}
+
+	write(t, plan, "# Plan\n\n## Existing state\n\n- reuses `calc.go`.\n\n## Phase 1\n")
+	p, err = project.Load(p.Root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if warns(t, p, "Existing state") {
+		t.Fatal("a plan that surveys the existing state should not warn")
+	}
+}
+
+// warns reports whether any finding is a warning whose message contains want.
+func warns(t *testing.T, p *project.Project, want string) bool {
+	t.Helper()
+	for _, f := range validate.Run(p) {
+		if f.Severity == validate.Warning && strings.Contains(f.Message, want) {
+			return true
+		}
+	}
+	return false
+}
+
 func TestRun_DoneWithoutArchiving(t *testing.T) {
 	p := build(t, map[string]string{
 		"SPEC-001-a.md": "---\nid: SPEC-001\ntitle: A\nstatus: done\napproved_by: ana\n" +

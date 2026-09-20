@@ -63,6 +63,17 @@ Criteria live in the spec as a list:
 They must be verifiable by someone who did not write them: a command, a
 test, a request and its response. The reviewer marks each one with evidence.
 
+## Planning from what exists
+
+A spec does not start from an empty repository. Before splitting it into
+phases, the orchestrator surveys the delivered work: `forge status`, the
+contracts of specs already `done`, and the code that already does part of
+the job. `## Existing state` in `.forge/wip/<id>/plan.md` records what this
+builds on, what it reuses, the conventions that apply, and the duplication
+it avoids. The architect names the modules it builds on in the contract, so
+the reuse is written where it survives archiving. `forge validate` warns
+when a plan being implemented never surveyed the existing state.
+
 ## Hierarchy and coverage
 
 A spec that spans several deliverables becomes a parent:
@@ -138,3 +149,10 @@ instead of in staging.
 `forge archive` deletes `wip/` in the last commit of the pull request. The
 scaffolding stays in the branch history; the main branch keeps the contract,
 the decisions and the conventions.
+
+That is the durable record a later spec reads to know what exists: the
+contract of every `done` spec (with the interfaces and the modules it
+builds on), the decisions that outlive a spec, and the conventions. The
+plan, changes and review of a closed spec are not lost, but they live in
+git history, not in the tree; the contract is what a future task is
+expected to read first.

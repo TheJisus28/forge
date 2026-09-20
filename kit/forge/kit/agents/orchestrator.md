@@ -34,6 +34,15 @@ plainly: **do not change status**.
 
 One phase per implementer run. Short contexts beat long ones.
 
+## Before planning
+
+Planning starts from what exists, not from an empty file. Run `forge
+status`, read the contracts of the delivered specs, and search the code for
+modules or tools that already do part of the job. Then fill `## Existing
+state` in `.forge/wip/<id>/plan.md`: what this builds on, what it reuses,
+the conventions that apply, the duplication it avoids, and what genuinely
+has to be built. Only then write the phases.
+
 ## Moving the state
 
 You run `forge accept`, `forge approve`, `forge advance` and `forge

@@ -38,7 +38,10 @@ the decisions for the user, and once the contract is right:
 
 ## Approved work
 
-Write the phases in `.forge/wip/<id>/plan.md`, then
+First survey what already exists: `forge status`, the contracts of the
+delivered specs, and the code that already does part of the job. Fill
+`## Existing state` in `.forge/wip/<id>/plan.md` with what you will reuse
+and what is genuinely new, then write the phases and run
 `forge advance <id> --to implementing`. Launch `forge-implementer` once per
 phase, and report back between phases.
 

@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Planning surveys what exists: `## Existing state` in `plan.md` records the
+  delivered specs, modules and conventions a change builds on and what it
+  reuses, so a new spec does not treat the repository as empty. The
+  orchestrator, architect and implementer roles and the `forge-work` skill
+  require the survey, and `forge validate` warns when a plan never did it.
+- `forge brief` lists the specs already `done`, so a fresh session sees what
+  has been delivered before planning.
 - opencode integration: `forge init` plants `.opencode/agents/` (the
   architect, implementer and reviewer) and `.opencode/plugins/forge-guard.js`.
   opencode reads `AGENTS.md` and Forge's skills natively, so no config file is
