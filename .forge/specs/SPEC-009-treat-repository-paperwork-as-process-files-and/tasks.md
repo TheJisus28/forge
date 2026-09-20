@@ -11,8 +11,9 @@ later spec knows what exists without reading the diff.
   `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md` (removed),
   `AGENTS.md`, `README.md`, `CHANGELOG.md`, `internal/cli/cli_test.go`
   (`TestRepositoryPaperwork`). Commit `02f5e37`.
-- [ ] Phase 3 — document the rule. Where: `docs/customizing.md`,
-  `docs/cli.md`, `docs/opencode.md`, `internal/cli/cli_test.go`.
+- [x] Phase 3 — document the rule. Where: `docs/customizing.md`,
+  `docs/cli.md`, `docs/opencode.md`, `internal/cli/cli_test.go`
+  (`TestDocs_DescribeProcessFiles`). Commit `b2c941b`.
 
 ## Proposed conventions
 
