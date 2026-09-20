@@ -53,18 +53,22 @@ none of those, so write it before approval.
   when `.forge/project.md` sets `fetch: on`; with no remote-tracking refs it
   falls back to the local `main` ref and never fails, proven by a before/after
   snapshot test (`TestNew_NoRemoteBranchesStaysOffline`).
-- AC3: The extra cost is bounded to one pass over remote refs (a single
-  `git for-each-ref` plus one `git ls-tree` per ref, or equivalent) and adds
-  no per-branch network call; `TestRemoteSpecIDs_ScansEveryBranch` settles it
-  over a local bare remote.
+- AC3: The wider read covers every remote-tracking ref that carries
+  `.forge/specs/` — `spec/*`, `intake/*` and any other branch name — and
+  touches no network; `TestRemoteSpecIDs_ScansEveryBranch` settles it over a
+  local bare remote.
 - AC4: `forge renumber` can still resolve a duplicate that the wider read
   did not prevent, and `forge validate` keeps failing on a real duplicate, so
   the change reduces the window without removing the backstop; the existing
   `TestRenumber_ResolvesTheRace` and `TestAccept_RenumbersWhenTakenOnMain`
-  still pass.
+  still pass, and `forge renumber --to <n>` refuses `n` when a remote ref
+  holds it under a different folder, settled by
+  `TestRenumber_ToRefusesTakenOnAnotherFolder`.
 - AC5: `docs/cli.md` and `docs/workflow.md` state the wider, best-effort
-  source of truth, name the residual collision window (two branches created
-  before either pushes), say that `forge new`/`forge accept` never fetch, and
+  source of truth; name both residual windows — two branches created before
+  either pushes, and two specs with the same title minting the same folder
+  (same id and same slug, so not a collision, and visible only as a git
+  conflict at merge); say that `forge new`/`forge accept` never fetch; and
   tell a repository with more than one person to run `git fetch` before
   `forge new` so the read sees the latest branches.
 - AC6: `go test ./...` passes, and `gofmt -l .` and `go vet ./...` report
@@ -119,9 +123,13 @@ fetch` before `forge new`, as the manual replacement for the fetch these
 commands deliberately do not make.
 
 **_4. Best-effort, not a reservation._** Forge has no central allocator, so
-"never collide" is not promised. The read narrows the window to branches whose
-remote refs are absent locally (created after the last fetch) and to two
-branches created before either pushes. The docs say exactly that, and no more.
+"never collide" is not promised. The read keeps two windows open: branches
+whose remote refs are absent locally (created after the last fetch) and two
+branches created before either pushes; and, because a shared folder reads as
+the same spec (decision 1), two specs with the same title that mint the same
+number share a folder, are not flagged as a collision, and surface only as a
+git conflict on that folder plus a `duplicate id` at merge. The docs say
+exactly that, and no more.
 
 **_5. Every matching ref is scanned, regardless of age, and merged branches
 are not filtered out._** A merged branch's ids are already on the default
@@ -133,7 +141,9 @@ pins its number only until its ref is deleted.
 **_6. `forge new`, `forge accept` and `forge renumber` read the wider set;
 `forge validate` and `forge check` stay local._** The wider read is where an id
 is minted and confirmed; validate and check remain the local duplicate
-backstop and must not depend on refs being fresh.
+backstop and must not depend on refs being fresh. `forge renumber --to <n>`
+checks that explicit target against the same set and refuses `n` when a remote
+ref holds it under a different folder, not only when it is taken locally.
 
 **_7. No cap on the number of refs scanned._** The read is local plumbing (one
 `for-each-ref` plus one `ls-tree` per ref), touches no network, and is
@@ -177,12 +187,15 @@ out of scope.
     unchanged.
   - `func SharedSpecRefs(root string) []SpecRef` — the union of
     `RemoteSpecDirs` over `RemoteRefs`, deduped by `Dir`; falls back to `main`
-    when there are no remote refs.
+    when there are no remote refs. `RemoteRefs` runs one `git for-each-ref`,
+    and each ref that carries specs costs one `git ls-tree`: no per-branch
+    network call, whatever the ref count.
 - `internal/cli/work.go`: `cmdNew` and `cmdAccept` build a folder with
   `project.SpecDirName` and call `project.SharedSpecRefs`; `sharedSpecIDs` is
   removed; `idTaken(p, s, shared []project.SpecRef)` applies decision 1;
   `nextFreeNum(p, shared)` reads the ids from `SpecRef.ID`; `cmdRenumber`
-  with no `--to` uses the same wider set.
+  with no `--to` uses the same wider set, and with an explicit `--to` it
+  refuses a target a remote ref holds under a different folder.
 - Reused, unchanged: `project.NormalizeID`, `project.SpecDirName`,
   `project.FormatID`, `project.Slug`, `project.NextNum`,
   `internal/project/git.go:run`, `p.Specs`, `referencesTo`, `renumberSpec`,
@@ -198,15 +211,25 @@ out of scope.
   in `.forge/project.md`; a before/after snapshot of the repository shows
   `origin` untouched, `SharedSpecRefs` returns the `main`-based set, and no
   fetch runs.
-- AC3/AC4 `internal/project/project_test.go:TestRemoteSpecIDs_ScansEveryBranch`:
+- AC3 `internal/project/project_test.go:TestRemoteSpecIDs_ScansEveryBranch`:
   a local bare remote with a `spec/*` and an `intake/*` branch; the returned
-  folders are the union, proving one read per ref and no network.
+  folders are the union, and no network is touched.
+- AC4 reuses `internal/cli/cli_test.go:TestRenumber_ResolvesTheRace` and
+  `TestAccept_RenumbersWhenTakenOnMain` unchanged, and adds
+  `TestRenumber_ToRefusesTakenOnAnotherFolder`: a local bare `origin` with
+  `SPEC-030-x` on a `spec/*` branch; `forge renumber --to 30` of a local spec
+  is refused and its folder is unchanged.
+- AC5 `TestDocs_DescribeTheWiderIdRead` in `internal/cli/cli_test.go`: reads
+  `../../docs/cli.md` and `../../docs/workflow.md` and asserts the wider,
+  best-effort source of truth, both residual windows, that `forge new`/
+  `forge accept` never fetch, and the `git fetch` before `forge new` step,
+  the way `TestDocs_DescribeCapability` reads `docs/cli.md`.
+- AC6 is `go test ./...`, `gofmt -l .` and `go vet ./...` themselves; they
+  need no test of their own.
 - AC7 `TestAccept_KeepsIdForItsOwnPublishedBranch`: push the current spec's
   folder to `origin` on the branch under test, then `forge accept`; the id is
   unchanged, there is no `renumbered from` line and no `forge renumber`
   prompt.
-- AC5 reuses `internal/cli/cli_test.go:TestRenumber_ResolvesTheRace` and
-  `TestAccept_RenumbersWhenTakenOnMain` unchanged.
 
 ## Existing state
 
@@ -242,15 +265,13 @@ out of scope.
   the folder-aware collision rule, and the wider refs in
   `cmdNew`/`cmdAccept`/`cmdRenumber`.
 - Dependency to keep visible, stated as two separate claims.
-  **What this `intake/` pull request protects today:** it carries the
-  folder-aware read across every remote-tracking ref, the only change that
-  closes the parallel-branch window; until it merges, that protection lives
-  only on this branch and on no other ref.
-  **What happens if it disappears:** `main` keeps SPEC-015 decision 7 and
-  nothing more — the confirmation reads `origin/main`, then `main`, and cannot
-  see a branch that has not merged, so two parallel branches can still accept
-  the same id and collide only at merge. Nothing else in the tree reads ids
-  from other refs.
+  **Today the `intake/` pull request is what publishes the number before it is
+  accepted:** pushing the branch is how a provisional id becomes visible to
+  anyone else's `SharedSpecRefs` read before `forge accept` records it.
+  **If SPEC-015 removes that step:** publishing the branch becomes the manual
+  reservation, and this spec protects only numbers already published on some
+  ref — an id that was never pushed stays invisible until it merges. Nothing
+  else in the tree reads ids from other refs.
 
 ## Out of scope
 
