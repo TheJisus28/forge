@@ -182,6 +182,17 @@ func (p *Project) GuardEnabled() bool {
 	return v != "off" && v != "false" && v != "no"
 }
 
+// PushEnabled reports whether `forge advance` checkpoints automatically. It is
+// opt-in through the `push` scalar: only on, true and yes enable it; anything
+// else, including an absent scalar, leaves it off (SPEC-020, decision 6).
+func (p *Project) PushEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(p.Config.Str("push"))) {
+	case "on", "true", "yes":
+		return true
+	}
+	return false
+}
+
 // Configured reports whether onboarding has been done.
 func (p *Project) Configured() bool {
 	return p.Config.Str("test") != ""
