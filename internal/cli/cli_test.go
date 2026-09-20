@@ -511,6 +511,44 @@ func TestStatusAndBriefShowCapability(t *testing.T) {
 	}
 }
 
+// A spec that replaces a delivered one shows the link from both ends: what
+// it supersedes, and what supersedes it.
+func TestStatusShowsSupersedes(t *testing.T) {
+	dir := newRepo(t)
+	specs := filepath.Join(dir, ".forge", "specs")
+
+	mustRun(t, dir, "new", "Old contract", "--capability", "workflow")
+	old := filepath.Join(specs, "SPEC-001-old-contract", "spec.md")
+	mustRun(t, dir, "accept", "SPEC-001", "--by", "ana")
+	mustRun(t, dir, "start", "SPEC-001", "--by", "ana")
+	write(t, old, strings.Replace(read(t, old), "## Contract\n", "## Contract\n\nGET /old\n", 1))
+	mustRun(t, dir, "advance", "SPEC-001", "--to", "awaiting-approval", "--by", "ana")
+	mustRun(t, dir, "approve", "SPEC-001", "--by", "ana")
+
+	oldDir := filepath.Dir(old)
+	write(t, filepath.Join(oldDir, "plan.md"), "# Plan\n\n## Existing state\n\nNone yet.\n")
+	write(t, filepath.Join(oldDir, "tasks.md"),
+		"# Tasks\n\n- [x] Phase 1\n\n## Proposed conventions\n\nNone.\n")
+	mustRun(t, dir, "advance", "SPEC-001", "--to", "implementing")
+	mustRun(t, dir, "advance", "SPEC-001", "--to", "reviewing")
+	write(t, filepath.Join(oldDir, "review.md"), "Verdict: pass\n")
+	mustRun(t, dir, "archive", "SPEC-001")
+
+	mustRun(t, dir, "new", "New contract", "--capability", "workflow")
+	newPath := filepath.Join(specs, "SPEC-002-new-contract", "spec.md")
+	write(t, newPath, strings.Replace(read(t, newPath), "status: proposed",
+		"status: proposed\nsupersedes: [SPEC-001]", 1))
+
+	out := mustRun(t, dir, "status", "SPEC-002")
+	if !strings.Contains(out, "supersedes") || !strings.Contains(out, "SPEC-001") {
+		t.Errorf("status should show what the spec supersedes:\n%s", out)
+	}
+	out = mustRun(t, dir, "status", "SPEC-001")
+	if !strings.Contains(out, "superseded by") || !strings.Contains(out, "SPEC-002") {
+		t.Errorf("status should show what supersedes the spec:\n%s", out)
+	}
+}
+
 // Repository-root paperwork is process files, not product code: the unused
 // community boilerplate is gone and the contributor guide lives in AGENTS.md.
 // The removed names are assembled from fragments so no live file spells them

@@ -123,6 +123,26 @@ func TestLoad_ReadsSpecsAndConfig(t *testing.T) {
 	}
 }
 
+// supersedes reads back with the same id forgiveness as parent and depends_on.
+func TestLoad_ReadsSupersedes(t *testing.T) {
+	root := write(t, config, map[string]string{
+		"SPEC-001-old.md": api,
+		"SPEC-004-new.md": "---\nid: SPEC-004\ntitle: Replacement\nstatus: proposed\n" +
+			"capability: workflow\nsupersedes: [SPEC-002, spec-3]\n---\n",
+	})
+	p, err := project.Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, ok := p.Spec("SPEC-004")
+	if !ok {
+		t.Fatal("SPEC-004 should load")
+	}
+	if len(s.Supersedes) != 2 || s.Supersedes[0] != "SPEC-002" || s.Supersedes[1] != "SPEC-003" {
+		t.Errorf("supersedes = %v, want [SPEC-002 SPEC-003]", s.Supersedes)
+	}
+}
+
 func TestCoverage(t *testing.T) {
 	p := load(t)
 	root, _ := p.Spec("SPEC-001")
@@ -219,6 +239,7 @@ func TestSaveRoundTrip(t *testing.T) {
 	s.SetStatus(workflow.Specifying, "ana", "started")
 	s.Conductor = "ana"
 	s.Capability = "notifications"
+	s.Supersedes = []string{"SPEC-002"}
 	s.Agreed["SPEC-002"] = "abc123"
 	if err := s.Save(); err != nil {
 		t.Fatal(err)
@@ -234,6 +255,9 @@ func TestSaveRoundTrip(t *testing.T) {
 	if reloaded.Capability != "notifications" {
 		t.Errorf("capability not persisted: %q", reloaded.Capability)
 	}
+	if len(reloaded.Supersedes) != 1 || reloaded.Supersedes[0] != "SPEC-002" {
+		t.Errorf("supersedes not persisted: %v", reloaded.Supersedes)
+	}
 	if reloaded.Agreed["SPEC-002"] != "abc123" {
 		t.Errorf("agreed contracts lost: %v", reloaded.Agreed)
 	}
@@ -242,6 +266,20 @@ func TestSaveRoundTrip(t *testing.T) {
 	}
 	if len(reloaded.Deps) != 1 || reloaded.Deps[0].String() != "SPEC-002@contract" {
 		t.Errorf("dependencies not preserved: %+v", reloaded.Deps)
+	}
+
+	// An empty list removes the key rather than writing `supersedes: []`.
+	reloaded.Supersedes = nil
+	if err := reloaded.Save(); err != nil {
+		t.Fatal(err)
+	}
+	cleared, err := project.Load(p.Root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	without, _ := cleared.Spec("SPEC-003")
+	if without.Doc().Has("supersedes") {
+		t.Error("an empty supersedes list should remove the key")
 	}
 }
 

@@ -153,6 +153,69 @@ func TestRun_DependencyCycle(t *testing.T) {
 	expectError(t, findings(t, p), "dependency cycle")
 }
 
+func TestRun_SupersedesAMissingSpec(t *testing.T) {
+	p := build(t, map[string]string{
+		"SPEC-001-a.md": "---\nid: SPEC-001\ntitle: A\nstatus: proposed\ncapability: a\n" +
+			"supersedes: [SPEC-404]\n---\n",
+	})
+	expectError(t, findings(t, p), "supersedes SPEC-404, which does not exist")
+}
+
+func TestRun_SupersedesASpecThatIsNotDone(t *testing.T) {
+	p := build(t, map[string]string{
+		"SPEC-001-a.md": "---\nid: SPEC-001\ntitle: A\nstatus: proposed\ncapability: a\n" +
+			"supersedes: [SPEC-002]\n---\n",
+		"SPEC-002-b.md": "---\nid: SPEC-002\ntitle: B\nstatus: accepted\ncapability: b\n---\n",
+	})
+	expectError(t, findings(t, p), "supersedes SPEC-002, which is not done")
+}
+
+func TestRun_SupersedesCycle(t *testing.T) {
+	p := build(t, map[string]string{
+		"SPEC-001-a.md": "---\nid: SPEC-001\ntitle: A\nstatus: accepted\ncapability: a\n" +
+			"supersedes: [SPEC-002]\n---\n",
+		"SPEC-002-b.md": "---\nid: SPEC-002\ntitle: B\nstatus: accepted\ncapability: b\n" +
+			"supersedes: [SPEC-001]\n---\n",
+	})
+	expectError(t, findings(t, p), "supersedes cycle")
+}
+
+// Two specs still in flight cannot both claim to replace the same delivered
+// contract: one of them is wrong, and history would show two successors.
+func TestRun_TwoLiveSpecsSupersedeTheSameTarget(t *testing.T) {
+	p := build(t, map[string]string{
+		"SPEC-001-a.md": "---\nid: SPEC-001\ntitle: A\nstatus: accepted\ncapability: a\n" +
+			"supersedes: [SPEC-003]\n---\n",
+		"SPEC-002-b.md": "---\nid: SPEC-002\ntitle: B\nstatus: accepted\ncapability: b\n" +
+			"supersedes: [SPEC-003]\n---\n",
+		"SPEC-003-c.md": "---\nid: SPEC-003\ntitle: C\nstatus: done\ncapability: c\n" +
+			"approved_by: ana\n---\n\n## Contract\n\nx\n",
+	})
+	s, _ := p.Spec("SPEC-003")
+	write(t, filepath.Join(s.Dir(), "review.md"), "Verdict: pass\n")
+
+	got := findings(t, p)
+	expectError(t, got, "supersedes SPEC-003, which SPEC-002 also supersedes")
+	expectError(t, got, "supersedes SPEC-003, which SPEC-001 also supersedes")
+}
+
+// A supersede that points at a delivered contract and loops over nothing is
+// what the field is for; it must not produce a finding.
+func TestRun_ValidSupersedeIsQuiet(t *testing.T) {
+	p := build(t, map[string]string{
+		"SPEC-001-old.md": "---\nid: SPEC-001\ntitle: Old\nstatus: done\ncapability: a\n" +
+			"approved_by: ana\n---\n\n## Contract\n\nx\n",
+		"SPEC-002-new.md": "---\nid: SPEC-002\ntitle: New\nstatus: proposed\ncapability: a\n" +
+			"supersedes: [SPEC-001]\n---\n",
+	})
+	s, _ := p.Spec("SPEC-001")
+	write(t, filepath.Join(s.Dir(), "review.md"), "Verdict: pass\n")
+
+	if got := findings(t, p); len(got) != 0 {
+		t.Fatalf("a valid supersede should be clean: %v", got)
+	}
+}
+
 func TestRun_ContractChangedAfterApproval(t *testing.T) {
 	p := build(t, map[string]string{
 		"SPEC-001-a.md": "---\nid: SPEC-001\ntitle: A\nstatus: implementing\n" +
