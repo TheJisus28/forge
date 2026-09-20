@@ -58,7 +58,8 @@ hand (decision 0002). After the spec's pull request is merged:
    `git push origin vX.Y.Z`. GoReleaser publishes from there.
 
 The tag is what `forge upgrade` resolves, so a merge without a tag leaves
-installed binaries behind.
+installed binaries behind. Update `CHANGELOG.md` in the same pull request as
+the change, not at release time.
 
 ## Layout
 
@@ -71,6 +72,24 @@ installed binaries behind.
 - `internal/validate` — the consistency rules CI enforces
 - `internal/cli` — command parsing and output
 - `main.go` — thin entry point
+
+## Contributing
+
+### Adding a command
+
+1. Implement it in `internal/cli`, keeping the rules in the packages that
+   own them rather than in the command.
+2. Add it to the usage text in `internal/cli/cli.go` and to `docs/cli.md`.
+3. Cover it in `internal/cli/cli_test.go`, which runs commands end to end
+   against a temporary repository.
+
+### Supporting another agent
+
+`AGENTS.md` is the single source of truth and the roles live in
+`kit/machine/roles/`. Support for a new tool is a thin wrapper with the host
+frontmatter and a `{{forge-role:<name>}}` marker that `forge init` fills in
+from the role, plus the mapping in `internal/cli/init.go`. Keep the wrapper to
+that: duplicating a role is how two copies start disagreeing.
 
 ## Rules that are not negotiable
 

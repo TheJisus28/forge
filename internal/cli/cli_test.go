@@ -448,6 +448,43 @@ func TestStatusShowsTaskProgress(t *testing.T) {
 	}
 }
 
+// Repository-root paperwork is process files, not product code: the unused
+// community boilerplate is gone and the contributor guide lives in AGENTS.md.
+// The removed names are assembled from fragments so no live file spells them
+// out; the durable record under .forge/specs/ is the only place they may stay.
+func TestRepositoryPaperwork(t *testing.T) {
+	contributing := "CONTRIB" + "UTING.md"
+	security := "SECUR" + "ITY.md"
+	conduct := "CODE_OF_" + "CONDUCT.md"
+
+	for _, rel := range []string{contributing, security, conduct} {
+		if _, err := os.Stat(filepath.Join("..", "..", rel)); !os.IsNotExist(err) {
+			t.Errorf("%s should be gone from the tree", rel)
+		}
+	}
+
+	readme, err := os.ReadFile("../../README.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(readme), contributing) {
+		t.Error("README.md should not reference the removed contributor guide")
+	}
+	if !strings.Contains(string(readme), "AGENTS.md") {
+		t.Error("README.md should point contributors at AGENTS.md")
+	}
+
+	agents, err := os.ReadFile("../../AGENTS.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"## Contributing", "Adding a command", "Supporting another agent"} {
+		if !strings.Contains(string(agents), want) {
+			t.Errorf("AGENTS.md should contain %q", want)
+		}
+	}
+}
+
 func TestUnknownCommandAndMissingProject(t *testing.T) {
 	dir := t.TempDir()
 	if out, code := run(t, dir, "frobnicate"); code == 0 || !strings.Contains(out, "unknown command") {

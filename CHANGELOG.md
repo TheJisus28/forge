@@ -76,6 +76,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a subagent to keep the context short, and compaction is the fallback inside
   a session. The brief is built again on start and after a compaction, so a
   fresh session loses nothing.
+- The guard treats repository-root paperwork — Markdown and licence or notice
+  files — as process files, so editing the changelog or the readme no longer
+  needs a spec. The unused community boilerplate at the repository root was
+  removed, and the contributor guide now lives in `AGENTS.md`.
 
 ## [0.2.0] - 2026-09-19
 

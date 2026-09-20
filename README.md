@@ -128,7 +128,7 @@ imports `net/http`.
 
 ## Contributing
 
-Issues and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
+Issues and pull requests are welcome; see [AGENTS.md](AGENTS.md).
 The kit is Markdown under `kit/`, and most improvements are changes there.
 
 ## License
