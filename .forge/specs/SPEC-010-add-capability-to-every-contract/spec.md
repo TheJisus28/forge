@@ -1,10 +1,11 @@
 ---
 id: SPEC-010
 title: Add capability to every contract
-status: accepted
+status: specifying
 created: 2026-09-20
 updated: 2026-09-20
 accepted_by: TheJisus28
+conductor: TheJisus28
 ---
 
 ## Problem
@@ -55,3 +56,4 @@ A closed list.
 
 Written by `forge`. Do not edit by hand.
 - 2026-09-20  accepted  by TheJisus28
+- 2026-09-20  specifying  by TheJisus28
