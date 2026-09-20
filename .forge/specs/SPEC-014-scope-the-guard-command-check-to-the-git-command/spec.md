@@ -1,10 +1,14 @@
 ---
 id: SPEC-014
 title: Scope the guard command check to the git command
-status: proposed
+status: implementing
 capability: guard
 created: 2026-09-20
 updated: 2026-09-20
+accepted_by: TheJisus28
+conductor: TheJisus28
+approved_by: TheJisus28
+contract_hash: cd828464703f
 ---
 
 ## Problem
@@ -43,15 +47,72 @@ None.
 
 ## Contract
 
-Written by the architect once the work is accepted, and frozen once
-approved. Real names from this repository: modules, endpoints,
-tables, screens. Numbered decisions with what they discard. Anything other
-specs will build against goes here.
+### Decisions
 
-## Out of scope
+**1. The command is read segment by segment.** `commandDenial` splits the
+line into command segments at `;`, `&&`, `||`, `|` and newline, ignoring
+those characters inside single or double quotes. A `git` command is
+recognised only when it is the first word of its segment (leading
+`VAR=value` assignments are skipped), so `echo git push origin main` is not
+a push and the segment after `&&` is judged on its own. `git`'s global
+options before the subcommand (`-C`, `-c`, `--git-dir`, `--work-tree`,
+`--namespace`, `--exec-path`) are skipped. Discards: the current
+whole-line `reGitPush`/`reGitMerge` regexes and `strings.FieldsFunc` scan,
+which cross segment boundaries.
 
-A closed list.
+**2. A push is judged on its own refspecs.** Within a `git push` segment,
+every positional argument is read as a refspec and denied when either side
+of a `:` — after stripping a leading `+`, then `refs/heads/`, `heads/` or
+`refs/` — is `main` or `master`. So `git push origin main`,
+`git push origin HEAD:main` and `git push origin main:feature` are denied;
+`git push -u origin my-branch` and `git push origin feature/main` are not.
+A bare `git push` is denied only while the current branch is `main` or
+`master` (unchanged, AC3). Discards: tokenising the whole line for `main`
+(the bug), and treating the remote name (`origin`) as a refspec.
+
+**3. `git merge` and `gh pr merge` keep their rule, scoped.** A `git merge`
+segment is denied only when the current branch is the default (unchanged):
+merging the default *into* a feature is fine. `gh pr merge` is still denied
+wherever it appears, via the existing regex over the line, because merging
+the pull request is the act being prevented, not a git invocation.
+Discards: denying `git merge main` on a feature branch (that is a normal
+update from the default branch).
+
+**4. `--explain` uses the same path.** `forge guard --command "..." --explain`
+prints `would allow`/`would deny` from `commandDenial`, so AC5 needs no
+separate logic.
+
+### Interfaces other specs build against
+
+`commandDenial(p, command)` keeps its signature; only its internals change.
+No command or flag is added. `pushesToDefault` and the whole-line push/merge
+regexes are deleted.
+
+### Tests
+
+- `internal/cli/cli_test.go` extends `TestGuardCommand`: the compound line
+  `git push -u origin my-branch && gh pr create --base main` is allowed; the
+  existing denies (`git push origin main`, `HEAD:master`, `gh pr merge`) and
+  allows (`git push -u origin spec/004-x`, `git push origin feature/main`)
+  still hold.
+- A git repository on `main` is created in the test; `git push` is denied
+  there and allowed after `git checkout -b feature` (AC3).
+- A `;`/`||` compound that pushes a feature then names `main` is allowed
+  (AC4), and `echo git push origin main` is allowed (decision 1).
+- `forge guard --command ... --explain` prints the matching verdict (AC5).
+
+### Out of scope of this contract
+
+- Any change to the file-edit guard (`denial`) or to `isProcessFile`.
+- Shell parsing beyond the listed separators (command substitution,
+  subshells, `eval`); the guard stays a heuristic, not a shell.
+- Detecting `git push --all`/`--mirror` reaching the default branch.
 
 ## History
 
 Written by `forge`. Do not edit by hand.
+- 2026-09-20  accepted  by TheJisus28
+- 2026-09-20  specifying  by TheJisus28
+- 2026-09-20  awaiting-approval  by orchestrator
+- 2026-09-20  planning  by TheJisus28
+- 2026-09-20  implementing  by orchestrator

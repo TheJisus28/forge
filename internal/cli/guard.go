@@ -150,43 +150,189 @@ func denial(p *project.Project, file string) string {
 	}
 }
 
-var (
-	reGHMerge  = regexp.MustCompile(`\bgh\s+pr\s+merge\b`)
-	reGitPush  = regexp.MustCompile(`\bgit\b[^\n;|&]*\bpush\b`)
-	reGitMerge = regexp.MustCompile(`\bgit\b[^\n;|&]*\bmerge\b`)
-)
+var reGHMerge = regexp.MustCompile(`\bgh\s+pr\s+merge\b`)
 
 // commandDenial returns the reason to block a shell command, or "" to stay
 // out of the way. It refuses what would land on the default branch: a spec
 // ends as a pull request a person merges, not as a direct push or merge.
+// The line is read segment by segment, so a token that appears after the
+// push — a base branch named on a later command — does not change what the
+// push itself does.
 func commandDenial(p *project.Project, command string) string {
-	cmd := strings.ToLower(strings.TrimSpace(command))
-	if cmd == "" {
+	if strings.TrimSpace(command) == "" {
 		return ""
 	}
-	if reGHMerge.MatchString(cmd) {
+	if reGHMerge.MatchString(strings.ToLower(command)) {
 		return "Forge: do not merge the pull request yourself; a person reviews and merges it."
 	}
 	def := onDefaultBranch(p)
-	if reGitPush.MatchString(cmd) && (pushesToDefault(command) || def) {
-		return "Forge: do not push to the default branch; a spec ends as a pull request. " +
-			"Open it with forge submit."
-	}
-	if reGitMerge.MatchString(cmd) && def {
-		return "Forge: do not merge into the default branch; a person merges the pull request."
+	for _, seg := range splitSegments(command) {
+		sub, args := gitCommand(seg)
+		switch sub {
+		case "push":
+			if def || refspecsToDefault(args) {
+				return "Forge: do not push to the default branch; a spec ends as a pull request. " +
+					"Open it with forge submit."
+			}
+		case "merge":
+			if def {
+				return "Forge: do not merge into the default branch; a person merges the pull request."
+			}
+		}
 	}
 	return ""
 }
 
-// pushesToDefault reports whether the command names main or master as a push
-// target, including HEAD:main.
-func pushesToDefault(command string) bool {
-	for _, f := range strings.FieldsFunc(command, func(r rune) bool {
-		return r == ' ' || r == '\t' || r == '"' || r == '\'' || r == ';' ||
-			r == '&' || r == '|'
-	}) {
-		switch strings.ToLower(f) {
-		case "main", "master", "head:main", "head:master":
+// splitSegments splits a shell line into the commands separated by `;`, `&&`,
+// `||`, `|` or a newline, leaving those characters alone inside quotes.
+func splitSegments(s string) []string {
+	var out []string
+	var cur strings.Builder
+	var quote byte
+	flush := func() {
+		if strings.TrimSpace(cur.String()) != "" {
+			out = append(out, cur.String())
+		}
+		cur.Reset()
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if quote != 0 {
+			cur.WriteByte(c)
+			if c == quote {
+				quote = 0
+			}
+			continue
+		}
+		switch c {
+		case '\'', '"':
+			quote = c
+			cur.WriteByte(c)
+		case ';', '\n':
+			flush()
+		case '&', '|':
+			if i+1 < len(s) && s[i+1] == c {
+				i++
+			}
+			flush()
+		default:
+			cur.WriteByte(c)
+		}
+	}
+	flush()
+	return out
+}
+
+// shellFields splits one command segment into words, keeping quoted spans
+// together. It is not a shell parser, only enough to find the command name
+// and its arguments.
+func shellFields(s string) []string {
+	var out []string
+	var cur strings.Builder
+	var quote byte
+	flush := func() {
+		if cur.Len() > 0 {
+			out = append(out, cur.String())
+			cur.Reset()
+		}
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if quote != 0 {
+			if c == quote {
+				quote = 0
+			} else {
+				cur.WriteByte(c)
+			}
+			continue
+		}
+		switch c {
+		case '\'', '"':
+			quote = c
+		case ' ', '\t':
+			flush()
+		default:
+			cur.WriteByte(c)
+		}
+	}
+	flush()
+	return out
+}
+
+// gitCommand returns the subcommand of a segment that is a git invocation,
+// and the words after it. A segment is a git command only when git is its
+// first word, so `echo git push origin main` is not read as a push.
+func gitCommand(segment string) (string, []string) {
+	fields := shellFields(segment)
+	i := 0
+	for i < len(fields) && isAssignment(fields[i]) {
+		i++
+	}
+	if i >= len(fields) {
+		return "", nil
+	}
+	switch filepath.Base(fields[i]) {
+	case "git", "git.exe":
+	default:
+		return "", nil
+	}
+	j := i + 1
+	for j < len(fields) {
+		switch fields[j] {
+		case "-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path":
+			j += 2
+			continue
+		}
+		if strings.HasPrefix(fields[j], "-") {
+			j++
+			continue
+		}
+		return strings.ToLower(fields[j]), fields[j+1:]
+	}
+	return "", nil
+}
+
+// isAssignment reports whether a word is a leading VAR=value assignment, so
+// `FOO=bar git push` still finds the git command.
+func isAssignment(word string) bool {
+	eq := strings.IndexByte(word, '=')
+	if eq <= 0 || strings.HasPrefix(word, "-") {
+		return false
+	}
+	for _, r := range word[:eq] {
+		if !(r == '_' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9') {
+			return false
+		}
+	}
+	return true
+}
+
+// refspecsToDefault reports whether any positional argument of a git push
+// names main or master, including HEAD:main, main:feature and a bare main.
+func refspecsToDefault(args []string) bool {
+	for _, a := range args {
+		if strings.HasPrefix(a, "-") {
+			continue
+		}
+		if targetsDefault(a) {
+			return true
+		}
+	}
+	return false
+}
+
+// targetsDefault reports whether a ref names the default branch on either
+// side of a push refspec.
+func targetsDefault(ref string) bool {
+	r := strings.ToLower(strings.TrimPrefix(strings.TrimSpace(ref), "+"))
+	if r == "" {
+		return false
+	}
+	for _, part := range strings.Split(r, ":") {
+		for _, prefix := range []string{"refs/heads/", "heads/", "refs/"} {
+			part = strings.TrimPrefix(part, prefix)
+		}
+		if part == "main" || part == "master" {
 			return true
 		}
 	}
