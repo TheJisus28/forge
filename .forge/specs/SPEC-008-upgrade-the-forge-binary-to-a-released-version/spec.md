@@ -8,6 +8,9 @@ accepted_by: TheJisus28
 conductor: TheJisus28
 approved_by: TheJisus28
 contract_hash: dc4450490120
+pr_url: "https://github.com/TheJisus28/forge/pull/10"
+pr_state: open
+pr: 10
 ---
 
 ## Problem
