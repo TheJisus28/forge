@@ -19,10 +19,23 @@ the task that moves it; `forge check` reads these ids from this file.
   network).
   Verified: `go test ./...` all `ok`; `gofmt -l .` empty; `go vet ./...`
   clean; both tests pass with `-v`.
-- [ ] Phase 2 — The brief fetches when opted in. Moves: AC1, AC2, AC3, AC4,
+- [x] Phase 2 — The brief fetches when opted in. Moves: AC1, AC2, AC3, AC4,
   AC5. Where: `internal/cli/report.go` (`fetchBeforeBrief`, the `githubRemote`
   and `ghUser` seams, `cmdBrief`); tests in
   `internal/cli/brief_internal_test.go` (new).
+  Landed: `fetchBeforeBrief(p)` gates on `p.FetchEnabled()`, then
+  `githubRemote(p.Root)`, then `ghUser(p.Root) != ""`, then
+  `project.Fetch(p.Root)`; it returns the three decision-5 `warning: ` lines
+  and `fetched=true` only on success. `cmdBrief` calls it before
+  `view.Brief`, reloads with `project.Load` on `fetched` (keeping the loaded
+  project if the reload fails), prepends the warning to the single `text`
+  before both the plain write and the `--json` marshal, and returns nil.
+  Tests: `TestBrief_FetchesWhenOptedIn`, `TestBrief_OfflineByDefault`,
+  `TestBrief_FetchDoesNotTouchWorkingTree`, `TestBrief_SkipsWithoutGitHub`,
+  `TestBrief_FetchFailureIsAWarning`, over a real local bare `origin` and a
+  remote-only commit (no network).
+  Verified: `go test ./...` all `ok`; `gofmt -l .` empty; `go vet ./...`
+  clean; the five tests pass with `-v`.
 - [ ] Phase 3 — Docs, roles, changelog and dogfooding. Moves: AC6. Where:
   `docs/cli.md`, `README.md`, `AGENTS.md`, `.forge/project.md`,
   `kit/machine/roles/orchestrator.md`, `kit/machine/roles/architect.md`,
@@ -31,4 +44,9 @@ the task that moves it; `forge check` reads these ids from this file.
 
 ## Proposed conventions
 
-None.
+- When a warning must accompany a single text that also feeds a machine
+  payload, prepend `warning: ...\n` to the text instead of writing it
+  separately, so the human and the hook see identical content and the JSON
+  stays one line (SPEC-022, decision 6). `cmdBrief` is the first case; the
+  cli-output convention already fixes the `warning: ` prefix and exit 0, only
+  the join was undecided.
