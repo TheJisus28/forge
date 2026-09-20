@@ -20,11 +20,11 @@ nothing denies product code edits without an active spec.
 
 ### `forge update [--force]`
 
-Refreshes the kit Forge owns: `.forge/kit/`, `.forge/README.md`, the
-`.claude/` and `.opencode/` integrations, and the workflows. Never touches
-your `AGENTS.md`, `CLAUDE.md`, `project.md`, `specs/`, `decisions/` or
-`conventions/`; `--force` rewrites the files it does not own. Run it after
-upgrading the binary.
+Refreshes what Forge owns: `.forge/README.md`, the `.claude/` and
+`.opencode/` integrations, and the workflows. Never touches your `AGENTS.md`,
+`CLAUDE.md`, `project.md`, `specs/`, `decisions/` or `conventions/`; `--force`
+rewrites the files it does not own. It also removes a stale `.forge/kit/`
+left by an older Forge. Run it after upgrading the binary.
 
 ## Moving work
 
@@ -90,6 +90,29 @@ harmless everywhere.
 It lists the most recent five `done` specs, so a session knows what already
 exists without the context growing with every closed spec; `forge status`
 shows the whole list and is the place to drill down.
+
+## Reading the process
+
+The workflow, the roles and the templates live in the binary, not in your
+repository, so the same text works in any host and nothing under `.forge/`
+is a tool file.
+
+### `forge workflow`
+
+Prints the workflow: the states, the hierarchy, the dependencies and the
+rules, exactly as the agents read them.
+
+### `forge roles [name]`
+
+Lists the four roles — orchestrator, architect, implementer, reviewer — or
+prints one role's instructions by name. A host without a wrapper calls this
+instead of reading a planted file.
+
+### `forge template <name>`
+
+Prints one file template: `spec`, `plan`, `tasks`, `review`, `decision` or
+`convention`. `forge new` uses the same copy, which a project cannot
+override.
 
 ## CI and integration
 

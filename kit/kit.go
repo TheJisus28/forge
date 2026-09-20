@@ -13,5 +13,9 @@ import "embed"
 //	github/   → .github/   (only with --ci github)
 //	the rest  → as-is (AGENTS.md, CLAUDE.md)
 //
-//go:embed AGENTS.md CLAUDE.md all:forge all:claude all:opencode all:github
+// machine/ is the exception: it is embedded but never planted. It is the
+// machinery (the workflow, the roles and the templates) that the binary
+// serves through `forge workflow`, `forge roles` and `forge template`.
+//
+//go:embed AGENTS.md CLAUDE.md all:machine all:forge all:claude all:opencode all:github
 var FS embed.FS

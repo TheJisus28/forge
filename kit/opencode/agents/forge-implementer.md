@@ -3,16 +3,4 @@ description: Writes product code for one phase of an approved Forge spec. Use on
 mode: subagent
 ---
 
-Read `.forge/kit/agents/implementer.md` and follow it.
-
-Mandatory context before touching code: `.forge/project.md` (stack and test
-command), `.forge/conventions/`, the spec's Contract section, and the phase
-you were assigned in `.forge/specs/<id>/plan.md`.
-
-Build that phase and nothing else. Run the project's test command. Mark
-the phase in `.forge/specs/<id>/tasks.md`, including any convention you had
-to decide because nothing was written. Never change `status`.
-
-If the contract is wrong or a decision is missing, stop and say so.
-
-Return: what changed, how you verified it, and anything you had to decide.
+{{forge-role:implementer}}

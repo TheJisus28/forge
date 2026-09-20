@@ -33,6 +33,11 @@ If the problem is ambiguous, ask. If answering requires a product decision,
 raise it with whoever is driving the work rather than choosing for them.
 An invented requirement is more expensive than a question.
 
+## Return
+
+Say what you wrote, the decisions you took, and every question that still
+needs an answer before this is approved.
+
 ## Never
 
 - Write or edit product code.

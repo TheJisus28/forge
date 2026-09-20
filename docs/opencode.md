@@ -85,8 +85,9 @@ start`. Open a spec, accept and start it, and the same edit is allowed.
 
 ## Updating
 
-`forge update` refreshes `.opencode/` together with the rest of the kit. It
-never touches your `specs/`, `decisions/`, `conventions/` or `project.md`.
+`forge update` refreshes `.opencode/` along with the other host
+integrations. It never touches your `specs/`, `decisions/`, `conventions/`
+or `project.md`.
 
 ## Notes
 

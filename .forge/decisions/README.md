@@ -1,7 +1,7 @@
 # decisions
 
 Why the system is the way it is. One file per decision, numbered:
-`0007-idempotent-charges.md`, from `kit/templates/decision.md`.
+`0007-idempotent-charges.md`, from `forge template decision`.
 
 One file per decision on purpose: a shared log would make every branch
 append to the same lines and conflict on every merge.

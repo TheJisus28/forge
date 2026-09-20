@@ -32,6 +32,9 @@ const usage = `forge — spec-driven agentic development, in files you own
   forge sync [id]               read the pull request state through gh
   forge renumber <id>           resolve a duplicate id
   forge guard                   no product code without a spec (hook or --file)
+  forge workflow                print the workflow the process follows
+  forge roles [name]            print the role names, or one role
+  forge template <name>         print a file template (spec, plan, decision...)
   forge version
 
 Run any command with --help for its flags.
@@ -82,6 +85,12 @@ func Main(args []string, stdout, stderr io.Writer) int {
 		err = cmdRenumber(rest, stdout)
 	case "guard":
 		err = cmdGuard(rest, stdout)
+	case "workflow":
+		err = cmdWorkflow(rest, stdout)
+	case "roles":
+		err = cmdRoles(rest, stdout)
+	case "template":
+		err = cmdTemplate(rest, stdout)
 	default:
 		err = fmt.Errorf("unknown command %q; run forge help", cmd)
 	}

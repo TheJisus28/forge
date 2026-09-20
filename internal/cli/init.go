@@ -1,12 +1,14 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/TheJisus28/forge/internal/project"
@@ -105,12 +107,21 @@ func plant(dir string, opt plantOptions, out io.Writer) error {
 			kept++
 			return nil
 		}
+		data, err = compose(dest, data)
+		if err != nil {
+			return err
+		}
 		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
 			return err
 		}
 		written++
 		return os.WriteFile(full, data, 0o644)
 	})
+	if err != nil {
+		return err
+	}
+
+	removed, err := removeStaleKit(root)
 	if err != nil {
 		return err
 	}
@@ -126,7 +137,14 @@ func plant(dir string, opt plantOptions, out io.Writer) error {
 
 	if opt.update {
 		fmt.Fprintf(out, "kit updated: %d files written, %d of yours untouched\n", written, kept)
+		if removed {
+			fmt.Fprintf(out, "removed the old %s: the machinery now ships in the binary\n",
+				oldKitPath())
+		}
 		return nil
+	}
+	if removed {
+		fmt.Fprintf(out, "removed the old %s: the machinery now ships in the binary\n\n", oldKitPath())
 	}
 	fmt.Fprintf(out, `forge ready in %s
 
@@ -139,8 +157,11 @@ answer.
 }
 
 // mapDest turns a path inside the embedded kit into a path in the repository.
+// The machine/ tree has no destination: it is served by the binary, not planted.
 func mapDest(p string) string {
 	switch {
+	case p == "machine" || strings.HasPrefix(p, "machine/"):
+		return ""
 	case p == "forge" || strings.HasPrefix(p, "forge/"):
 		return project.Dir + "/" + strings.TrimPrefix(p, "forge/")
 	case strings.HasPrefix(p, "claude/"):
@@ -154,18 +175,44 @@ func mapDest(p string) string {
 	}
 }
 
+// roleMarker is the placeholder a host adapter carries in the kit. It becomes
+// the role's instructions when planted, so a generated agent is self-contained
+// and never points at a file under .forge/.
+var roleMarker = regexp.MustCompile(`\{\{forge-role:([a-z0-9-]+)\}\}`)
+
+// compose inlines the canonical role text into a host adapter. A marker that
+// names no role is an error, never a silent pass.
+func compose(dest string, data []byte) ([]byte, error) {
+	if !roleMarker.Match(data) {
+		return data, nil
+	}
+	var failed error
+	out := roleMarker.ReplaceAllFunc(data, func(m []byte) []byte {
+		name := string(roleMarker.FindSubmatch(m)[1])
+		role, err := kit.Role(name)
+		if err != nil {
+			failed = fmt.Errorf("%s: %w", dest, err)
+			return m
+		}
+		return bytes.TrimRight(role, "\n")
+	})
+	if failed != nil {
+		return nil, failed
+	}
+	return out, nil
+}
+
 // kitOwned files belong to Forge and are rewritten on every update.
 //
 // AGENTS.md and CLAUDE.md are deliberately not here: they are the project's
 // own instructions, written when missing and overwritten only with --force,
-// like the rest of the tree outside kit/.
+// like the rest of the tree outside the files Forge owns.
 func kitOwned(dest string) bool {
 	switch dest {
 	case project.Dir + "/README.md":
 		return true
 	}
-	return strings.HasPrefix(dest, project.Dir+"/kit/") ||
-		strings.HasPrefix(dest, ".claude/") ||
+	return strings.HasPrefix(dest, ".claude/") ||
 		strings.HasPrefix(dest, ".opencode/") ||
 		strings.HasPrefix(dest, ".github/workflows/forge-")
 }
@@ -173,6 +220,27 @@ func kitOwned(dest string) bool {
 // protected files are never rewritten: they are the project's own memory.
 func protected(dest string) bool {
 	return dest == project.Dir+"/project.md"
+}
+
+// removeStaleKit deletes the .forge/kit/ directory that older Forge versions
+// planted. Decision 0001 dropped backward compatibility: an upgrade removes
+// the machinery instead of leaving a dead copy inside .forge/.
+func removeStaleKit(root string) (bool, error) {
+	path := filepath.Join(root, project.Dir, "kit")
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	if err := os.RemoveAll(path); err != nil {
+		return false, fmt.Errorf("remove the old %s: %w", oldKitPath(), err)
+	}
+	return true, nil
+}
+
+func oldKitPath() string {
+	return filepath.ToSlash(filepath.Join(project.Dir, "kit"))
 }
 
 // writeClaudeSettings adds the session hooks to .claude/settings.json without

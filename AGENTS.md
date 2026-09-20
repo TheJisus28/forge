@@ -29,10 +29,9 @@ implementing → reviewing → done
 - No product code until the spec is `implementing`.
 - The CLI owns ids, state, history and each spec's folder. Never edit
   `status` by hand and never renumber a spec yourself.
-- Read the role file before acting as one. They live in
-  `.forge/kit/agents/`: `orchestrator.md`, `architect.md`,
-  `implementer.md`, `reviewer.md`. You are the orchestrator unless you were
-  launched as another role.
+- Read the role before acting as one: `forge roles <orchestrator|architect|
+  implementer|reviewer>`. You are the orchestrator unless you were launched
+  as another role.
 
 ## Stack
 
@@ -49,7 +48,8 @@ go run . init /tmp/scratch && go run . status
 
 ## Layout
 
-- `kit/` — the Markdown planted into other repos, embedded with `go:embed`
+- `kit/` — the Markdown embedded with `go:embed`; `kit/machine/` is served
+  by the binary, never planted
 - `internal/doc` — frontmatter parser and writer
 - `internal/workflow` — states and the legal transitions between them
 - `internal/project` — loading `.forge`, specs, ids, coverage, dependencies
@@ -72,8 +72,10 @@ go run . init /tmp/scratch && go run . status
   branch protection or `CODEOWNERS`, not to Forge.
 - **The CLI owns state.** Ids, `status`, history and each spec's folder are
   written by commands, never by hand and never by an agent editing Markdown.
-- Anything planted outside `.forge/kit/` belongs to the user and is written
-  once, never overwritten.
+- `.forge/` belongs to the user: `project.md`, `specs/`, `decisions/` and
+  `conventions/` are written once and never overwritten. Only the
+  explanatory `.forge/README.md` and the host integrations under `.claude/`
+  and `.opencode/` are Forge's to refresh.
 
 ## Conventions
 
