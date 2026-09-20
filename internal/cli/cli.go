@@ -19,7 +19,7 @@ const usage = `forge — spec-driven agentic development, in files you own
   forge update                  refresh the kit, never touching your content
   forge upgrade [version]       upgrade the forge binary itself
 
-  forge new "<title>"           open a spec (proposed)
+  forge new "<title>" --capability <name>  open a spec (proposed)
   forge accept <id>             into the queue (defaults --by to git user.name)
   forge start <id>              begin the work: checks dependencies
   forge approve <id>            the contract is right; code can start
