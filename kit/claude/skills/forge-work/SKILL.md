@@ -43,15 +43,16 @@ the decisions for the user, make sure `## Open questions` in
 
 ## Approved work
 
-First survey what already exists: `forge capabilities` derives the current
-contracts grouped by capability and marks what each one supersedes. Then
-read the contracts it points at, run `forge status` for what is open, and
-search the code that already does part of the job. Fill
-`## Existing state` in `.forge/specs/<id>/plan.md` with what you will reuse
-and what is genuinely new, write the phases in `.forge/specs/<id>/plan.md`
-and the same phases as checkboxes in `.forge/specs/<id>/tasks.md`, then run
-`forge advance <id> --to implementing`. Launch `forge-implementer` once per
-phase, and report back between phases.
+First read the architect's survey in the spec's `## Existing state`
+(`.forge/specs/<id>/spec.md`): what this builds on and what it reuses. Check
+it still holds against `forge capabilities`, which derives the current
+contracts grouped by capability and marks what each one supersedes, the
+contracts it points at, `forge status` for what is open, and the code that
+already does part of the job. Write the phases in
+`.forge/specs/<id>/plan.md` and the same phases as checkboxes in
+`.forge/specs/<id>/tasks.md`, then run `forge advance <id> --to
+implementing`. Launch `forge-implementer` once per phase, and report back
+between phases.
 
 When every phase is done: `forge advance <id> --to reviewing` and launch
 `forge-reviewer`. If the review fails, go back to implementing with a note

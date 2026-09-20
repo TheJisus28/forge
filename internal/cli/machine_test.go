@@ -85,6 +85,20 @@ func TestTemplateCommand_PrintsAndRejects(t *testing.T) {
 	}
 }
 
+// The existing-state survey lives in spec.md, so the spec template carries
+// the section and the plan template no longer does (SPEC-015, decision 5).
+func TestTemplate_SurveySection(t *testing.T) {
+	dir := t.TempDir()
+	spec := mustRun(t, dir, "template", "spec")
+	if !strings.Contains(spec, "## Existing state") {
+		t.Errorf("forge template spec should carry the Existing state section:\n%s", spec)
+	}
+	plan := mustRun(t, dir, "template", "plan")
+	if strings.Contains(plan, "## Existing state") {
+		t.Errorf("forge template plan should not carry the Existing state section:\n%s", plan)
+	}
+}
+
 // A template planted in the repository is ignored: the templates are a
 // standard that ships in the binary.
 func TestNew_IgnoresAPlantedTemplate(t *testing.T) {

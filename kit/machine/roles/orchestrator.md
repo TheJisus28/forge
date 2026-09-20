@@ -52,10 +52,10 @@ Planning starts from what exists, not from an empty file. Run `forge
 capabilities` first: it derives the current contracts, grouped by capability
 and marked with what each one supersedes. Then read the contracts it points
 at, run `forge status` for what is open, and search the code for modules or
-tools that already do part of the job. Then fill `## Existing
-state` in `.forge/specs/<id>/plan.md`: what this builds on, what it reuses,
-the conventions that apply, the duplication it avoids, and what genuinely
-has to be built. Planning writes both `.forge/specs/<id>/plan.md` and
+tools that already do part of the job. Read the architect's survey in the
+spec's `## Existing state` (`.forge/specs/<id>/spec.md`): what this builds
+on, what it reuses, the conventions that apply and what genuinely has to be
+built. Planning writes both `.forge/specs/<id>/plan.md` and
 `.forge/specs/<id>/tasks.md`: the approach and phases in the plan, and the
 same phases as checkboxes in tasks.
 

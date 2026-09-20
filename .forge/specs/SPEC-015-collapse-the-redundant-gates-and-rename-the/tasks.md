@@ -87,14 +87,39 @@ what exists without reading the diff.
   than carve out an exception; the names live in the binary, the validate
   warning and this spec. `CHANGELOG.md` was not touched (Phases 1–2 did not
   either); the maintainer's release step owns it.
-- [ ] Phase 4 — The survey lives once, in `spec.md`. Where:
+- [x] Phase 4 — The survey lives once, in `spec.md`. Where:
   `kit/machine/templates/spec.md`, `kit/machine/templates/plan.md`,
   `internal/project/project.go` (`ExistingState`),
-  `internal/validate/validate.go` (`planSurveysExisting`),
+  `internal/validate/validate.go` (`planSurveysExisting` → `checkSurvey`),
   `kit/machine/roles/architect.md`, `kit/machine/roles/orchestrator.md`,
-  `kit/AGENTS.md`, `AGENTS.md`, `docs/workflow.md`; the survey is already in
+  `kit/machine/roles/implementer.md`, `kit/AGENTS.md`, `AGENTS.md`,
+  `docs/workflow.md`, `kit/claude/skills/forge-work/SKILL.md` and the
+  planted `.claude/skills/forge-work/SKILL.md`; the survey is already in
   this spec's `spec.md`; tests in `internal/project/project_test.go`,
   `internal/validate/validate_test.go`, `internal/cli/machine_test.go`.
+  Landed 2026-09-20: `kit/machine/templates/spec.md` gains `## Existing
+  state` (HTML-comment guidance, empty body) between `## Contract` and
+  `## Out of scope`, and the section is removed from
+  `kit/machine/templates/plan.md`; `project.Spec.ExistingState()` returns
+  `s.doc.Section("Existing state")` from `spec.md`, mirroring `Contract`
+  and `OpenQuestions`; `validate.checkSurvey` warns a non-terminal spec
+  past `accepted` (any `workflow.InFlight` state) whose section is empty,
+  and `planSurveysExisting` is deleted, so the warning no longer reads
+  `plan.md`; the architect role records the survey in `spec.md` and the
+  orchestrator, implementer, `kit/AGENTS.md`, `AGENTS.md`,
+  `docs/workflow.md` and both `forge-work` skill copies read it there.
+  Added `TestExistingState_ComesFromSpec`,
+  `TestRun_SurveyWarnsFromSpec` (replacing
+  `TestRun_PlanWithoutExistingStateWarns`) and
+  `TestTemplate_SurveySection`. Verified: `go test ./...` (all packages
+  ok), `gofmt -l .` (clean), `go vet ./...` (clean), `go run . template
+  spec` (carries `## Existing state`), `go run . template plan` (does not),
+  `go run . validate` (`19 specs, no problems`).
+  Beyond the contract's file list: `kit/machine/roles/implementer.md` was
+  changed too, because it pointed at `plan.md`'s `## Existing state`, a
+  section the phase removes; the planted `.claude/agents/` role copies were
+  left as Phase 1 left them (the two disagreed already; `forge update`
+  refreshes them).
 - [ ] Phase 5 — Docs hold the new name only. Where: the scanned pages and
   `internal/cli/cli_test.go` (`TestDocPages_UseContracting`),
   `internal/cli/machine_test.go`.
@@ -139,3 +164,20 @@ what exists without reading the diff.
   not add an `[Unreleased]` entry and Phase 3 matched them. Worth deciding
   whether a multi-phase spec writes one changelog entry at the end or each
   phase writes its own.
+- **"A live spec past `accepted`" is `workflow.InFlight`.** Decision 5 did
+  not enumerate the states the survey warning covers. I used
+  `workflow.InFlight(s.Status)` — `contracting`, `planning`, `implementing`,
+  `blocked`, `reviewing` — which skips `proposed`, `accepted` and the
+  terminal states, so the rule reuses the state machine instead of a second
+  list. That means a spec warns from `contracting` on, before the architect
+  has necessarily written the survey; it is a warning, not a gate.
+- **The template's HTML-comment guidance counts as a present section.**
+  `checkSurvey` asks `strings.TrimSpace(s.ExistingState()) != ""`, so the
+  guidance comment the new `spec.md` template ships makes `## Existing
+  state` non-empty and the warning cannot fire on a spec created by `forge
+  new` until someone replaces the comment. SPEC-019 solved this shape by
+  stripping HTML comments before judging a placeholder (`stripComments` in
+  `internal/cli`); decision 5 only said "a check of `s.ExistingState()`",
+  and `internal/validate` cannot reach that unexported helper without a
+  shared one. Worth deciding whether the survey check strips comments, and
+  where the one comment-stripper lives.

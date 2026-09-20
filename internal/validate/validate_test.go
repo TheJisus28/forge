@@ -271,31 +271,46 @@ func TestRun_WarnsLegacyStatusName(t *testing.T) {
 	}
 }
 
-// A plan that does not survey what already exists is only a warning: it
-// guides the agent to record reuse without blocking the build.
-func TestRun_PlanWithoutExistingStateWarns(t *testing.T) {
+// The survey lives once, in spec.md `## Existing state`; a live spec past
+// `accepted` that never surveyed warns, and a delivered spec is not checked
+// (SPEC-015, decision 5).
+func TestRun_SurveyWarnsFromSpec(t *testing.T) {
 	spec := "---\nid: SPEC-001\ntitle: A\nstatus: implementing\n---\n\n## Contract\n\nx\n"
 
 	p := build(t, map[string]string{"SPEC-001-a.md": spec})
 	s, _ := p.Spec("SPEC-001")
-	plan := filepath.Join(s.Dir(), "plan.md")
-	write(t, plan, "# Plan\n\n## Phase 1\n\n- Scope: x.\n")
+	write(t, filepath.Join(s.Dir(), "plan.md"), "# Plan\n\n## Phase 1\n\n- Scope: x.\n")
 	write(t, filepath.Join(s.Dir(), "tasks.md"), "# Tasks\n\n- [ ] Phase 1\n")
 	p, err := project.Load(p.Root)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !warns(t, p, "Existing state") {
-		t.Fatal("a plan with no Existing state section should warn")
+		t.Fatal("a live spec with no Existing state in spec.md should warn")
 	}
 
-	write(t, plan, "# Plan\n\n## Existing state\n\n- reuses `calc.go`.\n\n## Phase 1\n")
+	write(t, filepath.Join(p.Root, project.Dir, "specs", "SPEC-001-a", "spec.md"),
+		spec+"\n## Existing state\n\n- reuses `calc.go`.\n")
 	p, err = project.Load(p.Root)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if warns(t, p, "Existing state") {
-		t.Fatal("a plan that surveys the existing state should not warn")
+		t.Fatal("a spec that surveyed the existing state should not warn")
+	}
+
+	done := build(t, map[string]string{
+		"SPEC-002-b.md": "---\nid: SPEC-002\ntitle: B\nstatus: done\napproved_by: ana\n" +
+			"---\n\n## Contract\n\nx\n",
+	})
+	write(t, filepath.Join(done.Root, project.Dir, "specs", "SPEC-002-b", "review.md"),
+		"Verdict: pass\n")
+	done, err = project.Load(done.Root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if warns(t, done, "Existing state") {
+		t.Fatal("a done spec should not be checked for the survey")
 	}
 }
 

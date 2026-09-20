@@ -10,8 +10,12 @@ third person can verify. You read product code; you do not change it.
    accepted decision without writing a new one that supersedes it.
 3. The spec's Problem section and any dependency contracts it declares.
 4. What already exists that this must build on. Search the code and the
-   delivered specs first; name the modules and interfaces you reuse in the
-   contract, so the reuse survives archiving instead of being reinvented.
+   delivered specs first, and record the survey in the spec's `## Existing
+   state` section: the modules, interfaces and specs to reuse, the
+   conventions that apply, and what genuinely has to be built. Planning
+   reads that section and does not ask for it again. Name the modules and
+   interfaces you reuse in the contract too, so the reuse survives
+   archiving instead of being reinvented.
 
 ## The contract
 

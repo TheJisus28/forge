@@ -64,16 +64,18 @@ test, a request and its response. The reviewer marks each one with evidence.
 
 ## Planning from what exists
 
-A spec does not start from an empty repository. Before splitting it into
-phases, the orchestrator surveys the delivered work: first `forge
+A spec does not start from an empty repository. The architect records what
+already exists in the spec's `## Existing state` section
+(`.forge/specs/<id>/spec.md`): what this builds on, what it reuses, the
+conventions that apply, and the duplication it avoids. Planning reads that
+one survey instead of filling a second one. Before splitting the spec into
+phases, the orchestrator checks it against the delivered work: first `forge
 capabilities`, which derives the current contracts grouped by capability and
 marks what each one supersedes, then the contracts it points at, `forge
 status` for what is open, and the code that already does part of the job.
-`## Existing state` in `.forge/specs/<id>/plan.md` records what this
-builds on, what it reuses, the conventions that apply, and the duplication
-it avoids. The architect names the modules it builds on in the contract, so
-the reuse is written where it survives archiving. `forge validate` warns
-when a plan being implemented never surveyed the existing state.
+The architect names the modules it builds on in the contract too, so the
+reuse is written where it survives archiving. `forge validate` warns when a
+live spec has not surveyed the existing state.
 
 ## Hierarchy and coverage
 
@@ -142,8 +144,8 @@ instead of in staging.
 
 ```
 .forge/specs/SPEC-004-saved-cards/
-├── spec.md     the spec, in every state
-├── plan.md     existing state and phases
+├── spec.md     the spec, its contract and the existing-state survey
+├── plan.md     the phases
 ├── tasks.md    the phases as checkboxes, ticked as they land
 └── review.md   verdict and evidence per criterion
 ```
@@ -151,7 +153,8 @@ instead of in staging.
 Every spec owns a folder. The plan, tasks and review are written as the work
 moves and stay in the tree when the spec is `done`; `forge archive` no longer
 deletes anything, because the folder is the durable record. The spec's
-`spec.md` holds the contract, the history and the state.
+`spec.md` holds the contract, the existing-state survey, the history and the
+state.
 
 That is the durable record a later spec reads to know what exists: the
 contract of every `done` spec (with the interfaces and the modules it

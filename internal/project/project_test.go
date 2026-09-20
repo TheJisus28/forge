@@ -532,3 +532,37 @@ func TestRemoteSpecIDs_ReadsTheRef(t *testing.T) {
 		}
 	}
 }
+
+// The existing-state survey lives once, in spec.md; a plan.md carrying a
+// section of its own does not change what the spec reports (SPEC-015,
+// decision 5).
+func TestExistingState_ComesFromSpec(t *testing.T) {
+	root := write(t, config, map[string]string{
+		"SPEC-001-a.md": "---\nid: SPEC-001\ntitle: A\nstatus: planning\n---\n\n" +
+			"## Existing state\n\n- reuses `calc.go` from SPEC-004.\n",
+	})
+	p, err := project.Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, ok := p.Spec("SPEC-001")
+	if !ok {
+		t.Fatal("SPEC-001 should load")
+	}
+	if got := s.ExistingState(); !strings.Contains(got, "calc.go") {
+		t.Fatalf("ExistingState() should read spec.md, got %q", got)
+	}
+
+	plan := filepath.Join(s.Dir(), "plan.md")
+	if err := os.WriteFile(plan, []byte("# Plan\n\n## Existing state\n\n- from the plan.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	p, err = project.Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, _ = p.Spec("SPEC-001")
+	if got := s.ExistingState(); strings.Contains(got, "from the plan") {
+		t.Errorf("a plan.md Existing state must not leak into Spec.ExistingState(): %q", got)
+	}
+}
