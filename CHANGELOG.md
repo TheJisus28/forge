@@ -60,6 +60,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   standard `spec.md`, `plan.md`, `tasks.md` and `review.md`. `wip/` and
   `changes.md` are gone, and `forge archive` keeps the folder as the durable
   record instead of deleting it. Not backward compatible.
+- The kit states the session rule: one spec is one session, each phase goes to
+  a subagent to keep the context short, and compaction is the fallback inside
+  a session. The brief is built again on start and after a compaction, so a
+  fresh session loses nothing.
 
 ## [0.2.0] - 2026-09-19
 
