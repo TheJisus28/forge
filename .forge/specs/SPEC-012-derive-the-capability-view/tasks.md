@@ -47,22 +47,7 @@
 
 ## Proposed conventions
 
-- **An empty `capability` is not a group.** `Capabilities()` skips a `done`
-  spec with no `capability`, because AC1 asks for "every capability that any
-  `done` contract declares" and `""` is not one. The delivered pre-010 specs
-  therefore stay invisible until SPEC-013 backfills them, and the command
-  says `No done specs declare a capability yet.` rather than inventing a
-  `(none)` bucket that would sort before real names. If the team prefers the
-  view to surface backfill debt, the alternative is a synthetic group, but
-  that is a product decision this contract did not make.
-- **An unknown `forge capabilities <name>` is an error** (exit 1,
-  `no done spec declares the capability %q; forge capabilities lists them`),
-  matching `forge status <id>` for a missing spec. Printing nothing and
-  succeeding was the other option; an error makes a typo visible.
-- **The brief count is "current" contracts**, `Contract.Current()` being
-  "no non-dropped spec supersedes it", and the line lands right after the
-  current spec. The contract fixed the count and the position in prose; this
-  records the exact rendering (`N current contract(s)`).
+None.
 
 ## Notes for the reviewer
 
