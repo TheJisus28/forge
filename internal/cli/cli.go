@@ -17,6 +17,7 @@ const usage = `forge — spec-driven agentic development, in files you own
 
   forge init [dir]              plant the kit in a repository
   forge update                  refresh the kit, never touching your content
+  forge upgrade [version]       upgrade the forge binary itself
 
   forge new "<title>"           open a spec (proposed)
   forge accept <id>             into the queue (defaults --by to git user.name)
@@ -42,6 +43,7 @@ Run any command with --help for its flags.
 
 // Main runs a command and returns the process exit code.
 func Main(args []string, stdout, stderr io.Writer) int {
+	cleanupStaleBinary()
 	if len(args) == 0 {
 		fmt.Fprint(stdout, usage)
 		return 0
@@ -59,6 +61,8 @@ func Main(args []string, stdout, stderr io.Writer) int {
 		err = cmdInit(rest, stdout)
 	case "update":
 		err = cmdUpdate(rest, stdout)
+	case "upgrade":
+		err = cmdUpgrade(rest, stdout, stderr)
 	case "new":
 		err = cmdNew(rest, stdout)
 	case "accept":

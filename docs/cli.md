@@ -1,8 +1,10 @@
 # CLI reference
 
-Every command reads and writes files under `.forge/`. None of them reach
-the network; `forge status --fetch` and `forge sync` run `git` and `gh`,
-which are the user's tools with the user's credentials.
+Most commands read and write files under `.forge/`; `forge upgrade` works
+outside a project and does not touch the kit. The binary itself never
+reaches the network: the only network comes from the user's own tools —
+`git`/`gh` for `forge status --fetch` and `forge sync`, and the Go
+toolchain for `forge upgrade`.
 
 ## Setting up
 
@@ -25,6 +27,16 @@ Refreshes what Forge owns: `.forge/README.md`, the `.claude/` and
 `CLAUDE.md`, `project.md`, `specs/`, `decisions/` or `conventions/`; `--force`
 rewrites the files it does not own. It also removes a stale `.forge/kit/`
 left by an older Forge. Run it after upgrading the binary.
+
+### `forge upgrade [version]`
+
+Upgrades the forge binary itself, not the kit. It installs a released
+forge through the Go toolchain — `go install
+github.com/TheJisus28/forge@latest`, or an explicit version such as
+`forge upgrade v0.2.0` — and then replaces the running binary safely,
+renaming it to a sidecar on Windows and cleaning that sidecar up on the
+next invocation. It works outside a `.forge/` project and never touches the
+planted kit; refreshing the kit stays `forge update`.
 
 ## Moving work
 
