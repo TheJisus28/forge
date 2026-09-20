@@ -1,7 +1,7 @@
 ---
 id: SPEC-011
 title: Let a contract supersede another
-status: implementing
+status: reviewing
 capability: workflow
 created: 2026-09-20
 updated: 2026-09-20
@@ -107,3 +107,4 @@ Written by `forge`. Do not edit by hand.
 - 2026-09-20  awaiting-approval  by orchestrator
 - 2026-09-20  planning  by TheJisus28
 - 2026-09-20  implementing  by orchestrator
+- 2026-09-20  reviewing  by orchestrator
