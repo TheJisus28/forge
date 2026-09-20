@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   at session start and after every compaction, and feeds it into the
   compaction prompt. In a repository without Forge, or without `forge`, it
   injects nothing.
+- The README now leads with what Forge is for, how to install it and how to
+  use it, and links every document.
 - `forge guard --file <path>`: the hook-free mode other agents call. It exits
   1 and prints the reason when an edit must be denied, reusing the rule the
   Claude Code hook already enforces.
