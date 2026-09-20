@@ -67,6 +67,20 @@ criterion with no task in `tasks.md` or no evidence line in `review.md`;
 `forge validate` raises the same coverage as a warning, and as an error at
 `done` when the evidence is missing.
 
+## Ids across branches
+
+`forge new` picks the next free number from the spec folders committed under
+`.forge/specs/` on every remote-tracking ref, not just `main`, so a number a
+parallel branch already pushed is skipped. The read is best-effort, not a
+reservation: a branch whose refs are not present locally, or two branches that
+mint the same number before either pushes, can still collide, and two specs
+with the same title share a folder and surface only as a git conflict at
+merge. `forge new` and `forge accept` never fetch, so in a repository with
+more than one person run `git fetch` before `forge new` to read the latest
+branches. `forge accept` keeps the id when the only match is the spec's own
+published branch, and `forge validate` still fails on a real duplicate once it
+lands.
+
 ## Planning from what exists
 
 A spec does not start from an empty repository. The architect records what

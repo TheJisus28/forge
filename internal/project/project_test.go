@@ -819,6 +819,70 @@ func TestRemoteSpecIDs_ReadsTheRef(t *testing.T) {
 	}
 }
 
+// The wider read unions every remote-tracking ref, not just spec/*: a spec
+// pushed on an intake/* branch counts too, and the folder is kept beside the
+// id. Only refs already present are read, so the union costs no network call
+// (SPEC-023, decision 2).
+func TestRemoteSpecIDs_ScansEveryBranch(t *testing.T) {
+	origin := filepath.Join(t.TempDir(), "origin.git")
+	runGit(t, filepath.Dir(origin), "init", "--bare", origin)
+
+	dir := t.TempDir()
+	runGit(t, dir, "init")
+	runGit(t, dir, "config", "user.email", "t@example.com")
+	runGit(t, dir, "config", "user.name", "tester")
+	runGit(t, dir, "remote", "add", "origin", origin)
+
+	specAt := func(folder, id string) {
+		t.Helper()
+		p := filepath.Join(dir, project.Dir, "specs", folder)
+		if err := os.MkdirAll(p, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		body := "---\nid: " + id + "\ntitle: X\nstatus: proposed\ncapability: workflow\n---\n"
+		if err := os.WriteFile(filepath.Join(p, "spec.md"), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	commit := func(msg string) {
+		t.Helper()
+		runGit(t, dir, "add", "-A")
+		runGit(t, dir, "commit", "-m", msg)
+	}
+
+	specAt("SPEC-010-on-main", "SPEC-010")
+	commit("main")
+	runGit(t, dir, "branch", "-M", "main")
+	runGit(t, dir, "push", "-u", "origin", "main")
+
+	runGit(t, dir, "checkout", "-b", "spec/011-on-a-spec-branch")
+	specAt("SPEC-011-on-a-spec-branch", "SPEC-011")
+	commit("spec branch")
+	runGit(t, dir, "push", "-u", "origin", "spec/011-on-a-spec-branch")
+
+	runGit(t, dir, "checkout", "main")
+	runGit(t, dir, "checkout", "-b", "intake/spec-012-on-an-intake-branch")
+	specAt("SPEC-012-on-an-intake-branch", "SPEC-012")
+	commit("intake branch")
+	runGit(t, dir, "push", "-u", "origin", "intake/spec-012-on-an-intake-branch")
+
+	runGit(t, dir, "checkout", "main")
+
+	got := map[string]bool{}
+	for _, ref := range project.SharedSpecRefs(dir) {
+		got[ref.ID+"|"+ref.Dir] = true
+	}
+	for _, want := range []string{
+		"SPEC-010|SPEC-010-on-main",
+		"SPEC-011|SPEC-011-on-a-spec-branch",
+		"SPEC-012|SPEC-012-on-an-intake-branch",
+	} {
+		if !got[want] {
+			t.Errorf("SharedSpecRefs should carry %s; got %v", want, got)
+		}
+	}
+}
+
 // The existing-state survey lives once, in spec.md; a plan.md carrying a
 // section of its own does not change what the spec reports (SPEC-015,
 // decision 5).
