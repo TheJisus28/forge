@@ -1,11 +1,12 @@
 ---
 id: SPEC-023
 title: Allocate spec ids against every remote spec branch, not just main
-status: accepted
+status: contracting
 capability: specs
 created: 2026-09-20
 updated: 2026-09-20
 accepted_by: TheJisus28
+orchestrator: TheJisus28
 ---
 
 ## Problem
@@ -61,9 +62,11 @@ none of those, so write it before approval.
   the change reduces the window without removing the backstop; the existing
   `TestRenumber_ResolvesTheRace` and `TestAccept_RenumbersWhenTakenOnMain`
   still pass.
-- AC5: `docs/cli.md` and `docs/workflow.md` state the wider source of truth
-  and that it is best-effort, naming the residual collision window (two
-  branches created before either pushes).
+- AC5: `docs/cli.md` and `docs/workflow.md` state the wider, best-effort
+  source of truth, name the residual collision window (two branches created
+  before either pushes), say that `forge new`/`forge accept` never fetch, and
+  tell a repository with more than one person to run `git fetch` before
+  `forge new` so the read sees the latest branches.
 - AC6: `go test ./...` passes, and `gofmt -l .` and `go vet ./...` report
   nothing.
 - AC7: The same id on the same folder is the same spec, never a collision:
@@ -111,7 +114,9 @@ commands; keeping the id commands offline keeps them fast and free of the
 network failure modes SPEC-015 decision 7 left to the user. Discards: fetching
 inside `forge new`/`forge accept` when `fetch: on`, a second fetch in the same
 session, added latency, and a new network path in commands the no-network rule
-kept clean.
+kept clean. The docs point a repository with more than one person at `git
+fetch` before `forge new`, as the manual replacement for the fetch these
+commands deliberately do not make.
 
 **_4. Best-effort, not a reservation._** Forge has no central allocator, so
 "never collide" is not promised. The read narrows the window to branches whose
@@ -141,6 +146,20 @@ ref, then to local numbering, and never fails._** `SharedSpecRefs` unions the
 remote refs; when that union is empty it reads `main`; a missing ref yields no
 ids rather than an error, so a repository with no remote keeps the SPEC-015
 behaviour.
+
+**_9. A published spec's slug cannot change, and the collision compares the
+folder on disk, not one recomputed from the title._** `forge new` fixes the
+folder once with `project.SpecDirName(id, title)`; no command renames an
+existing folder except `forge renumber`, which changes the id at the same
+time, so a spec's own published branch always carries the same `id-slug`. The
+comparison uses `filepath.Base(s.Dir())` — the real folder — never
+`project.SpecDirName(s.ID, s.Title)` recomputed from the current frontmatter,
+so a hand-edited `title` that no longer matches the folder cannot make the
+spec collide with its own pushed branch. `cmdNew`, which has no folder yet,
+compares the candidate `project.SpecDirName(id, title)` it is about to create.
+Discards: recomputing the folder from the current title, which would renumber a
+spec against itself. A hand-renamed folder is outside the CLI-owned state and
+out of scope.
 
 ### Interfaces
 
@@ -222,12 +241,16 @@ behaviour.
 - Not built yet: `SpecRef`, `RemoteRefs`, `RemoteSpecDirs`, `SharedSpecRefs`,
   the folder-aware collision rule, and the wider refs in
   `cmdNew`/`cmdAccept`/`cmdRenumber`.
-- Dependency to keep visible: SPEC-015 decision 7 protects only the shared
-  branch — `origin/main`, then `main`. It cannot see a branch that has not
-  merged. This spec is therefore the only protection between branches in
-  flight; if the `intake/` pull request carrying it is dropped, two parallel
-  branches can still accept the same id and collide only at merge. Nothing
-  else in the tree reads ids from other refs.
+- Dependency to keep visible, stated as two separate claims.
+  **What this `intake/` pull request protects today:** it carries the
+  folder-aware read across every remote-tracking ref, the only change that
+  closes the parallel-branch window; until it merges, that protection lives
+  only on this branch and on no other ref.
+  **What happens if it disappears:** `main` keeps SPEC-015 decision 7 and
+  nothing more — the confirmation reads `origin/main`, then `main`, and cannot
+  see a branch that has not merged, so two parallel branches can still accept
+  the same id and collide only at merge. Nothing else in the tree reads ids
+  from other refs.
 
 ## Out of scope
 
@@ -246,3 +269,4 @@ behaviour.
 
 Written by `forge`. Do not edit by hand.
 - 2026-09-20  accepted  by TheJisus28
+- 2026-09-20  contracting  by TheJisus28
