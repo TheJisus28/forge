@@ -2,6 +2,7 @@
 id: SPEC-003
 title: Adopt the SDD spec layout
 status: done
+capability: specs
 created: 2026-09-20
 updated: 2026-09-20
 accepted_by: TheJisus28

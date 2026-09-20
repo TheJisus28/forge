@@ -2,6 +2,7 @@
 id: SPEC-005
 title: Inject the brief into OpenCode sessions
 status: done
+capability: agents
 created: 2026-09-20
 updated: 2026-09-20
 accepted_by: TheJisus28

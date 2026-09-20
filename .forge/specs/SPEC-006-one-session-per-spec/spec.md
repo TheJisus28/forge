@@ -2,6 +2,7 @@
 id: SPEC-006
 title: One session per spec
 status: done
+capability: agents
 created: 2026-09-20
 updated: 2026-09-20
 accepted_by: TheJisus28
