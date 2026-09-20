@@ -31,6 +31,7 @@ const usage = `forge — spec-driven agentic development, in files you own
   forge capabilities [name]     the done contracts, grouped by capability
   forge brief                   the short state an agent reads at session start
   forge validate                exit 1 when the project is inconsistent
+  forge check [id]              criteria with no task or evidence
   forge sync [id]               read the pull request state through gh
   forge renumber <id>           resolve a duplicate id
   forge migrate [--dry-run]     rewrite retired state names
@@ -85,6 +86,8 @@ func Main(args []string, stdout, stderr io.Writer) int {
 		err = cmdBrief(rest, stdout)
 	case "validate":
 		return cmdValidate(rest, stdout, stderr)
+	case "check":
+		return cmdCheck(rest, stdout, stderr)
 	case "sync":
 		err = cmdSync(rest, stdout)
 	case "submit":

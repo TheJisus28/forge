@@ -254,6 +254,17 @@ func cmdApprove(args []string, out io.Writer) error {
 		return fmt.Errorf("%s still has open questions:\n  %s\n"+
 			"answer them in the spec, or write None.", s.ID, firstLine(s.OpenQuestions()))
 	}
+	var unverifiable []string
+	for _, c := range s.Criteria() {
+		if !c.Verifiable() {
+			unverifiable = append(unverifiable, c.ID)
+		}
+	}
+	if len(unverifiable) > 0 {
+		return fmt.Errorf("%s has criteria that name no command, test or response:\n  %s\n"+
+			"name the command, the test or the response that settles each one",
+			s.ID, strings.Join(unverifiable, ", "))
+	}
 	s.ApprovedBy = actor
 	s.ContractHash = project.HashContract(contract)
 	s.SetStatus(workflow.Planning, actor, *note)
