@@ -87,6 +87,11 @@ func plant(dir string, opt plantOptions, out io.Writer) error {
 		if strings.HasPrefix(dest, ".github/") && opt.ci != "github" {
 			return nil
 		}
+		// --no-guard leaves the opencode plugin out for the same reason it
+		// leaves the Claude Code hook out: nothing to call it.
+		if dest == ".opencode/plugins/forge-guard.js" && !opt.guard {
+			return nil
+		}
 		data, err := kit.FS.ReadFile(p)
 		if err != nil {
 			return err
@@ -128,9 +133,10 @@ func plant(dir string, opt plantOptions, out io.Writer) error {
 	}
 	fmt.Fprintf(out, `forge ready in %s
 
-Next: open Claude Code here and say "run the Forge onboarding".
-The agent will inspect the repo, ask what it cannot infer, and fill
-.forge/project.md. Nothing else is configured until you answer.
+Next: open your coding agent (Claude Code, opencode) here and say "run the
+Forge onboarding". The agent will inspect the repo, ask what it cannot
+infer, and fill .forge/project.md. Nothing else is configured until you
+answer.
 `, root)
 	return nil
 }
@@ -142,6 +148,8 @@ func mapDest(p string) string {
 		return project.Dir + "/" + strings.TrimPrefix(p, "forge/")
 	case strings.HasPrefix(p, "claude/"):
 		return ".claude/" + strings.TrimPrefix(p, "claude/")
+	case strings.HasPrefix(p, "opencode/"):
+		return ".opencode/" + strings.TrimPrefix(p, "opencode/")
 	case strings.HasPrefix(p, "github/"):
 		return ".github/" + strings.TrimPrefix(p, "github/")
 	default:
@@ -157,6 +165,7 @@ func kitOwned(dest string) bool {
 	}
 	return strings.HasPrefix(dest, project.Dir+"/kit/") ||
 		strings.HasPrefix(dest, ".claude/") ||
+		strings.HasPrefix(dest, ".opencode/") ||
 		strings.HasPrefix(dest, ".github/workflows/forge-")
 }
 

@@ -31,7 +31,7 @@ const usage = `forge — spec-driven agentic development, in files you own
   forge validate                exit 1 when the project is inconsistent
   forge sync [id]               read the pull request state through gh
   forge renumber <id>           resolve a duplicate id
-  forge guard                   PreToolUse hook: no product code without a spec
+  forge guard                   no product code without a spec (hook or --file)
   forge version
 
 Run any command with --help for its flags.

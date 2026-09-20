@@ -7,10 +7,11 @@ import "embed"
 
 // FS is the kit, rooted at this directory. Destination in the target repo:
 //
-//	forge/   → .forge/
-//	claude/  → .claude/
-//	github/  → .github/   (only with --ci github)
-//	the rest → as-is (AGENTS.md, CLAUDE.md)
+//	forge/    → .forge/
+//	claude/   → .claude/
+//	opencode/ → .opencode/
+//	github/   → .github/   (only with --ci github)
+//	the rest  → as-is (AGENTS.md, CLAUDE.md)
 //
-//go:embed AGENTS.md CLAUDE.md all:forge all:claude all:github
+//go:embed AGENTS.md CLAUDE.md all:forge all:claude all:opencode all:github
 var FS embed.FS

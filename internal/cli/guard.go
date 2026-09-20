@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -21,25 +22,34 @@ type hookInput struct {
 	CWD string `json:"cwd"`
 }
 
-// cmdGuard answers the PreToolUse hook. Staying silent means "no decision",
-// which lets the normal permission flow continue; only a denial is loud.
+// cmdGuard decides whether an edit to a file is allowed. It answers Claude
+// Code's PreToolUse hook on stdin, or, with --file, exits 1 so any other
+// agent can use the same rule. Staying silent means "no decision", which
+// lets the normal permission flow continue; only a denial is loud.
 func cmdGuard(args []string, out io.Writer) error {
-	fs := newFlagSet("guard", "usage: forge guard  (reads the hook payload on stdin)", out)
-	explain := fs.Bool("explain", false, "print why the current branch would be allowed or denied")
-	file := fs.String("file", "", "with --explain, the file an agent would edit")
+	fs := newFlagSet("guard", "usage: forge guard [--explain] [--file <path>]  (reads the hook payload on stdin)", out)
+	explain := fs.Bool("explain", false, "say what it would do without reading a hook payload")
+	file := fs.String("file", "", "the file an agent would edit; without --explain, denies with exit 1")
 	_, err := parseArgs(fs, args)
 	if err != nil {
 		return err
 	}
 
+	// A path with no --explain is the hook-free mode other agents call:
+	// exit 1 and print the reason instead of answering Claude Code's JSON.
+	plain := *file != "" && !*explain
+
 	var in hookInput
-	if *explain {
+	switch {
+	case plain:
+		in.ToolInput.FilePath = *file
+	case *explain:
 		in.ToolInput.FilePath = *file
 		if in.ToolInput.FilePath == "" {
 			// Ask about product code, which is what the guard is for.
 			in.ToolInput.FilePath = "src/example"
 		}
-	} else {
+	default:
 		data, err := io.ReadAll(os.Stdin)
 		if err != nil || len(strings.TrimSpace(string(data))) == 0 {
 			return nil
@@ -58,9 +68,14 @@ func cmdGuard(args []string, out io.Writer) error {
 		return nil
 	}
 	if reason := denial(p, in.ToolInput.FilePath); reason != "" {
-		if *explain {
+		switch {
+		case *explain:
 			fmt.Fprintln(out, "would deny: "+reason)
 			return nil
+		case plain:
+			// Drop the leading "Forge: " so the caller can prefix its own
+			// label without the message reading "forge: Forge: ...".
+			return errors.New(strings.TrimPrefix(reason, "Forge: "))
 		}
 		payload := map[string]any{
 			"hookSpecificOutput": map[string]any{
@@ -137,13 +152,14 @@ func isProcessFile(root, file string) bool {
 	if strings.HasPrefix(rel, "../") {
 		return true // outside the repository; not our business
 	}
-	for _, prefix := range []string{project.Dir + "/", ".claude/", ".github/"} {
+	for _, prefix := range []string{project.Dir + "/", ".claude/", ".github/", ".opencode/"} {
 		if strings.HasPrefix(rel, prefix) {
 			return true
 		}
 	}
 	switch rel {
-	case "AGENTS.md", "CLAUDE.md", "README.md", ".gitignore":
+	case "AGENTS.md", "CLAUDE.md", "README.md", ".gitignore",
+		"opencode.json", "opencode.jsonc":
 		return true
 	}
 	return false

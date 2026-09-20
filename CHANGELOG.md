@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- opencode integration: `forge init` plants `.opencode/agents/` (the
+  architect, implementer and reviewer) and `.opencode/plugins/forge-guard.js`.
+  opencode reads `AGENTS.md` and Forge's skills natively, so no config file is
+  required. See [docs/opencode.md](docs/opencode.md).
+- `forge guard --file <path>`: the hook-free mode other agents call. It exits
+  1 and prints the reason when an edit must be denied, reusing the rule the
+  Claude Code hook already enforces.
+
 ## [0.2.0] - 2026-09-19
 
 ### Removed

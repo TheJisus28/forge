@@ -86,7 +86,9 @@ func TestInit_PlantsTheKitAndKeepsYourContent(t *testing.T) {
 		".forge/kit/agents/orchestrator.md", ".forge/kit/templates/spec.md",
 		".forge/specs/README.md", ".forge/conventions/README.md",
 		".claude/agents/forge-implementer.md", ".claude/skills/forge-onboard/SKILL.md",
-		".claude/settings.json", ".gitignore",
+		".claude/settings.json",
+		".opencode/agents/forge-implementer.md", ".opencode/plugins/forge-guard.js",
+		".gitignore",
 	} {
 		if _, err := os.Stat(filepath.Join(dir, rel)); err != nil {
 			t.Errorf("missing %s", rel)
@@ -121,6 +123,9 @@ func TestInit_NoGuardAndCI(t *testing.T) {
 	settings := read(t, filepath.Join(dir, ".claude", "settings.json"))
 	if strings.Contains(settings, "forge guard") {
 		t.Error("--no-guard should not install the PreToolUse hook")
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".opencode/plugins/forge-guard.js")); !os.IsNotExist(err) {
+		t.Error("--no-guard should not plant the opencode guard plugin")
 	}
 	if _, err := os.Stat(filepath.Join(dir, ".github/workflows/forge-validate.yml")); err != nil {
 		t.Error("--ci github should plant the workflows")
@@ -272,6 +277,25 @@ func TestBriefAndGuard(t *testing.T) {
 	if out := mustRun(t, dir, "guard", "--explain"); !strings.Contains(out, "") ||
 		strings.Contains(out, "would deny") {
 		t.Errorf("a disabled guard must stay out of the way: %s", out)
+	}
+}
+
+// `forge guard --file` is the hook-free mode other agents (opencode) call.
+func TestGuardFileMode(t *testing.T) {
+	dir := newRepo(t)
+
+	if out, code := run(t, dir, "guard", "--file", "src/example"); code == 0 ||
+		!strings.Contains(out, "no spec") {
+		t.Fatalf("product code without a spec should be denied: %q", out)
+	}
+	for _, rel := range []string{
+		".forge/specs/SPEC-001.md",
+		".opencode/plugins/forge-guard.js",
+		"opencode.json",
+	} {
+		if out, code := run(t, dir, "guard", "--file", rel); code != 0 {
+			t.Errorf("%s is process paperwork and must be allowed: %s", rel, out)
+		}
 	}
 }
 

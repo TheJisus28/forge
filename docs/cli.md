@@ -8,12 +8,14 @@ which are the user's tools with the user's credentials.
 
 ### `forge init [dir] [--ci github] [--no-guard] [--force]`
 
-Plants the kit: `.forge/`, `AGENTS.md`, `CLAUDE.md`, the Claude Code
-subagents, skills and hooks, and the workflows when `--ci github` is given.
+Plants the kit: `.forge/`, `AGENTS.md`, `CLAUDE.md`, the Claude Code and
+opencode subagents, skills and hooks, and the workflows when `--ci github`
+is given.
 
 Existing files are kept. `--force` rewrites them, except `.forge/project.md`,
-which is never overwritten. `--no-guard` skips the `PreToolUse` hook that
-denies product code edits without an active spec.
+which is never overwritten. `--no-guard` skips the `PreToolUse` hook and the
+opencode guard plugin, so nothing denies product code edits without an
+active spec.
 
 ### `forge update [--force]`
 
@@ -93,6 +95,11 @@ authorization model to enforce.
 The `PreToolUse` hook. Reads the payload on stdin and denies edits to
 product code while no spec is `implementing`, explaining how to unblock.
 Silence means no decision, so the normal permission flow continues.
+
+With `--file` and no `--explain` it is hook-free: it decides for that one
+path, prints the reason and exits 1 when the edit must be denied, so any
+agent can call it. This is what the opencode plugin uses. `--explain` never
+exits 1: it prints `would deny` or `would allow` for a human.
 
 ### `forge sync [id]`
 

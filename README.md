@@ -64,6 +64,7 @@ your-project/
 │   ├── conventions/              how code is written here
 │   └── kit/                      the workflow and the agent roles
 ├── .claude/                      subagents, skills and session hooks
+├── .opencode/                    subagents and the guard plugin
 └── .github/workflows/            with --ci github
 ```
 
@@ -82,8 +83,11 @@ while no spec is in `implementing`**, and says how to unblock. That is the
 difference between a workflow people respect and one they respect when they
 are not in a hurry. Turn it off with `guard: off` in `project.md`.
 
-Other agents read `AGENTS.md`, which is the single source the wrappers point
-at. First-class support for Cursor, Codex and Gemini comes next.
+For opencode, `forge init` plants `.opencode/agents/` and a guard plugin:
+opencode reads `AGENTS.md` and Forge's skills natively, and the plugin calls
+`forge guard` before every edit, so the same rule holds without a hook.
+[Using Forge with opencode](docs/opencode.md) has the details. Other agents
+read `AGENTS.md`, which is the single source the wrappers point at.
 
 ## Built for teams
 
@@ -124,6 +128,7 @@ Full reference: [docs/cli.md](docs/cli.md).
 - [Teams](docs/teams.md) — branches, pull requests, gates, CI
 - [Conventions](docs/conventions.md) — how a project accumulates criteria
 - [CLI reference](docs/cli.md)
+- [opencode](docs/opencode.md) — installing and using Forge from opencode
 - [Customizing](docs/customizing.md) — templates, roles, other agents
 
 ## Contributing

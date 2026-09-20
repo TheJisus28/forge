@@ -49,17 +49,24 @@ teams; the parser accepts both `## Acceptance criteria` and
 
 ## Other agents
 
-Today the binary plants integrations for Claude Code. `AGENTS.md` is the
-single source of truth, so the shape of support for another tool is a thin
-wrapper pointing at `.forge/kit/agents/<role>.md`:
+`AGENTS.md` is the single source of truth: anything that reads it needs no
+wrapper at all.
 
+- **opencode**: first-class support. `forge init` plants
+  `.opencode/agents/` (the architect, implementer and reviewer) and
+  `.opencode/plugins/forge-guard.js` (the guard). opencode reads
+  `AGENTS.md` and Forge's `.claude/skills/` on its own. See
+  [Using Forge with opencode](opencode.md).
+- Codex and others reading [agents.md](https://agents.md/): nothing to do.
 - Cursor: `.cursor/rules/forge.mdc` and `.cursor/skills/<name>/SKILL.md`
-- Codex and others reading [agents.md](https://agents.md/): nothing to do,
-  `AGENTS.md` is already there
 - GitHub Copilot: `.github/copilot-instructions.md`
 
 You can write those by hand now; first-class support is next, and
 contributions are welcome.
+
+For a tool that runs a command before file edits, wire it to
+`forge guard --file <path>`: it exits 1 and prints the reason when the edit
+must be denied, so the rule stays in the binary instead of being copied.
 
 ## Making the CLI part of your own workflow
 
