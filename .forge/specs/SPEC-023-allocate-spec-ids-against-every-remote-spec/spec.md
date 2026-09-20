@@ -1,10 +1,11 @@
 ---
 id: SPEC-023
 title: Allocate spec ids against every remote spec branch, not just main
-status: proposed
+status: accepted
 capability: specs
 created: 2026-09-20
 updated: 2026-09-20
+accepted_by: TheJisus28
 ---
 
 ## Problem
@@ -40,10 +41,11 @@ settles it: a backticked command, a `test`/`TestName`, or an observable verb
 such as `returns`/`refuses`. `forge approve` refuses while a criterion names
 none of those, so write it before approval.
 
-- AC1: The id confirmation reads the ids committed on every remote spec
-  branch, not only `main`, so a number that a remote branch already holds is
-  not handed out again; `TestNew_SkipsIdsOnOtherBranches` returns a fresh
-  number when a local bare `origin` carries that number on a `spec/*` branch.
+- AC1: `forge new` reads the ids committed on every remote spec branch, not
+  only `main`, so a number a remote branch already holds is skipped when the
+  provisional id is minted, and the `forge accept` confirmation reads the
+  same wider set; `TestNew_SkipsIdsOnOtherBranches` returns a fresh number
+  when a local bare `origin` carries that number on a `spec/*` branch.
 - AC2: The wider read uses only refs already present and never fetches by
   itself; with no remote branches it falls back to local plus `main` and
   never fails, proven by a before/after snapshot test
@@ -65,16 +67,32 @@ none of those, so write it before approval.
 
 ## Open questions
 
-- OQ1: What is promised — a reduced window only, or a hard reservation? Forge
-  has no central allocator, so "never collide" is not achievable; the
-  contract must say what is and is not guaranteed.
-- OQ2: Do abandoned or long-lived branches pin numbers forever? Decide
-  whether to skip branches already merged into `main`, or whose head is older
-  than some age, and what that does to gaps in the sequence.
-- OQ3: Which commands read the wider set — `forge new`, `forge accept`,
-  `forge renumber`, `forge check` — and which keep the `main`-only view?
-- OQ4: Is there an upper bound on the number of remote branches to scan before
-  the cost is unacceptable, and what happens above it?
+Settled before acceptance; the contract records them as numbered decisions.
+
+OQ1 — Best-effort, not a reservation. Forge has no central allocator, so
+"never collide" cannot be promised: the read only narrows the window to
+branches whose remote refs are not present locally (created after the last
+fetch) and to two branches created before either pushes. The contract states
+that guarantee and no more.
+
+OQ2 — Every remote spec branch is scanned, regardless of age, and none is
+skipped for being merged or old. A merged branch's ids are already on `main`,
+so scanning it is redundant but harmless, and an age filter would reopen the
+window (an old branch can still merge). Gaps in the sequence are accepted:
+numbering is max+1 and already tolerates them. An abandoned, unmerged branch
+pins its number only until its ref is deleted.
+
+OQ3 — `forge new` (mint), `forge accept` (confirm) and `forge renumber`
+(next free) read the wider set. `forge validate` and `forge check` stay
+local: they are the duplicate backstop and must not depend on refs being
+fresh.
+
+OQ4 — No hard cap is introduced. The read is local plumbing (`git
+for-each-ref` plus one `git ls-tree` per ref), touches no network, and is
+O(branches) like the other git operations here; a cap that silently dropped
+refs would reopen the window. If a project ever has enough branches to
+matter, the answer is an explicit warning and opt-out, deferred out of this
+spec.
 
 ## Contract
 
@@ -100,3 +118,4 @@ A closed list.
 ## History
 
 Written by `forge`. Do not edit by hand.
+- 2026-09-20  accepted  by TheJisus28
