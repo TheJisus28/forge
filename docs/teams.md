@@ -6,7 +6,7 @@ unlikely rather than politely avoided.
 
 ## One file, one owner
 
-- One file per spec, so two people working on different things never edit
+- One folder per spec, so two people working on different things never edit
   the same file.
 - One file per decision, because a shared log would collide on every merge.
 - Coverage declared by children, so a parent is never rewritten.
@@ -18,7 +18,7 @@ unlikely rather than politely avoided.
 ```bash
 forge new "Export invoices to CSV"
 git checkout -b intake/export-invoices
-git add .forge/specs/SPEC-005-export-invoices.md
+git add .forge/specs/SPEC-005-export-invoices/spec.md
 git commit -m "spec(spec-005): export invoices to CSV"
 ```
 
@@ -36,7 +36,8 @@ forge start SPEC-005
 git checkout -b spec/005-export-invoices
 ```
 
-The branch holds the contract and the scaffolding in `.forge/wip/SPEC-005/`.
+The branch holds the contract and the scaffolding in
+`.forge/specs/SPEC-005/`.
 A teammate who checks it out sees the plan, what each phase did and what the
 review found. That is the point of keeping it in the branch instead of on
 someone's laptop.
@@ -78,8 +79,10 @@ Archive refuses if the scaffolding still proposes conventions nobody
 decided. Decide them first: that is how the project accumulates criteria
 instead of losing it.
 
-The pull request that lands in main contains the code, the contract with its
-audit header, any new decisions and conventions, and nothing else.
+The pull request that lands in main contains the code, the spec folder with
+its contract, plan, tasks and review, any new decisions and conventions, and
+nothing else. Archive keeps the folder as the durable record; it is not
+deleted, so a later spec can read what was built and why.
 
 ## Roles
 

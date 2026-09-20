@@ -25,7 +25,11 @@ func write(t *testing.T, config string, specs map[string]string) string {
 		t.Fatal(err)
 	}
 	for name, body := range specs {
-		if err := os.WriteFile(filepath.Join(base, "specs", name), []byte(body), 0o644); err != nil {
+		dir := filepath.Join(base, "specs", strings.TrimSuffix(name, ".md"))
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "spec.md"), []byte(body), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -252,8 +256,8 @@ func TestNextNumAndNaming(t *testing.T) {
 			t.Errorf("Slug(%q) = %q, want %q", in, got, want)
 		}
 	}
-	if got := project.FileName("SPEC-004", "Saved card"); got != "SPEC-004-saved-card.md" {
-		t.Errorf("FileName = %q", got)
+	if got := project.SpecDirName("SPEC-004", "Saved card"); got != "SPEC-004-saved-card" {
+		t.Errorf("SpecDirName = %q", got)
 	}
 }
 

@@ -14,7 +14,7 @@ Agents propose, the team decides.
 When an implementer has to make a choice that nothing covers — the shape of
 an error response, where a new module goes, how a migration is named — it
 does the reasonable thing, and then says so in the
-"Proposed conventions" section of `.forge/wip/<id>/changes.md`. The reviewer
+"Proposed conventions" section of `.forge/specs/<id>/tasks.md`. The reviewer
 does the same when it notices a pattern repeating.
 
 The orchestrator surfaces it:

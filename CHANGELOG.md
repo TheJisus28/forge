@@ -38,6 +38,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   them. This is what let the Forge repository manage itself without losing
   the rules in its `AGENTS.md`.
 
+### Changed
+
+- Specs now live in a folder per spec, `.forge/specs/SPEC-NNN-slug/`, with the
+  standard `spec.md`, `plan.md`, `tasks.md` and `review.md`. `wip/` and
+  `changes.md` are gone, and `forge archive` keeps the folder as the durable
+  record instead of deleting it. Not backward compatible.
+
 ## [0.2.0] - 2026-09-19
 
 ### Removed

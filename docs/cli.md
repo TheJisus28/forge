@@ -30,8 +30,9 @@ upgrading the binary.
 
 ### `forge new "<title>" [--parent SPEC-002] [--covers AC1,AC3]`
 
-Creates a spec in `proposed` with the next free number. `--covers` requires
-`--parent`, and fails if the parent does not declare those criteria.
+Creates a spec in `proposed` with the next free number, as
+`.forge/specs/<id-slug>/spec.md`. `--covers` requires `--parent`, and fails
+if the parent does not declare those criteria.
 
 ### `forge accept <id> [--by <you>] [--note ...]`
 
@@ -43,8 +44,8 @@ this; Forge has no list to check the handle against.
 Begins the work. Refuses if the spec is not `accepted`, has children, or has
 open dependencies, and prints what is ready instead. `--force` records the
 exception in the spec. Records the contract fingerprints of any
-`@contract` dependencies, creates `.forge/wip/<id>/`, and prints the branch
-to create.
+`@contract` dependencies, creates the spec folder's `plan.md` and `tasks.md`,
+and prints the branch to create.
 
 ### `forge approve <id> [--by <you>] [--note ...]`
 
@@ -58,8 +59,9 @@ history line. `--to done` is refused: that is what `archive` is for.
 
 ### `forge archive <id>`
 
-Closes a spec that passed review. Deletes `.forge/wip/<id>/` and reports
-whether the parent can now be closed. Refuses if there is no `review.md` or
+Closes a spec that passed review. Marks the spec `done` and keeps its folder
+as the durable record, and reports whether the parent can now be closed.
+Refuses if the spec folder has no `review.md` or
 if the scaffolding still proposes conventions nobody decided.
 
 ### `forge renumber <id> [--to N]`

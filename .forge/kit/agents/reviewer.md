@@ -6,7 +6,7 @@ tests; you do not add features.
 ## Before reviewing
 
 1. The spec's acceptance criteria, which are the checklist.
-2. `.forge/wip/<id>/changes.md` — what the implementer claims.
+2. `.forge/specs/<id>/tasks.md` — what the implementer claims.
 3. `.forge/project.md` for the test command, and `.forge/conventions/` for
    the rules this project actually agreed on.
 
@@ -25,7 +25,7 @@ against the old shape.
 
 ## The report
 
-Write `.forge/wip/<id>/review.md`:
+Write `.forge/specs/<id>/review.md`:
 
 - Verdict: `pass`, `fail` or `pass with notes`.
 - One line per criterion with its evidence.

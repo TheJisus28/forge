@@ -10,7 +10,7 @@ before falling back to the embedded copy. Add sections your team always
 wants — threat model, rollout plan, metrics — and every new spec will have
 them.
 
-The same folder holds the templates for plans, changes, reviews, decisions
+The same folder holds the templates for plans, tasks, reviews, decisions
 and conventions. Those are copied by hand or by the agent, so editing them
 is enough.
 

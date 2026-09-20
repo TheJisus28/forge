@@ -62,14 +62,14 @@ because you are building against a version that no longer exists.
 ## Files
 
 ```
-.forge/specs/SPEC-004-slug.md       the spec: problem, criteria, contract, history
-.forge/wip/SPEC-004/plan.md         phases
-.forge/wip/SPEC-004/changes.md      what each phase did
-.forge/wip/SPEC-004/review.md       evidence per criterion
+.forge/specs/SPEC-004-saved-cards/spec.md      the spec: problem, criteria, contract, history
+.forge/specs/SPEC-004-saved-cards/plan.md      the approach and the existing state it builds on
+.forge/specs/SPEC-004-saved-cards/tasks.md     the phases, ticked as they land
+.forge/specs/SPEC-004-saved-cards/review.md    evidence per criterion
 ```
 
-`forge archive` deletes `wip/` and leaves the spec. Nothing is lost: the
-scaffolding stays in git history.
+The spec folder stays in the tree as the record; `forge archive` only marks
+the spec done.
 
 ## Rules
 
