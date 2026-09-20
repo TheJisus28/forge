@@ -11,38 +11,4 @@ later spec knows what exists without reading the diff.
 
 ## Proposed conventions
 
-Patterns decided because nothing was written. The team decides whether they
-become rules in `.forge/conventions/`.
-
-- **A non-fatal CLI notice is a `warning: ` line on `out`, and the command
-  still exits 0.** `forge new` has to report an undeclared capability and
-  still create the spec, and nothing in the tree said how. I wrote it with
-  `fmt.Fprintf(out, "warning: ...\n")` to the command's `out` writer, leaving
-  errors (which `Main` prefixes `forge: ` and turns into exit 1) as returned
-  `error`s. `internal/validate` already has a `Warning` severity for its own
-  findings; this is its CLI counterpart. Proposed because it is the first
-  plain-text warning on a command and the next one (SPEC-011/012) will want
-  the same shape.
-- **Quoting a user-supplied name in a message uses `%q`.** The contract wrote
-  the warning with literal double quotes; I used `%q` so the quotes and any
-  escaping come from one place, matching the existing `unknown command %q`
-  style in `Main`. Phase 3 follows it: `capability %q is not a lowercase slug`
-  over the raw `s.Capability`, so `Guard` renders as `"Guard"` and an empty
-  value as `""`.
-- **An intrinsic frontmatter check runs before the unknown-status `continue`
-  in `Run`.** Decision 4 says `checkCapability` fires "for every spec", but
-  the per-spec loop skips `checkRelations`/`checkArtifacts` when
-  `!workflow.Valid(s.Status)`. I placed `checkCapability` beside the
-  `missing title` check, before that `continue`, so a spec with an
-  unrecognised status is still told its `capability` is absent or malformed.
-  Proposed because the next field-level rule (SPEC-011's `supersedes`) faces
-  the same choice: a finding about a field does not depend on the state the
-  spec claims, so it belongs with the title check, not after the state gate.
-- **Field-shape guidance lives as a trailing `#` comment on the template
-  line.** `kit/machine/templates/spec.md` carries
-  `capability: ""  # lowercase slug ([a-z0-9-]+)...`. `internal/doc`'s
-  `stripComment` already drops a `# ...` comment before parsing, so the value
-  stays empty and `forge new` replaces the line; `forge template spec` writes
-  the embedded bytes, so a reader still sees the guidance. Proposed because it
-  is the first field shape documented in a template and the next one
-  (SPEC-011's `supersedes`) needs the same place to say it.
+None.
