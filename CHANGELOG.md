@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-20
+
 ### Added
 
 - `forge brief` refreshes the remote refs at session start when
@@ -16,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cannot run or fails it prints a `warning: ` line, renders from local refs
   and exits 0. The default stays offline, and the docs, the roles and
   `project.md` say so.
+- `forge new`, `forge accept` and `forge renumber` read the spec folders
+  committed under `.forge/specs/` on every remote-tracking ref, not just
+  `main`, so a number a parallel branch already pushed is skipped. The read is
+  best-effort and never fetches, and `forge accept` keeps the id of a spec's
+  own published branch; in a repository with more than one person, run
+  `git fetch` before `forge new`.
 
 ## [0.8.0] - 2026-09-20
 

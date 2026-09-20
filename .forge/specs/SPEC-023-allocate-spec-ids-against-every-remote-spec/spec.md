@@ -1,7 +1,7 @@
 ---
 id: SPEC-023
 title: Allocate spec ids against every remote spec branch, not just main
-status: reviewing
+status: done
 capability: specs
 created: 2026-09-20
 updated: 2026-09-20
@@ -294,3 +294,4 @@ Written by `forge`. Do not edit by hand.
 - 2026-09-20  planning  by TheJisus28
 - 2026-09-20  implementing  by orchestrator
 - 2026-09-20  reviewing  by orchestrator
+- 2026-09-20  done  by orchestrator: archived
