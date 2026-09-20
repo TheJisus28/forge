@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-20
+
+### Changed
+
+- The guard treats repository-root paperwork — Markdown and licence or notice
+  files — as process files, so editing the changelog or the readme no longer
+  needs a spec. The unused community boilerplate at the repository root was
+  removed, and the contributor guide now lives in `AGENTS.md`.
+
+## [0.3.0] - 2026-09-20
+
 ### Added
 
 - Planning surveys what exists: `## Existing state` in `plan.md` records the
@@ -76,10 +87,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a subagent to keep the context short, and compaction is the fallback inside
   a session. The brief is built again on start and after a compaction, so a
   fresh session loses nothing.
-- The guard treats repository-root paperwork — Markdown and licence or notice
-  files — as process files, so editing the changelog or the readme no longer
-  needs a spec. The unused community boilerplate at the repository root was
-  removed, and the contributor guide now lives in `AGENTS.md`.
 
 ## [0.2.0] - 2026-09-19
 
@@ -136,7 +143,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `archive`, `gate`, `status`, `brief`, `board`, `validate`, `sync`, `renumber`,
   `guard` and `version`.
 
-[Unreleased]: https://github.com/TheJisus28/forge/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/TheJisus28/forge/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/TheJisus28/forge/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/TheJisus28/forge/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/TheJisus28/forge/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/TheJisus28/forge/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/TheJisus28/forge/releases/tag/v0.1.0
