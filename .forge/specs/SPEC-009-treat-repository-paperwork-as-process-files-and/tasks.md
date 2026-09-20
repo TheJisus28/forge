@@ -17,11 +17,4 @@ later spec knows what exists without reading the diff.
 
 ## Proposed conventions
 
-Patterns decided because nothing was written. The team decides whether they
-become rules in `.forge/conventions/`.
-
-- When an acceptance criterion forbids naming a removed file anywhere in the
-  live tree, a test that must assert the path is gone may build the name from
-  fragments inside the test. The behaviour under test is unchanged — the real
-  path is still checked — but `git grep` over the tree stays clean. Chosen in
-  SPEC-009 because AC3 would otherwise contradict its own evidence command.
+None.

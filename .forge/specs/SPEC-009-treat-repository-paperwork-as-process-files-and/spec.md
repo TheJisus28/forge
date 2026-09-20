@@ -1,7 +1,7 @@
 ---
 id: SPEC-009
 title: Treat repository paperwork as process files and drop unused community docs
-status: implementing
+status: done
 created: 2026-09-20
 updated: 2026-09-20
 accepted_by: TheJisus28
@@ -248,3 +248,5 @@ Written by `forge`. Do not edit by hand.
 - 2026-09-20  awaiting-approval  by orchestrator
 - 2026-09-20  planning  by TheJisus28
 - 2026-09-20  implementing  by orchestrator
+- 2026-09-20  reviewing  by orchestrator
+- 2026-09-20  done  by orchestrator: archived
