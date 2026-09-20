@@ -1,7 +1,38 @@
 # AGENTS
 
 Forge is a Go CLI that plants a spec-driven workflow into other
-repositories. This file describes **this** repo, not the kit it ships.
+repositories. This file describes **this** repo, and this repo is itself
+managed with Forge: work is agreed before it is built, and the agreement
+lives in `.forge/`.
+
+## Before anything
+
+1. `.forge/project.md` — what this project is, its stack and commands.
+2. `.forge/conventions/` — how code is written here. Never assume a
+   convention that is not written down; propose it instead.
+3. `forge status` — what is open, who is waiting, what is blocked.
+4. Before planning, survey what already exists: `forge status`, the
+   delivered specs and the code. Reuse it instead of rebuilding it, and
+   record what you reuse under `## Existing state` in
+   `.forge/wip/<id>/plan.md`.
+
+## The loop
+
+```
+proposed → accepted → specifying → awaiting-approval → planning →
+implementing → reviewing → done
+```
+
+- Anyone proposes with `forge new`, accepts with `forge accept` and
+  approves a contract with `forge approve`. Forge has no authorization
+  model; it records who did it, the way a git commit records an author.
+- No product code until the spec is `implementing`.
+- The CLI owns ids, state, history and the board. Never edit `status` by
+  hand and never renumber a spec yourself.
+- Read the role file before acting as one. They live in
+  `.forge/kit/agents/`: `orchestrator.md`, `architect.md`,
+  `implementer.md`, `reviewer.md`. You are the orchestrator unless you were
+  launched as another role.
 
 ## Stack
 
@@ -49,3 +80,8 @@ go run . init /tmp/scratch && go run . status
 - Conventional Commits, English summaries: `type(scope): summary`.
 - Errors are sentences that tell the reader what to do next.
 - Tests describe behaviour, not implementation.
+
+## Language
+
+Process files are English. Specs, decisions and product copy may use the
+`working_language` declared in `.forge/project.md`.
