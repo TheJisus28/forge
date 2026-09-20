@@ -28,6 +28,7 @@ const usage = `forge — spec-driven agentic development, in files you own
   forge submit [id]             push the branch and open the pull request
 
   forge status [id]             what is open, who is waiting, what blocks
+  forge capabilities [name]     the done contracts, grouped by capability
   forge brief                   the short state an agent reads at session start
   forge validate                exit 1 when the project is inconsistent
   forge sync [id]               read the pull request state through gh
@@ -77,6 +78,8 @@ func Main(args []string, stdout, stderr io.Writer) int {
 		err = cmdArchive(rest, stdout)
 	case "status":
 		err = cmdStatus(rest, stdout)
+	case "capabilities":
+		err = cmdCapabilities(rest, stdout)
 	case "brief":
 		err = cmdBrief(rest, stdout)
 	case "validate":

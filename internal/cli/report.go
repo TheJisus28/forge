@@ -78,6 +78,61 @@ func cmdBrief(args []string, out io.Writer) error {
 	return nil
 }
 
+// cmdCapabilities prints the current shape of the system: every done spec is
+// a contract, grouped by the capability it declares. A superseded contract
+// stays visible with a suffix rather than being omitted, so the history is
+// legible without hiding the current shape. It reads .forge/specs/ and writes
+// nothing: no Save, no file, no git and no network, so running it leaves
+// `git status` unchanged.
+func cmdCapabilities(args []string, out io.Writer) error {
+	fs := newFlagSet("capabilities", "usage: forge capabilities [name]", out)
+	rest, err := parseArgs(fs, args)
+	if err != nil {
+		return err
+	}
+	p, err := project.Load(cwd())
+	if err != nil {
+		return err
+	}
+
+	groups := p.Capabilities()
+	if len(rest) > 0 {
+		name := strings.TrimSpace(rest[0])
+		found := false
+		for _, g := range groups {
+			if g.Name == name {
+				groups = []project.CapabilityGroup{g}
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("no done spec declares the capability %q; forge capabilities lists them", name)
+		}
+	}
+	if len(groups) == 0 {
+		fmt.Fprintln(out, "No done specs declare a capability yet.")
+		return nil
+	}
+
+	var b strings.Builder
+	for i, g := range groups {
+		if i > 0 {
+			b.WriteString("\n")
+		}
+		b.WriteString(g.Name + "\n")
+		for _, c := range g.Contracts {
+			fmt.Fprintf(&b, "  %s  %s", c.ID, c.Title)
+			if len(c.SupersededBy) > 0 {
+				fmt.Fprintf(&b, " (superseded by %s)", strings.Join(c.SupersededBy, ", "))
+			}
+			b.WriteString("\n")
+		}
+	}
+	fmt.Fprint(out, b.String())
+	return nil
+}
+
 func cmdValidate(args []string, out, errOut io.Writer) int {
 	fs := newFlagSet("validate", "usage: forge validate [--quiet]", out)
 	quiet := fs.Bool("quiet", false, "print only errors")

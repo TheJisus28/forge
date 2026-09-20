@@ -287,6 +287,69 @@ func (p *Project) Coverage(s *Spec) []Coverage {
 	return out
 }
 
+// CapabilityGroup is one capability in the derived view: its name and the
+// delivered contracts that declare it.
+type CapabilityGroup struct {
+	Name      string
+	Contracts []Contract
+}
+
+// Contract is one delivered spec as the capability view shows it. SupersededBy
+// names the non-dropped specs that replace it, in number order; an empty list
+// means the contract still describes current behaviour.
+type Contract struct {
+	ID           string
+	Title        string
+	SupersededBy []string
+}
+
+// Current reports whether the contract still describes current behaviour:
+// no non-dropped spec supersedes it.
+func (c Contract) Current() bool { return len(c.SupersededBy) == 0 }
+
+// Capabilities derives the capability view from the specs on disk: the
+// contracts of every done spec, grouped by the capability it declares, with
+// capabilities in name order and contracts in number order. Each contract
+// names the non-dropped specs that supersede it, so a caller can tell the
+// current shape from the history without reading every contract. Specs that
+// are not done, and done specs that declare no capability, are not part of
+// the view. Nothing is cached or written.
+func (p *Project) Capabilities() []CapabilityGroup {
+	supersededBy := map[string][]string{}
+	for _, s := range p.Specs {
+		if s.Status == workflow.Dropped {
+			continue
+		}
+		for _, target := range s.Supersedes {
+			supersededBy[target] = append(supersededBy[target], s.ID)
+		}
+	}
+
+	byName := map[string]*CapabilityGroup{}
+	for _, s := range p.Specs {
+		if s.Status != workflow.Done || s.Capability == "" {
+			continue
+		}
+		g := byName[s.Capability]
+		if g == nil {
+			g = &CapabilityGroup{Name: s.Capability}
+			byName[s.Capability] = g
+		}
+		g.Contracts = append(g.Contracts, Contract{
+			ID:           s.ID,
+			Title:        s.Title,
+			SupersededBy: supersededBy[s.ID],
+		})
+	}
+
+	groups := make([]CapabilityGroup, 0, len(byName))
+	for _, g := range byName {
+		groups = append(groups, *g)
+	}
+	sort.Slice(groups, func(i, j int) bool { return groups[i].Name < groups[j].Name })
+	return groups
+}
+
 // Criteria parses the acceptance criteria out of the body.
 var criterionRe = regexp.MustCompile(`^-\s*(?:\[[ xX]\]\s*)?(AC\d+)\s*[:.-]\s*(.+)$`)
 

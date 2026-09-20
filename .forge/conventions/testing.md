@@ -15,7 +15,10 @@ that the test can replace. But a mutable package-level variable is not the
 mandatory way to inject dependencies here: choose the simplest shape the
 case allows — a direct call, a parameter, a small unexported interface, or a
 package-level variable — and add a seam only where a test must actually
-substitute it.
+substitute it. A command that promises to write nothing proves it with a
+before/after snapshot: the test hashes or fully lists the affected tree
+around the call, rather than asserting on individual files, so a write
+anywhere under the root fails the test.
 
 ## Example
 
@@ -24,6 +27,11 @@ substitute it.
 `removeFile` — as package-level variables, and
 `internal/cli/upgrade_internal_test.go` swaps them through one `swap` helper
 registered on `t.Cleanup`. Nothing else in the package is a seam.
+
+`internal/cli/cli_test.go:TestCapabilities_IsDeterministicAndWritesNothing`
+runs `forge capabilities` twice, compares the SHA256 of every file under the
+repository before and after, and asserts `git status --porcelain` is empty,
+so any stray write fails the test rather than one overlooked file.
 
 ## Why
 

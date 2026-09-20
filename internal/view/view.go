@@ -50,6 +50,8 @@ func Brief(p *project.Project) string {
 		b.WriteString("\n")
 	}
 
+	capabilitiesSection(&b, p)
+
 	var waiting, inFlight, ready, delivered []*project.Spec
 	for _, s := range p.Specs {
 		switch {
@@ -105,6 +107,33 @@ func section(b *strings.Builder, title string, specs []*project.Spec, note func(
 	fmt.Fprintf(b, "%s:\n", title)
 	for _, s := range specs {
 		fmt.Fprintf(b, "  %s  %-40s %s\n", s.ID, truncate(s.Title, 40), note(s))
+	}
+	b.WriteString("\n")
+}
+
+// capabilitiesSection prints the current shape of the system, one line per
+// capability: the count of contracts no non-dropped spec has superseded. It
+// shares project.Capabilities() with `forge capabilities`, so the brief and
+// the command cannot disagree, and it prints nothing when no done spec
+// declares a capability yet.
+func capabilitiesSection(b *strings.Builder, p *project.Project) {
+	groups := p.Capabilities()
+	if len(groups) == 0 {
+		return
+	}
+	b.WriteString("capabilities:\n")
+	for _, g := range groups {
+		current := 0
+		for _, c := range g.Contracts {
+			if c.Current() {
+				current++
+			}
+		}
+		noun := "contracts"
+		if current == 1 {
+			noun = "contract"
+		}
+		fmt.Fprintf(b, "  %-20s %d current %s\n", g.Name, current, noun)
 	}
 	b.WriteString("\n")
 }

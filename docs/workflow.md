@@ -82,9 +82,11 @@ test, a request and its response. The reviewer marks each one with evidence.
 ## Planning from what exists
 
 A spec does not start from an empty repository. Before splitting it into
-phases, the orchestrator surveys the delivered work: `forge status`, the
-contracts of specs already `done`, and the code that already does part of
-the job. `## Existing state` in `.forge/specs/<id>/plan.md` records what this
+phases, the orchestrator surveys the delivered work: first `forge
+capabilities`, which derives the current contracts grouped by capability and
+marks what each one supersedes, then the contracts it points at, `forge
+status` for what is open, and the code that already does part of the job.
+`## Existing state` in `.forge/specs/<id>/plan.md` records what this
 builds on, what it reuses, the conventions that apply, and the duplication
 it avoids. The architect names the modules it builds on in the contract, so
 the reuse is written where it survives archiving. `forge validate` warns

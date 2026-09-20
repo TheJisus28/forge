@@ -94,12 +94,29 @@ With an id: the full detail of one spec, including task progress as
 `tasks done/total` read from its `tasks.md`, and its `capability` (or
 `(none)`). `--fetch` runs `git fetch` first.
 
+### `forge capabilities [name]`
+
+The current shape of the system, derived from the contracts on disk. Every
+`done` spec is a contract, grouped by the `capability` it declares;
+capabilities print in name order and the contracts inside one in number
+order. A contract that a non-dropped spec supersedes stays visible with a
+`(superseded by SPEC-MMM)` suffix, so the history is not lost while the
+current shape stays legible, and a superseded contract is never written to.
+Without a name it prints every capability; with a name it prints only that
+one, and fails when no done spec declares it.
+
+It reads `.forge/specs/` and writes nothing: no `git`, no network, no model
+and no file, so the same tree prints byte-identical output and `git status`
+is unchanged afterwards.
+
 ### `forge brief [--json]`
 
 The short state an agent reads at the start of a session. It shows the
 current spec's task progress as `tasks done/total`, read from its
-`tasks.md`, and names that spec's `capability`. `--json` emits the Claude
-Code `SessionStart` payload. In a repository without Forge it prints
+`tasks.md`, and names that spec's `capability`. It also summarises the
+current shape with one line per capability and the count of current
+contracts, using the same view as `forge capabilities`. `--json` emits the
+Claude Code `SessionStart` payload. In a repository without Forge it prints
 nothing and succeeds, so the hook is harmless everywhere.
 
 It lists the most recent five `done` specs, so a session knows what already

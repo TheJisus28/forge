@@ -87,6 +87,52 @@ func read(t *testing.T, path string) string {
 	return string(data)
 }
 
+// doneSpec writes a delivered spec straight to disk: the capability view only
+// reads the file, so a test needs no full lifecycle to have something done.
+func doneSpec(t *testing.T, dir, id, title, capability string, supersedes ...string) string {
+	t.Helper()
+	body := "---\nid: " + id + "\ntitle: " + title + "\nstatus: done\ncapability: " + capability + "\n"
+	if len(supersedes) > 0 {
+		body += "supersedes: [" + strings.Join(supersedes, ", ") + "]\n"
+	}
+	body += "---\n\n## Contract\n\nDelivered.\n"
+	path := filepath.Join(dir, ".forge", "specs", id, "spec.md")
+	write(t, path, body)
+	return path
+}
+
+// tree reads every file under dir into one comparable string, so a test can
+// prove that a command wrote nothing.
+func tree(t *testing.T, dir string) string {
+	t.Helper()
+	var b strings.Builder
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(dir, path)
+		if err != nil {
+			return err
+		}
+		b.WriteString(rel)
+		b.WriteString("\n")
+		b.Write(data)
+		b.WriteString("\n")
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b.String()
+}
+
 func TestInit_PlantsTheKitAndKeepsYourContent(t *testing.T) {
 	dir := t.TempDir()
 	mustRun(t, dir, "init")
@@ -549,6 +595,99 @@ func TestStatusShowsSupersedes(t *testing.T) {
 	}
 }
 
+// The derived view lists each capability with the done contracts under it,
+// alphabetically, and says nothing about in-flight work.
+func TestCapabilities_ListsByCapability(t *testing.T) {
+	dir := newRepo(t)
+	doneSpec(t, dir, "SPEC-001", "Greeting", "payments")
+	doneSpec(t, dir, "SPEC-002", "Deleting", "workflow")
+	write(t, filepath.Join(dir, ".forge", "specs", "SPEC-003", "spec.md"),
+		"---\nid: SPEC-003\ntitle: Proposed\nstatus: proposed\ncapability: workflow\n---\n")
+
+	out := mustRun(t, dir, "capabilities")
+	for _, want := range []string{"payments", "SPEC-001", "Greeting", "workflow", "SPEC-002"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("capabilities output missing %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "SPEC-003") {
+		t.Errorf("a spec that is not done is not part of the view:\n%s", out)
+	}
+	if strings.Index(out, "payments") > strings.Index(out, "workflow") {
+		t.Errorf("capabilities should be alphabetical:\n%s", out)
+	}
+}
+
+// A superseded contract stays visible, marked with who replaces it.
+func TestCapabilities_MarksSuperseded(t *testing.T) {
+	dir := newRepo(t)
+	doneSpec(t, dir, "SPEC-001", "Old", "workflow")
+	doneSpec(t, dir, "SPEC-002", "New", "workflow", "SPEC-001")
+
+	out := mustRun(t, dir, "capabilities")
+	if !strings.Contains(out, "(superseded by SPEC-002)") {
+		t.Errorf("the superseded contract should say by whom:\n%s", out)
+	}
+	if !strings.Contains(out, "SPEC-001") {
+		t.Errorf("the superseded contract should not be omitted:\n%s", out)
+	}
+}
+
+// With a name, only that capability is shown; an unknown one is an error.
+func TestCapabilities_OneName(t *testing.T) {
+	dir := newRepo(t)
+	doneSpec(t, dir, "SPEC-001", "Payments", "payments")
+	doneSpec(t, dir, "SPEC-002", "Workflow", "workflow")
+
+	out := mustRun(t, dir, "capabilities", "payments")
+	if !strings.Contains(out, "SPEC-001") || strings.Contains(out, "SPEC-002") {
+		t.Errorf("a named capability should show only its contracts:\n%s", out)
+	}
+	if out, code := run(t, dir, "capabilities", "nope"); code == 0 {
+		t.Errorf("an unknown capability should fail:\n%s", out)
+	}
+}
+
+// The view is derived and read-only: the same tree prints identical bytes,
+// and no file under .forge changes.
+func TestCapabilities_IsDeterministicAndWritesNothing(t *testing.T) {
+	dir := newRepo(t)
+	doneSpec(t, dir, "SPEC-001", "Old", "workflow")
+	doneSpec(t, dir, "SPEC-002", "New", "workflow", "SPEC-001")
+
+	before := tree(t, filepath.Join(dir, ".forge"))
+	first := mustRun(t, dir, "capabilities")
+	second := mustRun(t, dir, "capabilities")
+	if first != second {
+		t.Errorf("the same tree should print identical bytes:\n%q\n%q", first, second)
+	}
+	after := tree(t, filepath.Join(dir, ".forge"))
+	if before != after {
+		t.Errorf("forge capabilities wrote to .forge:\nbefore:\n%s\nafter:\n%s", before, after)
+	}
+}
+
+// The brief mirrors the command's summary, so a session starts knowing the
+// current shape instead of reading every contract.
+func TestBrief_ShowsCapabilitySummary(t *testing.T) {
+	dir := newRepo(t)
+	doneSpec(t, dir, "SPEC-001", "Payments", "payments")
+	doneSpec(t, dir, "SPEC-002", "First", "workflow")
+	doneSpec(t, dir, "SPEC-003", "Second", "workflow")
+	doneSpec(t, dir, "SPEC-004", "Replacement", "payments", "SPEC-001")
+
+	brief := mustRun(t, dir, "brief")
+	if !strings.Contains(brief, "capabilities:") {
+		t.Fatalf("the brief should carry the capability summary:\n%s", brief)
+	}
+	if !strings.Contains(brief, "2 current contracts") {
+		t.Errorf("workflow has two current contracts:\n%s", brief)
+	}
+	if !strings.Contains(brief, "1 current contract") {
+		t.Errorf("payments has one current contract:\n%s", brief)
+	}
+}
+
 // Repository-root paperwork is process files, not product code: the unused
 // community boilerplate is gone and the contributor guide lives in AGENTS.md.
 // The removed names are assembled from fragments so no live file spells them
@@ -608,6 +747,17 @@ func TestDocs_DescribeCapability(t *testing.T) {
 	}
 	if !strings.Contains(string(doc), "--capability") {
 		t.Error("docs/cli.md should document --capability")
+	}
+}
+
+// The CLI reference documents the derived capability view.
+func TestDocs_DescribeCapabilities(t *testing.T) {
+	doc, err := os.ReadFile("../../docs/cli.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(doc), "forge capabilities") {
+		t.Error("docs/cli.md should document forge capabilities")
 	}
 }
 
