@@ -451,11 +451,11 @@ func referencesTo(p *project.Project, id string) []string {
 	return out
 }
 
-// pendingConventions finds convention proposals left unresolved in the
-// scaffolding, so archiving does not quietly drop them.
-func pendingConventions(wip string) []string {
+// pendingConventions finds convention proposals left unresolved in the spec
+// folder, so archiving does not quietly drop them.
+func pendingConventions(dir string) []string {
 	var out []string
-	entries, err := os.ReadDir(wip)
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil
 	}
@@ -463,7 +463,7 @@ func pendingConventions(wip string) []string {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
 			continue
 		}
-		d, err := doc.Load(filepath.Join(wip, e.Name()))
+		d, err := doc.Load(filepath.Join(dir, e.Name()))
 		if err != nil {
 			continue
 		}
