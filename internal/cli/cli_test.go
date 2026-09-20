@@ -375,9 +375,21 @@ func TestGuardFileMode(t *testing.T) {
 		".forge/specs/SPEC-001.md",
 		".opencode/plugins/forge-guard.js",
 		"opencode.json",
+		"CHANGELOG.md",
 	} {
 		if out, code := run(t, dir, "guard", "--file", rel); code != 0 {
 			t.Errorf("%s is process paperwork and must be allowed: %s", rel, out)
+		}
+	}
+	for _, rel := range []string{
+		"internal/cli/guard.go",
+		"main.go",
+		"docs/customizing.md",
+		"go.mod",
+	} {
+		if out, code := run(t, dir, "guard", "--file", rel); code != 1 ||
+			!strings.Contains(out, "no spec") {
+			t.Errorf("%s is product code and must be denied: %q", rel, out)
 		}
 	}
 }
@@ -433,6 +445,57 @@ func TestStatusShowsTaskProgress(t *testing.T) {
 	out := mustRun(t, dir, "status", "SPEC-001")
 	if !strings.Contains(out, "tasks") || !strings.Contains(out, "1/2") {
 		t.Errorf("status should show task progress:\n%s", out)
+	}
+}
+
+// Repository-root paperwork is process files, not product code: the unused
+// community boilerplate is gone and the contributor guide lives in AGENTS.md.
+// The removed names are assembled from fragments so no live file spells them
+// out; the durable record under .forge/specs/ is the only place they may stay.
+func TestRepositoryPaperwork(t *testing.T) {
+	contributing := "CONTRIB" + "UTING.md"
+	security := "SECUR" + "ITY.md"
+	conduct := "CODE_OF_" + "CONDUCT.md"
+
+	for _, rel := range []string{contributing, security, conduct} {
+		if _, err := os.Stat(filepath.Join("..", "..", rel)); !os.IsNotExist(err) {
+			t.Errorf("%s should be gone from the tree", rel)
+		}
+	}
+
+	readme, err := os.ReadFile("../../README.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(readme), contributing) {
+		t.Error("README.md should not reference the removed contributor guide")
+	}
+	if !strings.Contains(string(readme), "AGENTS.md") {
+		t.Error("README.md should point contributors at AGENTS.md")
+	}
+
+	agents, err := os.ReadFile("../../AGENTS.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"## Contributing", "Adding a command", "Supporting another agent"} {
+		if !strings.Contains(string(agents), want) {
+			t.Errorf("AGENTS.md should contain %q", want)
+		}
+	}
+}
+
+// The guard's definition of root paperwork is written down where the guard is
+// documented, so the code and the pages cannot drift apart.
+func TestDocs_DescribeProcessFiles(t *testing.T) {
+	doc, err := os.ReadFile("../../docs/customizing.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"Markdown", "LICENSE"} {
+		if !strings.Contains(string(doc), want) {
+			t.Errorf("docs/customizing.md should contain %q", want)
+		}
 	}
 }
 

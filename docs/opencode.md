@@ -50,8 +50,10 @@ forge guard --file <path>   # exits 1 and prints why when the edit is denied
 ```
 
 The rule is unchanged: no product code while no spec is `implementing`.
-Editing `.forge/`, `.opencode/`, `.claude/`, `.github/` and the root pointers
-is always allowed, because that is where the process happens.
+Editing `.forge/`, `.opencode/`, `.claude/`, `.github/`, the root pointers,
+repository-root Markdown (`.md`/`.markdown`) or a `LICENSE`/`NOTICE` file is
+always allowed, because that is where the process happens. Markdown inside a
+directory is product code.
 
 Turn it off for a project with `guard: off` in `.forge/project.md`, or from
 the start with `forge init --no-guard`. To see what it would decide:

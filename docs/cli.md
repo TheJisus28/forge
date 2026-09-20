@@ -144,7 +144,10 @@ denies commands that would land on the default branch: `gh pr merge`, and
 any `git push` or `git merge` targeting `main` or `master`. The rule is that
 a person merges the pull request; the agent never pushes or merges into the
 default branch. It explains how to unblock. Silence means no decision, so
-the normal permission flow continues.
+the normal permission flow continues. Process files are always editable:
+`.forge/`, `.claude/`, `.github/`, `.opencode/`, the root pointers, and
+repository-root Markdown or `LICENSE`/`NOTICE` files; Markdown inside a
+directory stays product code.
 
 With `--file` or `--command` and no `--explain` it is hook-free: it decides
 for that one path or command, prints the reason and exits 1 when it must be
