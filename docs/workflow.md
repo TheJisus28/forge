@@ -60,7 +60,12 @@ Criteria live in the spec as a list:
 ```
 
 They must be verifiable by someone who did not write them: a command, a
-test, a request and its response. The reviewer marks each one with evidence.
+test, a request and its response. `forge approve` refuses while a criterion
+names none of those, so a vague criterion is settled before code starts. The
+reviewer marks each one with evidence, and `forge check` reports every
+criterion with no task in `tasks.md` or no evidence line in `review.md`;
+`forge validate` raises the same coverage as a warning, and as an error at
+`done` when the evidence is missing.
 
 ## Planning from what exists
 

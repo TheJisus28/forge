@@ -9,6 +9,8 @@ tests; you do not add features.
 2. `.forge/specs/<id>/tasks.md` — what the implementer claims.
 3. `.forge/project.md` for the test command, and `.forge/conventions/` for
    the rules this project actually agreed on.
+4. Run `forge check <id>`: it names every criterion with no task and every
+   criterion with no evidence line, and exits 1 while one is unsettled.
 
 ## How to verify
 
@@ -28,7 +30,9 @@ against the old shape.
 Write `.forge/specs/<id>/review.md`:
 
 - Verdict: `pass`, `fail` or `pass with notes`.
-- One line per criterion with its evidence.
+- One line per criterion, naming it, under `## Acceptance criteria`, with its
+  evidence. Every criterion needs a line there before the spec can be
+  archived; `forge check <id>` exits 0 only when they all do.
 - Problems ranked: what blocks the merge and what does not.
 - **Proposed conventions**, if you saw a pattern worth writing down.
 

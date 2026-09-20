@@ -124,10 +124,54 @@ later spec knows what exists without reading the diff.
   clean; `go test ./internal/validate/ -run
   TestRun_CriterionCoverageWarnsAndErrors -v` PASS; `go run . validate` as
   above (exit 0).
-- [ ] Phase 5 — Templates, roles and docs. Moves: AC5. Where:
+- [x] Phase 5 — Templates, roles and docs. Moves: AC5. Where:
   `kit/machine/templates/review.md`, `tasks.md`, `spec.md`, `docs/cli.md`,
   `docs/workflow.md`, `kit/machine/roles/reviewer.md`; tests in
   `internal/cli/machine_test.go`, `internal/cli/cli_test.go`.
+  Landed: `review.md` keeps only the `| Criterion | Result | Evidence |`
+  header live, moves its two example rows into an HTML comment as `ACn`, and
+  says evidence belongs under `## Acceptance criteria` (the only section
+  `forge check` reads). `tasks.md` asks each phase to name the criteria it
+  moves (`Moves: <criterion ids>`), in the intro and on both phase lines.
+  `spec.md`'s Acceptance criteria guidance names the three evidence kinds
+  (a backticked command, a `test`/`TestName`, an observable verb such as
+  `returns`/`refuses`) and says `forge approve` refuses the rest; its
+  `- AC1:`/`- AC2:` placeholders are left as declarations.
+  `docs/cli.md` gains `forge check [id]` under "Seeing the state" (one `no
+  task`/`no evidence` line per gap, exit 1 only for an evidence gap on
+  `reviewing`/`done`, writes nothing), the `forge approve` paragraph states
+  the verifiable rule, and the `forge validate` paragraph gains the coverage
+  warning/error. `docs/workflow.md`'s `## Acceptance criteria` names
+  `forge approve`, `forge check` and `forge validate`.
+  `kit/machine/roles/reviewer.md` runs `forge check <id>` before reviewing
+  and requires an evidence line per criterion under the heading.
+  Tests added: `TestTemplates_CarryNoRealCriterionId` in
+  `internal/cli/machine_test.go` reads `kit.Template("tasks"|"review")`,
+  asserts no `\bAC\d+\b`, the `Moves:` anchor and the commented `ACn`
+  example; `TestDocPages_DocumentTheCriterionRule` in
+  `internal/cli/cli_test.go` scopes to the `forge check` and `forge approve`
+  sections with `docsSection`, checks the `no task`/`no evidence`/
+  `verifiable` anchors, names `forge check` in `docs/workflow.md`, and calls
+  the extracted `assertNoStateMachine` over the machine files this phase
+  touched (the SPEC-018 scan extended). The existing
+  `TestDocs_DoNotRestateTheStateMachine` was refactored to share that helper
+  with no behaviour change.
+  Contract correction: the phase scope's example line "(one line per
+  criterion naming it (`AC1`, ...))" would have written a literal `AC1` into
+  the live `## Acceptance criteria` section, the exact false-coverage trap
+  this phase exists to close, and would fail the new test; the guidance says
+  `ACn`. The plan's Done condition "no shipped template carries a literal
+  `\bAC\d+\b`" cannot hold for `spec.md`, whose `- AC1:`/`- AC2:` lines are
+  criterion *declarations*, not coverage, and are replaced verbatim by six
+  existing tests; the contract's own test scopes the scan to `forge template
+  tasks` and `forge template review`, which is what shipped.
+  Verified: `go test ./...` all `ok`; `gofmt -l .` empty; `go vet ./...`
+  clean; `go test ./internal/cli/ -run
+  "TestTemplates_CarryNoRealCriterionId|TestDocPages_DocumentTheCriterionRule|TestDocs_DoNotRestateTheStateMachine"
+  -v` all PASS; `go run . check` prints SPEC-015's five task gaps and exits
+  0; `go run . validate` prints five warnings and exits 0; `go run .
+  template tasks` shows `Moves: <criterion ids>`, `go run . template
+  review` shows the commented `ACn` example.
 
 ## Proposed conventions
 
@@ -151,3 +195,18 @@ later spec knows what exists without reading the diff.
   live in one place (the same single-source rule SPEC-018 enforced for the
   workflow). A later rule over the same artifacts should reuse the
   `internal/project` derivation rather than grow a second reader.
+- **A shipped template carries a placeholder that cannot match the token the
+  CLI derives from the file.** `review.md`/`tasks.md` write `ACn` and
+  `<criterion ids>` because a literal `AC1` in a copied file reads as covered
+  by `forge check` even when the author edits nothing —
+  `TestTemplates_CarryNoRealCriterionId` enforces it for both. This is
+  SPEC-019's "comment out the example" principle generalized: every example a
+  template ships must be inert to every reader, not just to `forge archive`.
+  A declaration that is *supposed* to be real (`spec.md`'s `- AC1: ...`) is
+  the exception, and its cost is that a test cannot scan the whole template
+  set for the token.
+- **A docs test scopes to the command's section and asserts stable anchors,
+  not whole sentences.** `TestDocPages_DocumentTheCriterionRule` uses
+  `docsSection` and checks the command name, the two gap words and
+  `verifiable`; the wording around them can change without breaking the
+  test, and a missing section fails loudly.

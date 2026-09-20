@@ -14,7 +14,10 @@ What hurts today, in one paragraph. Not the solution.
 ## Acceptance criteria
 
 Observable outcomes. Someone else must be able to mark each one pass or
-fail with evidence.
+fail with evidence. A criterion is verifiable when it names the evidence that
+settles it: a backticked command, a `test`/`TestName`, or an observable verb
+such as `returns`/`refuses`. `forge approve` refuses while a criterion names
+none of those, so write it before approval.
 
 - AC1: ...
 - AC2: ...

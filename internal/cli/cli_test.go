@@ -1328,18 +1328,12 @@ func TestDocs_DescribeCapabilities(t *testing.T) {
 	}
 }
 
-// The pages an agent or a person reads must not keep a second copy of the
-// state machine: an arrow chain between two states, or a table row whose first
-// cell is a state. The names come from the binary, so a page cannot keep a
-// list that diverged from it (AC1, AC5).
-func TestDocs_DoNotRestateTheStateMachine(t *testing.T) {
-	pages := []string{"../../AGENTS.md", "../../kit/AGENTS.md", "../../README.md"}
-	docs, err := filepath.Glob("../../docs/*.md")
-	if err != nil {
-		t.Fatal(err)
-	}
-	pages = append(pages, docs...)
-
+// assertNoStateMachine fails when a page keeps a second copy of the state
+// machine: an arrow chain between two states, or a table row whose first cell
+// is a state. The names come from the binary, so a page cannot keep a list
+// that diverged from it (AC1, AC5).
+func assertNoStateMachine(t *testing.T, pages []string) {
+	t.Helper()
 	names := make([]string, 0, len(workflow.All()))
 	for _, s := range workflow.All() {
 		names = append(names, regexp.QuoteMeta(string(s)))
@@ -1357,6 +1351,18 @@ func TestDocs_DoNotRestateTheStateMachine(t *testing.T) {
 			t.Errorf("%s restates the state machine as a table row: %q", page, m)
 		}
 	}
+}
+
+// The pages an agent or a person reads must not keep a second copy of the
+// state machine (AC1, AC5).
+func TestDocs_DoNotRestateTheStateMachine(t *testing.T) {
+	pages := []string{"../../AGENTS.md", "../../kit/AGENTS.md", "../../README.md"}
+	docs, err := filepath.Glob("../../docs/*.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pages = append(pages, docs...)
+	assertNoStateMachine(t, pages)
 }
 
 // No reader-facing page keeps a retired state name: the docs carry the name
@@ -1386,6 +1392,47 @@ func TestDocs_WorkflowPointsAtForgeWorkflow(t *testing.T) {
 	if !strings.Contains(read(t, "../../docs/workflow.md"), "forge workflow") {
 		t.Error("docs/workflow.md should point at `forge workflow` for the states and transitions")
 	}
+}
+
+// `forge check` is a documented command and `forge approve` states the
+// criterion rule, so a reader knows a vague criterion cannot be approved and
+// an uncovered one is reported. The anchors are the command name, the two gap
+// words and `verifiable`, not whole sentences. The state-machine scan is
+// extended to the machine files this spec touches (SPEC-021, decision 4; AC5).
+func TestDocPages_DocumentTheCriterionRule(t *testing.T) {
+	cli := read(t, "../../docs/cli.md")
+
+	check := docsSection(cli, "### `forge check")
+	if check == "" {
+		t.Fatal("docs/cli.md should document `forge check`")
+	}
+	if !strings.Contains(check, "forge check") {
+		t.Errorf("the forge check section should name the command:\n%s", check)
+	}
+	for _, want := range []string{"no task", "no evidence"} {
+		if !strings.Contains(check, want) {
+			t.Errorf("the forge check section should name a %q gap:\n%s", want, check)
+		}
+	}
+
+	approve := docsSection(cli, "### `forge approve")
+	if approve == "" {
+		t.Fatal("docs/cli.md should document `forge approve`")
+	}
+	if !strings.Contains(approve, "verifiable") {
+		t.Errorf("the forge approve section should state the criterion rule:\n%s", approve)
+	}
+
+	if !strings.Contains(read(t, "../../docs/workflow.md"), "forge check") {
+		t.Error("docs/workflow.md should name `forge check` beside the acceptance-criteria rule")
+	}
+
+	assertNoStateMachine(t, []string{
+		"../../kit/machine/templates/review.md",
+		"../../kit/machine/templates/tasks.md",
+		"../../kit/machine/templates/spec.md",
+		"../../kit/machine/roles/reviewer.md",
+	})
 }
 
 // `forge start` creates the spec folder and records fingerprints; planning
